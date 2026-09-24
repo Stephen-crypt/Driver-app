@@ -1,12 +1,22 @@
-// Single import point for the domain core. The fare and commission arithmetic
-// has exactly one implementation, in packages/core, which is dependency-free
-// specifically so Deno can run it unchanged.
+// Runtime values come from the generated bundle, which lives inside the
+// directory supabase functions serve mounts into its container.
+//
+// Types are declared in the sibling core.bundle.d.ts, not imported from
+// @gera/core directly: supabase functions serve's dependency-graph builder
+// resolves type-only imports/exports too (it does not erase them before
+// deciding what to fetch), so even `export type {...} from "@gera/core"`
+// fails to boot inside the container exactly like a value import would -
+// packages/core lives outside the directory it mounts. core_test.ts checks
+// core.bundle.d.ts stays structurally identical to packages/core's real
+// types, so this can never quietly drift.
+// @deno-types="./core.bundle.d.ts"
 export {
   quoteFare,
   buildReceipt,
   commissionFor,
   roundFareRwf,
   VEHICLE_CLASSES,
-} from "@gera/core";
-
-export type { FarePolicy, VehicleClass, Receipt } from "@gera/core";
+  type FarePolicy,
+  type VehicleClass,
+  type Receipt,
+} from "./core.bundle.js";
