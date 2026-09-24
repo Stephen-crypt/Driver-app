@@ -25,29 +25,26 @@ export default function DetailsScreen() {
       return;
     }
 
-    const { error: profileError } = await supabase.from("profiles").insert({
-      id: auth.user.id,
-      role: "driver",
-      first_name: name.trim(),
-      phone: auth.user.phone ?? "",
+    // One atomic call. Three separate inserts were not a transaction: a failure
+    // after the first one left the driver wedged, unable to retry and unable to
+    // skip the step that had already committed.
+    const { error: registerError } = await supabase.rpc("register_driver", {
+      p_first_name: name.trim(),
+      p_phone: auth.user.phone ?? "",
+      p_licence: licence.trim(),
+      p_plate: plate.trim().toUpperCase(),
+      p_vest: vest.trim() || null,
+      p_class: vehicleClass,
     });
-    if (profileError) return setError(profileError.message);
 
-    const { error: driverError } = await supabase.from("drivers").insert({
-      id: auth.user.id,
-      licence_number: licence.trim(),
-      verification: "submitted",
-    });
-    if (driverError) return setError(driverError.message);
-
-    const { error: vehicleError } = await supabase.from("vehicles").insert({
-      driver_id: auth.user.id,
-      class: vehicleClass,
-      plate: plate.trim().toUpperCase(),
-      vest_number: vest.trim() || null,
-      is_active: false,
-    });
-    if (vehicleError) return setError(vehicleError.message);
+    if (registerError) {
+      setError(
+        registerError.code === "23505"
+          ? "Those details are already registered to another account."
+          : "We could not submit your details. Check your connection and try again.",
+      );
+      return;
+    }
 
     router.replace("/onboarding/pending");
   }
