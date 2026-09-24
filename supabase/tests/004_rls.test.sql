@@ -70,13 +70,18 @@ select is(
   'rider A cannot read the driver profile before a trip is accepted'
 );
 
--- RLS denies an UPDATE by making the row invisible, not by raising. So the
--- statement succeeds, touches nothing, and the assertion that matters is that
--- the state did not move.
-select lives_ok(
+-- This asserted a lives_ok until 0015: RLS denies an UPDATE by making the row
+-- invisible rather than by raising, so the statement used to succeed and touch
+-- nothing. That was a true description of the system until the UPDATE privilege
+-- itself was revoked, and the privilege check runs BEFORE RLS is consulted - so
+-- the denial now happens a layer earlier and loudly. A test asserting an
+-- obsolete truth is worse than no test. The partner assertion below is the one
+-- that always mattered, and it is unchanged.
+select throws_ok(
   $$ update public.trips set state = 'completed'
       where id = 'aaaaaaaa-0000-0000-0000-000000000001' $$,
-  'a direct state update raises no error'
+  '42501', null,
+  'a direct state update is refused at the privilege layer'
 );
 
 select is(
