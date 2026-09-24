@@ -94,6 +94,12 @@ select throws_ok(
   'no client can mint ledger entries'
 );
 
+-- Both inserts below are now refused at the GRANT layer rather than by a policy:
+-- 0014 revoked INSERT on trips from anon and authenticated outright, because the
+-- policy could only ever constrain the columns someone remembered to name, and
+-- the price columns added in Task 7 were never added to it. 011 covers that
+-- directly; these two stay because the properties they assert must hold however
+-- the table is protected.
 select throws_ok(
   $$ insert into public.trips
        (rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
