@@ -1,5 +1,5 @@
 begin;
-select plan(4);
+select plan(6);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000',
@@ -19,6 +19,19 @@ select lives_ok(
   $$ insert into public.ledger_entries (driver_id, kind, amount_rwf)
      values ('dddddddd-0000-0000-0000-000000000001', 'commission_debit', 300) $$,
   'appending a new entry is allowed'
+);
+
+select throws_ok(
+  $$ truncate public.ledger_entries $$,
+  '42501', null,
+  'the ledger cannot be truncated, even as superuser'
+);
+
+select ok(
+  not has_table_privilege('service_role', 'public.ledger_entries', 'TRUNCATE')
+  and not has_table_privilege('anon', 'public.ledger_entries', 'TRUNCATE')
+  and not has_table_privilege('authenticated', 'public.ledger_entries', 'TRUNCATE'),
+  'no API role holds TRUNCATE on the ledger'
 );
 
 select throws_ok(
