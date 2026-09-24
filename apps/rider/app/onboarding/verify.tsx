@@ -7,24 +7,33 @@ import { supabase } from "../../src/lib/supabase";
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const params = useLocalSearchParams<{ phone?: string | string[] }>();
+  const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone;
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
   async function submit() {
     setError(null);
+    if (!phone) {
+      setError("We lost your number. Go back and enter it again.");
+      return;
+    }
+    setBusy(true);
     try {
       await verifyOtp(supabase, phone, code);
       router.replace("/onboarding/name");
     } catch {
       setError("That code didn't work. Try again.");
+    } finally {
+      setBusy(false);
     }
   }
 
   return (
     <View style={styles.root}>
       <Text style={styles.title}>Enter the code</Text>
-      <Text style={styles.sub}>Sent to {phone}</Text>
+      <Text style={styles.sub}>{phone ? `Sent to ${phone}` : "Enter the code we sent you"}</Text>
 
       <TextInput
         style={styles.input}
@@ -37,8 +46,8 @@ export default function VerifyScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.cta} onPress={submit}>
-        <Text style={styles.ctaText}>Verify</Text>
+      <Pressable style={[styles.cta, busy && styles.ctaBusy]} onPress={submit} disabled={busy}>
+        <Text style={styles.ctaText}>{busy ? "Checking…" : "Verify"}</Text>
       </Pressable>
     </View>
   );
@@ -72,5 +81,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  ctaBusy: { opacity: 0.6 },
   ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: lightTheme.onAccent },
 });
