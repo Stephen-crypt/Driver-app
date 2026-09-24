@@ -9,6 +9,7 @@ const MOTO: FarePolicy = {
   perKmRwf: 250,
   perMinuteRwf: 20,
   minimumRwf: 700,
+  commissionPct: 15,
 };
 
 describe("roundFareRwf", () => {
