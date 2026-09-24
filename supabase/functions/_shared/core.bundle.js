@@ -199,7 +199,7 @@ function finalizeFare(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
   if (actualDistanceMetres < 0) throw new Error("actualDistanceMetres must be >= 0");
   const bandEnd = quotedDistanceMetres * (1 + OVERAGE_TOLERANCE);
   const overageMetres = Math.max(0, Math.round(actualDistanceMetres - bandEnd));
-  const overageRwf = overageMetres === 0 ? 0 : roundFareRwf(overageMetres / 1e3 * policy.perKmRwf);
+  const overageRwf = overageMetres === 0 ? 0 : Math.ceil(overageMetres * policy.perKmRwf / 1e5) * 100;
   return {
     totalRwf: quotedRwf + overageRwf,
     quotedRwf,

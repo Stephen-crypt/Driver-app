@@ -21,7 +21,13 @@ import { commissionFor } from "../../src/ledger/commission";
  * the database it fails, and the message says how to bring it back.
  */
 
-const CONTAINER = "supabase_db_driver_app";
+/**
+ * The local database container. Its name is derived from the checkout's
+ * directory name, so a checkout named anything else - or a CI runner that
+ * reaches its database another way - must set GERA_DB_CONTAINER. The test stays
+ * mandatory either way; only where it looks is configurable.
+ */
+const CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 function psql(sql: string): string {
   try {
@@ -79,6 +85,12 @@ const CASES: readonly Case[] = [
   { name: "long cab detour, 20% commission", quotedRwf: 8000, quotedDistanceM: 12000, actualDistanceM: 20000, perKmRwf: 600, commissionPct: 20 },
   // A fare whose commission lands on a half franc: 15% of 1750 = 262.5.
   { name: "commission landing on a half franc", quotedRwf: 1750, quotedDistanceM: 4000, actualDistanceM: 4000, perKmRwf: 250, commissionPct: 15 },
+  // A rate at which the two copies USED to disagree. 1000 RWF/km with a 16100m
+  // overage (band ends at 4600m on a 4000m quote): the TypeScript divided by
+  // 1000 in binary floating point first and charged 16200, the exact-numeric SQL
+  // charged 16100. The seeded rates (250/600/800) are not affected, so only a
+  // case at a multiple of 125 catches it - which is why this one is here.
+  { name: "1000 RWF/km, the rate where float and numeric split", quotedRwf: 8000, quotedDistanceM: 4000, actualDistanceM: 20700, perKmRwf: 1000, commissionPct: 15 },
 ];
 
 function policyFor(c: Case): FarePolicy {
