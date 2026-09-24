@@ -57,4 +57,12 @@ describe("finalizeFare", () => {
       "actualDistanceMetres must be >= 0",
     );
   });
+
+  it("charges nothing at exactly the tolerance band edge", () => {
+    // 4000m x 1.15 = 4600m exactly - the last metre that is still free.
+    const f = finalizeFare(MOTO, 1700, 4000, 4600);
+    expect(f.overageMetres).toBe(0);
+    expect(f.overageRwf).toBe(0);
+    expect(f.totalRwf).toBe(1700);
+  });
 });

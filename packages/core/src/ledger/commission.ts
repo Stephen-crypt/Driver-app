@@ -13,7 +13,24 @@ export interface LedgerEntry {
   readonly amountRwf: number;
 }
 
-const CREDIT_KINDS: readonly LedgerEntryKind[] = ["topup_credit", "adjustment_credit"];
+/**
+ * Exhaustive by construction: adding a LedgerEntryKind without classifying it
+ * here is a compile error, not a silent debit.
+ */
+function isCredit(kind: LedgerEntryKind): boolean {
+  switch (kind) {
+    case "topup_credit":
+    case "adjustment_credit":
+      return true;
+    case "commission_debit":
+    case "adjustment_debit":
+      return false;
+    default: {
+      const unhandled: never = kind;
+      throw new Error(`unhandled ledger entry kind: ${String(unhandled)}`);
+    }
+  }
+}
 
 export function commissionFor(fareRwf: number, ratePercent: number): number {
   if (ratePercent < 0 || ratePercent > 100) {
@@ -25,7 +42,7 @@ export function commissionFor(fareRwf: number, ratePercent: number): number {
 export function balanceOf(entries: readonly LedgerEntry[]): number {
   return entries.reduce((total, entry) => {
     if (entry.amountRwf < 0) throw new Error("amountRwf must be >= 0");
-    return CREDIT_KINDS.includes(entry.kind)
+    return isCredit(entry.kind)
       ? total + entry.amountRwf
       : total - entry.amountRwf;
   }, 0);

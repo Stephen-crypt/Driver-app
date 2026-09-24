@@ -26,6 +26,11 @@ describe("commissionFor", () => {
     expect(() => commissionFor(2000, -1)).toThrow("ratePercent must be between 0 and 100");
     expect(() => commissionFor(2000, 101)).toThrow("ratePercent must be between 0 and 100");
   });
+
+  it("accepts the boundary rates", () => {
+    expect(commissionFor(2000, 0)).toBe(0);
+    expect(commissionFor(2000, 100)).toBe(2000);
+  });
 });
 
 describe("balanceOf", () => {
@@ -63,6 +68,17 @@ describe("balanceOf", () => {
     expect(() => balanceOf([{ kind: "topup_credit", amountRwf: -1 }])).toThrow(
       "amountRwf must be >= 0",
     );
+  });
+
+  it("classifies every ledger entry kind", () => {
+    expect(
+      balanceOf([
+        { kind: "topup_credit", amountRwf: 1000 },
+        { kind: "adjustment_credit", amountRwf: 100 },
+        { kind: "commission_debit", amountRwf: 400 },
+        { kind: "adjustment_debit", amountRwf: 50 },
+      ]),
+    ).toBe(650);
   });
 });
 
