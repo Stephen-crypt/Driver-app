@@ -1,5 +1,5 @@
 begin;
-select plan(8);
+select plan(20);
 
 -- trip_transition() is the branch's headline invariant: the only sanctioned way
 -- a trip's state may move. It is security definer and owned by a role that
@@ -41,6 +41,37 @@ values (
   st_point(30.0619, -1.9441)::geography, 'Kimironko Market',
   'blue gate opposite the pharmacy',
   st_point(30.0588, -1.9536)::geography, 'Kigali Heights'
+);
+
+-- A second trip, still unassigned, for the system edges. requested -> offered
+-- is dispatch's first move and has no human actor at all.
+insert into public.trips
+  (id, rider_id, vehicle_class, state,
+   pickup, pickup_label, dropoff, dropoff_label)
+values (
+  'aaaaaaaa-0000-0000-0000-000000000002',
+  '11111111-1111-1111-1111-111111111111',
+  'moto',
+  'requested',
+  st_point(30.0619, -1.9441)::geography, 'Kimironko Market',
+  st_point(30.0588, -1.9536)::geography, 'Kigali Heights'
+);
+
+-- A third trip, never transitioned, reserved for the projection guard. Its
+-- timestamps are seeded stale on purpose: now() is frozen for the whole
+-- transaction, so a freshly inserted row could not show updated_at advancing.
+insert into public.trips
+  (id, rider_id, vehicle_class, state,
+   pickup, pickup_label, dropoff, dropoff_label, created_at, updated_at)
+values (
+  'aaaaaaaa-0000-0000-0000-000000000003',
+  '11111111-1111-1111-1111-111111111111',
+  'moto',
+  'requested',
+  st_point(30.0619, -1.9441)::geography, 'Kimironko Market',
+  st_point(30.0588, -1.9536)::geography, 'Kigali Heights',
+  timestamptz '2000-01-01 00:00:00+00',
+  timestamptz '2000-01-01 00:00:00+00'
 );
 
 -- Act as the driver who was offered the trip.
@@ -120,6 +151,128 @@ select is(
     where trip_id = 'aaaaaaaa-0000-0000-0000-000000000001'),
   1,
   'the refused calls journalled nothing'
+);
+
+-- Back to the superuser session the test harness starts in. Everything below
+-- runs at service-role-equivalent privilege on purpose: RLS is not the boundary
+-- under test here, and RLS would hide the failures rather than show them - a
+-- denied UPDATE matches zero rows and raises nothing, so a guard that never
+-- fired would look identical to a guard that worked.
+reset role;
+
+-- 9. A system edge is reachable at all. Before trip_transition_system() the
+--    four dispatch edges had no sanctioned caller, because trip_transition()
+--    derives its actor from auth.uid() and can only ever produce rider/driver.
+select is(
+  (select state::text from public.trip_transition_system(
+     'aaaaaaaa-0000-0000-0000-000000000002', 'offered', 'key-dispatch-1')),
+  'offered',
+  'dispatch can move requested -> offered as the system actor'
+);
+
+select is(
+  (select state::text from public.trips
+    where id = 'aaaaaaaa-0000-0000-0000-000000000002'),
+  'offered',
+  'and the projection on trips moved with it'
+);
+
+-- 10. The journal records a non-person. actor_id stays null because
+--     trip_events.actor_id references profiles and dispatch has no row there;
+--     a dispatcher run id belongs in meta. Aggregating rather than counting
+--     asserts BOTH that there is exactly one row and what is in it.
+select is(
+  (select array_agg(actor::text || ':' || coalesce(actor_id::text, 'null'))
+     from public.trip_events
+    where trip_id = 'aaaaaaaa-0000-0000-0000-000000000002'),
+  array['system:null'],
+  'exactly one event, journalled as system with no actor_id'
+);
+
+-- 11. Idempotency has to hold here at least as strongly as on the human path:
+--     a dispatcher retrying after a dropped response is the common case, not
+--     the exceptional one.
+select lives_ok(
+  $$ select public.trip_transition_system(
+       'aaaaaaaa-0000-0000-0000-000000000002', 'offered', 'key-dispatch-1') $$,
+  'replaying a system idempotency key does not raise'
+);
+
+select is(
+  (select count(*)::int from public.trip_events
+    where trip_id = 'aaaaaaaa-0000-0000-0000-000000000002'),
+  1,
+  'and the replay writes no second trip_events row'
+);
+
+-- 12. The rule table binds the system actor exactly as it binds the others.
+--     requested -> completed is nobody's edge, service_role included.
+select throws_ok(
+  $$ select public.trip_transition_system(
+       'aaaaaaaa-0000-0000-0000-000000000003', 'completed', 'key-dispatch-2') $$,
+  '23514', null,
+  'the system actor is bound by the rule table like any other'
+);
+
+-- 13. Who may drive a system edge. This is the whole reason the system actor is
+--     a separate function rather than a parameter on trip_transition(): with no
+--     actor argument there is no branch for a caller to steer, so the only
+--     remaining lever is EXECUTE, and EXECUTE is what these three assert.
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'public.trip_transition_system(uuid,trip_state,text,jsonb)', 'EXECUTE'),
+  'no signed-in user may drive a system edge'
+);
+
+select ok(
+  not has_function_privilege(
+    'anon',
+    'public.trip_transition_system(uuid,trip_state,text,jsonb)', 'EXECUTE'),
+  'and certainly no unauthenticated caller'
+);
+
+select ok(
+  has_function_privilege(
+    'service_role',
+    'public.trip_transition_system(uuid,trip_state,text,jsonb)', 'EXECUTE'),
+  'service_role, which dispatch runs as, can'
+);
+
+-- 14. The projection guard. trips.state is documented as derivable from the
+--     event log, but RLS alone never enforced that: service_role bypasses RLS,
+--     and dispatch and the ops console both run as service_role. This is the
+--     assertion that makes the invariant structural rather than customary.
+--
+--     It doubles as proof that both transition functions put the in_transition
+--     flag back after their update: set_config's transaction scope means a flag
+--     left raised by assertion 9 above would still be raised here, and this
+--     would not throw.
+select throws_ok(
+  $$ update public.trips set state = 'completed'
+      where id = 'aaaaaaaa-0000-0000-0000-000000000003' $$,
+  '42501', null,
+  'a direct state write is refused even at service-role privilege'
+);
+
+-- 15. And it must not over-fire. Completion writes actual_distance_m through an
+--     ordinary update; a guard that blocked every write to trips would just
+--     move the problem.
+select lives_ok(
+  $$ update public.trips set actual_distance_m = 4200
+      where id = 'aaaaaaaa-0000-0000-0000-000000000003' $$,
+  'an update that leaves state alone is untouched by the guard'
+);
+
+-- 16. The same trigger maintains updated_at, which nothing had been doing.
+--     The row was seeded with a stale timestamp because now() is frozen for the
+--     transaction: comparing against a fresh insert would compare now() to now().
+select cmp_ok(
+  (select updated_at from public.trips
+    where id = 'aaaaaaaa-0000-0000-0000-000000000003'),
+  '>',
+  timestamptz '2000-01-02 00:00:00+00',
+  'and it refreshes updated_at, which previously went stale'
 );
 
 select * from finish();
