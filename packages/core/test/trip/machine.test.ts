@@ -85,3 +85,48 @@ describe("the negative matrix", () => {
     expect(canTransition("in_progress", "cancelled_by_rider", "rider")).toBe(false);
   });
 });
+
+describe("the table itself", () => {
+  // Written out by hand, deliberately NOT derived from TRANSITIONS: this is the
+  // only assertion that fails if an entry in the table is itself wrong, rather
+  // than folding the error into the matrix's own baseline.
+  const EXPECTED_EDGES = [
+    "requested>offered>system",
+    "requested>no_drivers>system",
+    "requested>cancelled_by_rider>rider",
+    "offered>offered>system",
+    "offered>accepted>driver",
+    "offered>expired>system",
+    "offered>no_drivers>system",
+    "offered>cancelled_by_rider>rider",
+    "accepted>arrived>driver",
+    "accepted>cancelled_by_rider>rider",
+    "accepted>cancelled_by_driver>driver",
+    "accepted>offered>system",
+    "arrived>in_progress>driver",
+    "arrived>cancelled_by_rider>rider",
+    "arrived>cancelled_by_driver>driver",
+    "in_progress>completed>driver",
+  ].sort();
+
+  it("contains exactly the sixteen intended edges and no others", () => {
+    const actual = TRANSITIONS.flatMap((r) =>
+      r.actors.map((a) => `${r.from}>${r.to}>${a}`),
+    ).sort();
+    expect(actual).toEqual(EXPECTED_EDGES);
+  });
+
+  it("permits every intended edge", () => {
+    for (const edge of EXPECTED_EDGES) {
+      const [from, to, actor] = edge.split(">") as [TripState, TripState, Actor];
+      expect(canTransition(from, to, actor), edge).toBe(true);
+    }
+  });
+
+  it("moves to the expected state on every intended edge", () => {
+    for (const edge of EXPECTED_EDGES) {
+      const [from, to, actor] = edge.split(">") as [TripState, TripState, Actor];
+      expect(applyTransition(from, to, actor), edge).toEqual({ ok: true, state: to });
+    }
+  });
+});
