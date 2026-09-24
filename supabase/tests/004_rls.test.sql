@@ -1,5 +1,5 @@
 begin;
-select plan(11);
+select plan(15);
 
 -- Two riders and one driver, created directly so we control the ids.
 -- instance_id/aud/role are supplied explicitly: auth.users has no defaults for
@@ -13,7 +13,10 @@ insert into auth.users (instance_id, id, aud, role, email) values
    'authenticated', 'authenticated', 'rider.b@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '33333333-3333-3333-3333-333333333333',
-   'authenticated', 'authenticated', 'driver.c@test.local');
+   'authenticated', 'authenticated', 'driver.c@test.local'),
+  ('00000000-0000-0000-0000-000000000000',
+   '44444444-4444-4444-4444-444444444444',
+   'authenticated', 'authenticated', 'newcomer.d@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
   ('11111111-1111-1111-1111-111111111111', 'rider',  'Aline', '+250700000001'),
@@ -86,6 +89,34 @@ select throws_ok(
   'no client can mint ledger entries'
 );
 
+select throws_ok(
+  $$ insert into public.trips
+       (rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+     values ('11111111-1111-1111-1111-111111111111', 'moto', 'completed',
+             st_point(30.0619, -1.9441)::geography, 'A',
+             st_point(30.0588, -1.9536)::geography, 'B') $$,
+  '42501', null,
+  'a rider cannot insert a trip that is already completed'
+);
+
+select throws_ok(
+  $$ insert into public.trips
+       (rider_id, driver_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+     values ('11111111-1111-1111-1111-111111111111',
+             '33333333-3333-3333-3333-333333333333', 'moto', 'requested',
+             st_point(30.0619, -1.9441)::geography, 'A',
+             st_point(30.0588, -1.9536)::geography, 'B') $$,
+  '42501', null,
+  'a rider cannot self-assign a driver, bypassing dispatch'
+);
+
+select throws_ok(
+  $$ insert into public.trip_transition_rules (from_state, to_state, actor)
+     values ('requested', 'completed', 'rider') $$,
+  '42501', null,
+  'a client cannot rewrite the trip state machine rules'
+);
+
 -- Act as rider B.
 set local request.jwt.claims to
   '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
@@ -126,6 +157,17 @@ select is(
     where id = '11111111-1111-1111-1111-111111111111'),
   0,
   'a driver cannot read rider contact details before accepting'
+);
+
+-- Act as a brand-new user with no profile row yet.
+set local request.jwt.claims to
+  '{"sub":"44444444-4444-4444-4444-444444444444","role":"authenticated"}';
+
+select throws_ok(
+  $$ insert into public.profiles (id, role, first_name, phone)
+     values ('44444444-4444-4444-4444-444444444444', 'ops', 'Mallory', '+250700000004') $$,
+  '42501', null,
+  'a new user cannot register themselves as ops'
 );
 
 select * from finish();

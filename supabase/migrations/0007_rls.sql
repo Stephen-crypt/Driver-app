@@ -11,6 +11,7 @@ alter table public.fare_quotes       enable row level security;
 alter table public.ledger_entries    enable row level security;
 alter table public.saved_places      enable row level security;
 alter table public.landmarks         enable row level security;
+alter table public.trip_transition_rules enable row level security;
 
 -- True while the two users are counterparties on a trip that is live.
 create or replace function public.shares_active_trip(p_other uuid)
@@ -41,7 +42,7 @@ create policy profiles_update_self on public.profiles
   for update using (id = auth.uid()) with check (id = auth.uid());
 
 create policy profiles_insert_self on public.profiles
-  for insert with check (id = auth.uid());
+  for insert with check (id = auth.uid() and role in ('rider', 'driver'));
 
 -- drivers / vehicles: owned by the driver. Verification is ops-only, so no
 -- update policy is granted to the driver on `verification`.
@@ -125,3 +126,12 @@ create policy ledger_select_own on public.ledger_entries
 
 create policy saved_places_owner_all on public.saved_places
   for all using (rider_id = auth.uid()) with check (rider_id = auth.uid());
+
+-- The state machine's own rule table. The rules are not secret - they ship in the
+-- client bundle too - but they must be READ-ONLY to clients. A client that could
+-- write here could add an illegal edge and then drive trip_transition(), which is
+-- security definer, straight through it.
+create policy trip_transition_rules_read_all on public.trip_transition_rules
+  for select using (true);
+
+revoke insert, update, delete, truncate on public.trip_transition_rules from anon, authenticated;
