@@ -5,7 +5,8 @@
   "scripts": {
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
-    "verify": "pnpm -r typecheck && pnpm -r test",
+    "test:functions": "deno test --allow-read --allow-run --config supabase/functions/deno.json supabase/functions/",
+    "verify": "pnpm -r typecheck && pnpm -r test && pnpm test:functions",
     "bundle:core": "node scripts/bundle-core.mjs",
     "e2e": "node scripts/e2e-trip-loop.mjs"
   },
