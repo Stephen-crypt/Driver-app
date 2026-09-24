@@ -2,11 +2,17 @@
 const MOBILE_PREFIXES = ["72", "73", "78", "79"] as const;
 
 /**
- * Accepts 0788123456, 788123456, 250788123456, +250788123456 (with any
- * spacing or dashes) and returns strict E.164. Throws on anything else.
+ * Accepts 0788123456, 788123456, 250788123456, +250788123456 and
+ * 00250788123456 (with any spacing or dashes) and returns strict E.164.
+ * Throws on anything else.
  */
 export function normaliseRwandanPhone(input: string): string {
-  const digits = input.replace(/[^\d]/g, "");
+  let digits = input.replace(/[^\d]/g, "");
+
+  // `00` is the international access prefix still dialled on many networks and
+  // handsets; it means exactly what a leading `+` means. No local Rwandan
+  // format starts with two zeros, so stripping it here is unambiguous.
+  if (digits.startsWith("00")) digits = digits.slice(2);
 
   let national: string;
   if (digits.length === 9) {

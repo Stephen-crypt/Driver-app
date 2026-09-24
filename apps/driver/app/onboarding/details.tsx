@@ -3,7 +3,17 @@ import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
 import { lightTheme, tokens } from "@gera/ui";
 import { VEHICLE_CLASSES, type VehicleClass } from "@gera/core";
+import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
+
+function normalisePhone(raw: string | undefined): string | null {
+  if (!raw) return null;
+  try {
+    return normaliseRwandanPhone(raw);
+  } catch {
+    return null;
+  }
+}
 
 export default function DetailsScreen() {
   const router = useRouter();
@@ -25,12 +35,23 @@ export default function DetailsScreen() {
       return;
     }
 
+    // Supabase Auth stores the phone digits-only (250788123456), but
+    // profiles.phone is E.164 by contract and its unique constraint cannot see
+    // that the two spellings are the same person. The old `?? ""` fallback was
+    // worse still: it claimed the unique empty-string slot for the first user
+    // whose session carried no phone, locking every later one out.
+    const phone = normalisePhone(auth.user.phone);
+    if (!phone) {
+      setError("We could not read your phone number. Start again.");
+      return;
+    }
+
     // One atomic call. Three separate inserts were not a transaction: a failure
     // after the first one left the driver wedged, unable to retry and unable to
     // skip the step that had already committed.
     const { error: registerError } = await supabase.rpc("register_driver", {
       p_first_name: name.trim(),
-      p_phone: auth.user.phone ?? "",
+      p_phone: phone,
       p_licence: licence.trim(),
       p_plate: plate.trim().toUpperCase(),
       p_vest: vest.trim() || null,

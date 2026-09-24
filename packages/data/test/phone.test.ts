@@ -14,6 +14,14 @@ describe("normaliseRwandanPhone", () => {
     expect(normaliseRwandanPhone("250788123456")).toBe("+250788123456");
   });
 
+  it("accepts the 00 international access prefix", () => {
+    expect(normaliseRwandanPhone("00250788123456")).toBe("+250788123456");
+  });
+
+  it("accepts the 00 prefix with spacing", () => {
+    expect(normaliseRwandanPhone("00 250 788 123 456")).toBe("+250788123456");
+  });
+
   it("passes through a correct E.164 number", () => {
     expect(normaliseRwandanPhone("+250788123456")).toBe("+250788123456");
   });
