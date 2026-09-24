@@ -1,5 +1,6 @@
 import { quoteFare, VEHICLE_CLASSES } from "../_shared/core.ts";
-import type { FarePolicy, VehicleClass } from "../_shared/core.ts";
+import type { VehicleClass } from "../_shared/core.ts";
+import { policyFromRow, type FarePolicyRow } from "../_shared/policy.ts";
 import { callerClient, serviceClient, json } from "../_shared/supabase.ts";
 
 const QUOTE_TTL_SECONDS = 120;
@@ -35,16 +36,15 @@ Deno.serve(async (req: Request) => {
     .rpc("current_fare_policy", { p_class: vehicleClass })
     .single();
 
-  if (policyError || !row) return json({ error: "no_fare_policy" }, 503);
-
-  const policy: FarePolicy = {
-    vehicleClass: row.vehicle_class,
-    baseRwf: row.base_rwf,
-    perKmRwf: row.per_km_rwf,
-    perMinuteRwf: row.per_minute_rwf,
-    minimumRwf: row.minimum_rwf,
-    commissionPct: Number(row.commission_pct),
-  };
+  // current_fare_policy() returns a COMPOSITE, so "no effective policy" arrives
+  // as one row of nulls, not as no rows: `policyError || !row` is false and the
+  // null rates coerce to 0, quoting every rider a free ride. A null id is the
+  // discriminator - see _shared/policy.ts.
+  const policyRow = row as FarePolicyRow | null;
+  const policy = policyFromRow(policyRow);
+  if (policyError || !policy || !policyRow) {
+    return json({ error: "no_fare_policy" }, 503);
+  }
 
   const amountRwf = quoteFare(policy, distanceM, durationS);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_SECONDS * 1000).toISOString();
@@ -53,7 +53,7 @@ Deno.serve(async (req: Request) => {
     .from("fare_quotes")
     .insert({
       rider_id: auth.user.id,
-      policy_id: row.id,
+      policy_id: policyRow.id,
       vehicle_class: vehicleClass,
       distance_m: Math.round(distanceM),
       duration_s: Math.round(durationS),
