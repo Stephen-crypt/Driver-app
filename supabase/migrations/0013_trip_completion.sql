@@ -31,16 +31,21 @@ begin
     raise exception 'trip_not_found' using errcode = 'P0002';
   end if;
 
+  -- Authorization BEFORE the idempotent early return. An unchecked early return
+  -- on a security-definer function hands the whole trip row - rider_id, both
+  -- labels, and the free-text pickup_note - to anyone who supplies a trip id and
+  -- a used idempotency key. Migration 0006 guards trip_transition() the same way
+  -- and for the same reason. Only the driver may complete a trip.
+  if v_trip.driver_id is null or v_trip.driver_id <> auth.uid() then
+    raise exception 'not_the_driver' using errcode = '42501';
+  end if;
+
   -- Idempotent: a replayed completion must not debit commission twice.
   if exists (
     select 1 from public.trip_events
      where trip_id = p_trip_id and idempotency_key = p_idempotency_key
   ) then
     return v_trip;
-  end if;
-
-  if v_trip.driver_id is null then
-    raise exception 'trip_has_no_driver' using errcode = '22023';
   end if;
 
   perform set_config('gera.in_transition', '1', true);

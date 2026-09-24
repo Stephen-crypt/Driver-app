@@ -1,15 +1,18 @@
 begin;
-select plan(8);
+select plan(10);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000001',
    'authenticated','authenticated','rider.f@test.local'),
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000002',
-   'authenticated','authenticated','driver.f@test.local');
+   'authenticated','authenticated','driver.f@test.local'),
+  ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000003',
+   'authenticated','authenticated','mallory.f@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
   ('ffffffff-0000-0000-0000-000000000001','rider','Aline','+250788000301'),
-  ('ffffffff-0000-0000-0000-000000000002','driver','Eric','+250788000302');
+  ('ffffffff-0000-0000-0000-000000000002','driver','Eric','+250788000302'),
+  ('ffffffff-0000-0000-0000-000000000003','rider','Mallory','+250788000303');
 
 insert into public.drivers (id, verification)
 values ('ffffffff-0000-0000-0000-000000000002','verified');
@@ -71,6 +74,31 @@ select is(
     where trip_id='bbbbbbbb-0000-0000-0000-000000000001'),
   1,
   'a replayed completion does NOT debit commission twice'
+);
+
+-- Neither the rider nor the driver: a non-participant replaying an already-used
+-- idempotency key must be refused before the idempotent early return can hand
+-- back the trip row.
+set local request.jwt.claims to
+  '{"sub":"ffffffff-0000-0000-0000-000000000003","role":"authenticated"}';
+
+select throws_ok(
+  $$ select public.complete_trip('bbbbbbbb-0000-0000-0000-000000000001',
+                                 0, 0, 0, 'complete-1') $$,
+  '42501', null,
+  'a non-participant replaying a used key is refused, not handed the trip row'
+);
+
+-- A participant, but the wrong one: the rider is on this trip, but only the
+-- driver may complete it.
+set local request.jwt.claims to
+  '{"sub":"ffffffff-0000-0000-0000-000000000001","role":"authenticated"}';
+
+select throws_ok(
+  $$ select public.complete_trip('bbbbbbbb-0000-0000-0000-000000000001',
+                                 4100, 1700, 255, 'complete-3') $$,
+  '42501', null,
+  'the rider cannot complete their own trip - only the driver can'
 );
 
 select throws_ok(
