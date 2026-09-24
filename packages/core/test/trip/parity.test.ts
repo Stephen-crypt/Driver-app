@@ -16,7 +16,7 @@ function migration(file: string): string {
 function quotedAfter(sql: string, marker: string): string[] {
   const tail = sql.split(marker)[1];
   expect(tail, `marker not found: ${marker}`).toBeDefined();
-  const group = tail!.split(")")[0];
+  const group = tail!.split(")")[0]!;
   return [...group.matchAll(/'(\w+)'/g)].map((m) => m[1]!);
 }
 
