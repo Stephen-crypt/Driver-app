@@ -6,7 +6,8 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "verify": "pnpm -r typecheck && pnpm -r test",
-    "bundle:core": "node scripts/bundle-core.mjs"
+    "bundle:core": "node scripts/bundle-core.mjs",
+    "e2e": "node scripts/e2e-trip-loop.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
