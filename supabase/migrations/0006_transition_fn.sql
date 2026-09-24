@@ -67,18 +67,21 @@ declare
   v_trip  public.trips;
   v_actor trip_actor;
 begin
+  -- Lock first: the lock is what makes the idempotency check below race-safe.
+  -- Checking before the lock lets two concurrent callers with the same key both
+  -- pass, and the loser then collides with the unique constraint instead of
+  -- returning a no-op.
+  select * into v_trip from public.trips where id = p_trip_id for update;
+  if not found then
+    raise exception 'trip_not_found' using errcode = 'P0002';
+  end if;
+
   -- Idempotent replay: a key already recorded for this trip is a no-op.
   if exists (
     select 1 from public.trip_events
      where trip_id = p_trip_id and idempotency_key = p_idempotency_key
   ) then
-    select * into v_trip from public.trips where id = p_trip_id;
     return v_trip;
-  end if;
-
-  select * into v_trip from public.trips where id = p_trip_id for update;
-  if not found then
-    raise exception 'trip_not_found' using errcode = 'P0002';
   end if;
 
   if v_trip.rider_id = auth.uid() then
@@ -110,3 +113,8 @@ $$;
 
 revoke all on function public.trip_transition(uuid, trip_state, text, jsonb) from public;
 grant execute on function public.trip_transition(uuid, trip_state, text, jsonb) to authenticated;
+
+revoke all on function public.is_terminal(trip_state) from public;
+revoke all on function public.is_legal_transition(trip_state, trip_state, trip_actor) from public;
+grant execute on function public.is_terminal(trip_state) to authenticated;
+grant execute on function public.is_legal_transition(trip_state, trip_state, trip_actor) to authenticated;
