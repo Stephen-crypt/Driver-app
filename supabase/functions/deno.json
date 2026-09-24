@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@gera/core": "../../packages/core/src/index.ts",
+    "@supabase/supabase-js": "npm:@supabase/supabase-js@2"
+  },
+  "unstable": ["sloppy-imports"]
+}
