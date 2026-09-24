@@ -66,5 +66,9 @@ create policy presence_owner_all on public.driver_presence
       select 1 from public.drivers d
        where d.id = auth.uid() and d.verification = 'verified'
     )
-    and public.can_go_online(auth.uid())
+    -- Spec 3.5 gates GOING online, not leaving. `with check` runs on every
+    -- update, so an unconditional balance test would strand a driver whose
+    -- commission debit dropped them under the minimum mid-shift: unable to go
+    -- offline, still sitting in the dispatch index.
+    and (status <> 'online' or public.can_go_online(auth.uid()))
   );
