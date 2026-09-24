@@ -1,0 +1,76 @@
+import { useState } from "react";
+import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { lightTheme, tokens } from "@gera/ui";
+import { verifyOtp } from "@gera/data";
+import { supabase } from "../../src/lib/supabase";
+
+export default function VerifyScreen() {
+  const router = useRouter();
+  const { phone } = useLocalSearchParams<{ phone: string }>();
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+
+  async function submit() {
+    setError(null);
+    try {
+      await verifyOtp(supabase, phone, code);
+      router.replace("/onboarding/details");
+    } catch {
+      setError("That code didn't work. Try again.");
+    }
+  }
+
+  return (
+    <View style={styles.root}>
+      <Text style={styles.title}>Enter the code</Text>
+      <Text style={styles.sub}>Sent to {phone}</Text>
+
+      <TextInput
+        style={styles.input}
+        value={code}
+        onChangeText={setCode}
+        keyboardType="number-pad"
+        maxLength={6}
+        autoFocus
+      />
+
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      <Pressable style={styles.cta} onPress={submit}>
+        <Text style={styles.ctaText}>Verify</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: lightTheme.surface, padding: tokens.space.lg },
+  title: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+    marginTop: tokens.space.xxl,
+  },
+  sub: { fontSize: tokens.type.body.size, color: lightTheme.textMuted, marginTop: tokens.space.sm },
+  input: {
+    marginTop: tokens.space.xl,
+    fontSize: tokens.type.display.size,
+    letterSpacing: 8,
+    color: lightTheme.textStrong,
+    borderBottomWidth: 2,
+    borderBottomColor: lightTheme.accent,
+    paddingVertical: tokens.space.sm,
+  },
+  error: { color: lightTheme.danger, marginTop: tokens.space.md },
+  cta: {
+    marginTop: "auto",
+    marginBottom: tokens.space.xl,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    backgroundColor: lightTheme.accent,
+    borderRadius: tokens.radius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: lightTheme.onAccent },
+});
