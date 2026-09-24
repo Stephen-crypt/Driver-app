@@ -27,6 +27,14 @@ Deno.serve(async (req: Request) => {
     return json({ error: "invalid_distance" }, 400);
   }
 
+  // Rounded ONCE, here, and used for both the receipt below and the RPC. The
+  // receipt used to be built from the raw value while the RPC got the rounded
+  // one, and since the wave the ledger derives its own figures from what the
+  // RPC was given: a trip quoted 1700 over 3478m with an actual of 4000.4
+  // receipted at 1800 (commission 270) while the ledger debited 255. One value,
+  // one price - the rider is shown what the driver is charged against.
+  const distanceM = Math.round(actualDistanceM);
+
   // Read the trip as the CALLER so RLS decides whether they may see it.
   const { data: trip, error: tripError } = await caller
     .from("trips")
@@ -62,7 +70,7 @@ Deno.serve(async (req: Request) => {
     policy,
     trip.quoted_amount_rwf,
     trip.quoted_distance_m ?? 0,
-    actualDistanceM,
+    distanceM,
   );
 
   // No amounts are passed. complete_trip() derives the total and the commission
@@ -74,7 +82,7 @@ Deno.serve(async (req: Request) => {
   const { data: completed, error: completeError } = await caller
     .rpc("complete_trip", {
       p_trip_id: tripId,
-      p_actual_distance_m: Math.round(actualDistanceM),
+      p_actual_distance_m: distanceM,
       p_idempotency_key: idempotencyKey,
     })
     .single();
