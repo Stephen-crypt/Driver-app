@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(17);
 
 -- Two riders and one driver, created directly so we control the ids.
 -- instance_id/aud/role are supplied explicitly: auth.users has no defaults for
@@ -16,15 +16,20 @@ insert into auth.users (instance_id, id, aud, role, email) values
    'authenticated', 'authenticated', 'driver.c@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '44444444-4444-4444-4444-444444444444',
-   'authenticated', 'authenticated', 'newcomer.d@test.local');
+   'authenticated', 'authenticated', 'newcomer.d@test.local'),
+  ('00000000-0000-0000-0000-000000000000',
+   '55555555-5555-5555-5555-555555555555',
+   'authenticated', 'authenticated', 'driver.e@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
   ('11111111-1111-1111-1111-111111111111', 'rider',  'Aline', '+250700000001'),
   ('22222222-2222-2222-2222-222222222222', 'rider',  'Bosco', '+250700000002'),
-  ('33333333-3333-3333-3333-333333333333', 'driver', 'Eric',  '+250700000003');
+  ('33333333-3333-3333-3333-333333333333', 'driver', 'Eric',  '+250700000003'),
+  ('55555555-5555-5555-5555-555555555555', 'driver', 'Fidele','+250700000005');
 
 insert into public.drivers (id, verification) values
-  ('33333333-3333-3333-3333-333333333333', 'verified');
+  ('33333333-3333-3333-3333-333333333333', 'verified'),
+  ('55555555-5555-5555-5555-555555555555', 'submitted');
 
 insert into public.trips
   (id, rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
@@ -157,6 +162,28 @@ select is(
     where id = '11111111-1111-1111-1111-111111111111'),
   0,
   'a driver cannot read rider contact details before accepting'
+);
+
+-- A verified driver may go online: this is the control for the denial below.
+select lives_ok(
+  $$ insert into public.driver_presence (driver_id, status, vehicle_class, position)
+     values ('33333333-3333-3333-3333-333333333333', 'online', 'moto',
+             st_point(30.0619, -1.9441)::geography) $$,
+  'a verified driver may enter the dispatch index'
+);
+
+-- Act as a driver whose paperwork is only submitted.
+set local request.jwt.claims to
+  '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}';
+
+-- Ownership alone would let an unvetted driver into
+-- driver_presence_dispatchable_idx, which is exactly what dispatch matches on.
+select throws_ok(
+  $$ insert into public.driver_presence (driver_id, status, vehicle_class, position)
+     values ('55555555-5555-5555-5555-555555555555', 'online', 'moto',
+             st_point(30.0619, -1.9441)::geography) $$,
+  '42501', null,
+  'an unverified driver cannot enter the dispatch index'
 );
 
 -- Act as a brand-new user with no profile row yet.

@@ -87,9 +87,20 @@ create policy trip_events_select_participant on public.trip_events
 create policy trip_offers_select_own on public.trip_offers
   for select using (driver_id = auth.uid());
 
--- Presence: a driver writes only their own row.
+-- Presence: a driver reads only their own row, and may only WRITE one once ops
+-- has verified them. Ownership alone is not enough: anyone can self-insert a
+-- 'submitted' drivers row, and an online presence row lands in
+-- driver_presence_dispatchable_idx, which is what dispatch matches against.
 create policy presence_owner_all on public.driver_presence
-  for all using (driver_id = auth.uid()) with check (driver_id = auth.uid());
+  for all
+  using (driver_id = auth.uid())
+  with check (
+    driver_id = auth.uid()
+    and exists (
+      select 1 from public.drivers d
+       where d.id = auth.uid() and d.verification = 'verified'
+    )
+  );
 
 create policy track_points_select_participant on public.trip_track_points
   for select using (
@@ -135,3 +146,9 @@ create policy trip_transition_rules_read_all on public.trip_transition_rules
   for select using (true);
 
 revoke insert, update, delete, truncate on public.trip_transition_rules from anon, authenticated;
+
+-- `anon` is named explicitly: Supabase grants execute on new public functions to
+-- anon through ALTER DEFAULT PRIVILEGES, which `from public` does not touch.
+-- This one is security definer, so an unauthenticated caller must not reach it.
+revoke all on function public.shares_active_trip(uuid) from public, anon;
+grant execute on function public.shares_active_trip(uuid) to authenticated;

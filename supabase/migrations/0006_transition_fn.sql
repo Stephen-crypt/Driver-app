@@ -25,6 +25,8 @@ insert into public.trip_transition_rules (from_state, to_state, actor) values
   ('arrived',     'cancelled_by_driver','driver'),
   ('in_progress', 'completed',          'driver');
 
+-- Mirror of TERMINAL_STATES in packages/core/src/trip/states.ts.
+-- Kept honest by packages/core/test/trip/parity.test.ts.
 create or replace function public.is_terminal(p_state trip_state)
 returns boolean
 language sql
@@ -76,20 +78,25 @@ begin
     raise exception 'trip_not_found' using errcode = 'P0002';
   end if;
 
-  -- Idempotent replay: a key already recorded for this trip is a no-op.
-  if exists (
-    select 1 from public.trip_events
-     where trip_id = p_trip_id and idempotency_key = p_idempotency_key
-  ) then
-    return v_trip;
-  end if;
-
+  -- Resolve the actor BEFORE the idempotent replay returns. This function is
+  -- security definer and owned by a role that bypasses RLS, so an early return
+  -- above this check would hand a whole trips row - rider_id, driver_id, pickup
+  -- and dropoff geography, and the pickup_note - to any caller who guessed a
+  -- trip id and an already-used idempotency key. See spec 3.6.
   if v_trip.rider_id = auth.uid() then
     v_actor := 'rider';
   elsif v_trip.driver_id = auth.uid() then
     v_actor := 'driver';
   else
     raise exception 'not_a_participant' using errcode = '42501';
+  end if;
+
+  -- Idempotent replay: a key already recorded for this trip is a no-op.
+  if exists (
+    select 1 from public.trip_events
+     where trip_id = p_trip_id and idempotency_key = p_idempotency_key
+  ) then
+    return v_trip;
   end if;
 
   if not public.is_legal_transition(v_trip.state, p_to, v_actor) then
@@ -111,10 +118,13 @@ begin
 end;
 $$;
 
-revoke all on function public.trip_transition(uuid, trip_state, text, jsonb) from public;
+-- `anon` is named explicitly: Supabase grants execute on new public functions to
+-- anon and authenticated through ALTER DEFAULT PRIVILEGES, which `from public`
+-- does not touch. Revoking from public alone leaves these callable unauthenticated.
+revoke all on function public.trip_transition(uuid, trip_state, text, jsonb) from public, anon;
 grant execute on function public.trip_transition(uuid, trip_state, text, jsonb) to authenticated;
 
-revoke all on function public.is_terminal(trip_state) from public;
-revoke all on function public.is_legal_transition(trip_state, trip_state, trip_actor) from public;
+revoke all on function public.is_terminal(trip_state) from public, anon;
+revoke all on function public.is_legal_transition(trip_state, trip_state, trip_actor) from public, anon;
 grant execute on function public.is_terminal(trip_state) to authenticated;
 grant execute on function public.is_legal_transition(trip_state, trip_state, trip_actor) to authenticated;
