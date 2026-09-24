@@ -66,4 +66,29 @@ describe("finalizeFare", () => {
     expect(f.overageRwf).toBe(0);
     expect(f.totalRwf).toBe(1700);
   });
+
+  // Observed, not endorsed. One metre past the band costs a whole 100 RWF,
+  // because the overage is priced and THEN rounded up to the next hundred, and
+  // rider-facing fares are always whole hundreds. It is a real cliff at the band
+  // edge: 4600m is free, 4601m is 100 RWF. Pinned here so that if the pricing
+  // rule is ever softened (say, by rounding the overage to the nearest hundred
+  // instead of up) it is a deliberate change with a failing test, not a drift.
+  it("charges a whole hundred for the first metre past the band", () => {
+    const f = finalizeFare(MOTO, 1700, 4000, 4601);
+    expect(f.overageMetres).toBe(1);
+    expect(f.overageRwf).toBe(100);
+    expect(f.totalRwf).toBe(1800);
+  });
+
+  it("leaves a zero fare at zero", () => {
+    // A zero-distance, zero-price trip: nothing to charge, nothing to round up
+    // to. roundFareRwf is never reached, because a zero overage short-circuits.
+    const f = finalizeFare(MOTO, 0, 0, 0);
+    expect(f).toEqual({
+      totalRwf: 0,
+      quotedRwf: 0,
+      overageRwf: 0,
+      overageMetres: 0,
+    });
+  });
 });
