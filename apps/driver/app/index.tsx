@@ -1,57 +1,499 @@
-import { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
+import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  View,
+} from "react-native";
 import { Redirect } from "expo-router";
 import { lightTheme, tokens } from "@gera/ui";
+import {
+  setPresence,
+  heartbeat,
+  getPresence,
+  getBalance,
+  canGoOnline,
+  getLiveOffer,
+  acceptOffer,
+  declineOffer,
+  getActiveTrip,
+  advanceTrip,
+  completeTrip,
+  secondsLeft,
+  type LiveOffer,
+  type ActiveTrip,
+  type VehicleClass,
+} from "@gera/data";
 import { supabase } from "../src/lib/supabase";
+import * as loc from "../src/lib/location";
 
-export default function Home() {
-  // null while the stored session is still being read off disk. Rendering the
-  // redirect before that resolves would bounce a signed-in driver back through
-  // onboarding on every cold start.
+const money = (rwf: number) => rwf.toLocaleString("en-US");
+
+export default function Console() {
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
+  const [driverId, setDriverId] = useState<string | null>(null);
+
+  const [online, setOnline] = useState(false);
+  const [blocked, setBlocked] = useState<string | null>(null);
+  const [balance, setBalance] = useState<number | null>(null);
+  const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
+
+  const [here, setHere] = useState<loc.Coords | null>(null);
+  const [gpsDenied, setGpsDenied] = useState(false);
+
+  const [offer, setOffer] = useState<LiveOffer | null>(null);
+  const [trip, setTrip] = useState<ActiveTrip | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  // Bumped on every poll purely to force a re-render, so the offer countdown
+  // ticks down on screen. secondsLeft reads the clock, not this value.
+  const [, setTick] = useState(0);
+
+  const hereRef = useRef<loc.Coords | null>(null);
+  hereRef.current = here;
 
   useEffect(() => {
     let active = true;
-
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSignedIn(data.session !== null);
+      if (!active) return;
+      setSignedIn(data.session !== null);
+      setDriverId(data.session?.user.id ?? null);
     });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setSignedIn(session !== null);
+    const { data: sub } = supabase.auth.onAuthStateChange((_e, session) => {
+      if (!active) return;
+      setSignedIn(session !== null);
+      setDriverId(session?.user.id ?? null);
     });
-
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
+      sub.subscription.unsubscribe();
     };
   }, []);
 
+  // Location. Asked for once, up front: a driver who goes online without it is
+  // invisible to dispatch, which looks like "the app gives me no work".
+  useEffect(() => {
+    let sub: { remove: () => void } | null = null;
+    let active = true;
+    (async () => {
+      const granted = await loc.requestPermission();
+      if (!active) return;
+      if (!granted) {
+        setGpsDenied(true);
+        return;
+      }
+      const first = await loc.getCurrent();
+      if (active && first) setHere(first);
+      sub = await loc.watch((c) => {
+        if (active) setHere(c);
+      });
+    })();
+    return () => {
+      active = false;
+      sub?.remove();
+    };
+  }, []);
+
+  // Existing state on launch, so closing the app mid-shift does not lose it.
+  useEffect(() => {
+    if (!driverId) return;
+    let active = true;
+    (async () => {
+      try {
+        const [p, b, allowed] = await Promise.all([
+          getPresence(supabase, driverId),
+          getBalance(supabase, driverId),
+          canGoOnline(supabase, driverId),
+        ]);
+        if (!active) return;
+        setBalance(b);
+        if (p) {
+          setOnline(p.status !== "offline");
+          setVehicleClass(p.vehicleClass);
+        }
+        // The server owns this rule; the app only reports it.
+        setBlocked(allowed ? null : "Top up your wallet to go online.");
+      } catch (e) {
+        if (active) setError(e instanceof Error ? e.message : "Could not load your status.");
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [driverId]);
+
+  // One timer drives everything: the heartbeat that keeps the driver in the
+  // dispatch index, the offer poll, and the countdown redraw.
+  useEffect(() => {
+    if (!driverId || !online) return;
+    const id = setInterval(async () => {
+      setTick((t) => t + 1);
+      const at = hereRef.current;
+      try {
+        if (at) await heartbeat(supabase, driverId, at);
+        const [o, t] = await Promise.all([
+          getLiveOffer(supabase, driverId),
+          getActiveTrip(supabase, driverId),
+        ]);
+        setOffer(o);
+        setTrip(t);
+      } catch {
+        // A dropped tick is not a dropped shift. The next one retries.
+      }
+    }, 3000);
+    return () => clearInterval(id);
+  }, [driverId, online]);
+
+  const toggleOnline = useCallback(
+    async (next: boolean) => {
+      if (!driverId) return;
+      setError(null);
+      const at = hereRef.current;
+      if (next && !at) {
+        setError("Waiting for your location. Turn on GPS and try again.");
+        return;
+      }
+      setBusy(true);
+      try {
+        if (next) {
+          const allowed = await canGoOnline(supabase, driverId);
+          if (!allowed) {
+            setBlocked("Top up your wallet to go online.");
+            return;
+          }
+          setBlocked(null);
+        }
+        await setPresence(supabase, driverId, {
+          status: next ? "online" : "offline",
+          at: at ?? loc.KIGALI_FALLBACK,
+          vehicleClass,
+        });
+        setOnline(next);
+        if (!next) setOffer(null);
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not change your status.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [driverId, vehicleClass],
+  );
+
+  const onAccept = useCallback(async () => {
+    if (!offer) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await acceptOffer(supabase, offer.offerId);
+      setOffer(null);
+      if (driverId) setTrip(await getActiveTrip(supabase, driverId));
+    } catch {
+      setError("That trip is gone. Someone else took it.");
+      setOffer(null);
+    } finally {
+      setBusy(false);
+    }
+  }, [offer, driverId]);
+
+  const onDecline = useCallback(async () => {
+    if (!offer) return;
+    setBusy(true);
+    try {
+      await declineOffer(supabase, offer.offerId);
+      setOffer(null);
+    } catch {
+      setOffer(null);
+    } finally {
+      setBusy(false);
+    }
+  }, [offer]);
+
+  const onAdvance = useCallback(
+    async (to: "arrived" | "in_progress") => {
+      if (!trip) return;
+      setBusy(true);
+      setError(null);
+      try {
+        await advanceTrip(supabase, trip.id, to);
+        if (driverId) setTrip(await getActiveTrip(supabase, driverId));
+      } catch (e) {
+        setError(e instanceof Error ? e.message : "Could not update the trip.");
+      } finally {
+        setBusy(false);
+      }
+    },
+    [trip, driverId],
+  );
+
+  const onComplete = useCallback(async () => {
+    if (!trip || !driverId) return;
+    setBusy(true);
+    setError(null);
+    try {
+      // Real travelled distance arrives with navigation; until then the quoted
+      // distance is what the fare was agreed on, so it is what is charged.
+      const distance = trip.quotedDistanceM ?? 0;
+      await completeTrip(supabase, {
+        tripId: trip.id,
+        actualDistanceM: distance,
+        idempotencyKey: `complete-${trip.id}`,
+      });
+      setTrip(null);
+      setBalance(await getBalance(supabase, driverId));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not finish the trip.");
+    } finally {
+      setBusy(false);
+    }
+  }, [trip, driverId]);
+
   if (signedIn === null) {
     return (
-      <View style={styles.root}>
-        <ActivityIndicator color={lightTheme.accent} size="large" />
+      <View style={styles.centre}>
+        <ActivityIndicator color={lightTheme.accent} />
       </View>
     );
   }
-
   if (!signedIn) return <Redirect href="/onboarding/phone" />;
 
+  const left = offer ? secondsLeft(offer.expiresAt) : 0;
+
   return (
-    <View style={styles.root}>
-      <Text style={styles.title}>Gera Driver</Text>
-      <Text style={styles.sub}>Go-online toggle and offers arrive in Phase 2.</Text>
-    </View>
+    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+      <View style={styles.statusRow}>
+        <View style={styles.flex}>
+          <Text style={styles.statusLabel}>{online ? "You're online" : "You're offline"}</Text>
+          <Text style={styles.statusSub}>
+            {online ? "Waiting for trips nearby" : "Go online to get trips"}
+          </Text>
+        </View>
+        <Switch
+          value={online}
+          onValueChange={toggleOnline}
+          disabled={busy || Boolean(blocked)}
+          trackColor={{ true: lightTheme.accent, false: lightTheme.textMuted }}
+        />
+      </View>
+
+      <View style={styles.walletRow}>
+        <Text style={styles.walletLabel}>Wallet</Text>
+        <Text style={styles.walletValue}>
+          {balance === null ? "—" : `${money(balance)} RWF`}
+        </Text>
+      </View>
+
+      {blocked ? <Text style={styles.warn}>{blocked}</Text> : null}
+      {gpsDenied ? (
+        <Text style={styles.warn}>
+          Location is off. Dispatch cannot find you without it.
+        </Text>
+      ) : null}
+      {error ? <Text style={styles.error}>{error}</Text> : null}
+
+      {/* An offer beats everything else on screen: it has fifteen seconds. */}
+      {offer && !trip ? (
+        <View style={styles.offer}>
+          <Text style={styles.offerCountdown}>{left}s</Text>
+          <Text style={styles.offerFare}>
+            {offer.fareRwf === null ? "—" : `${money(offer.fareRwf)} RWF`}
+          </Text>
+          <Text style={styles.offerLeg}>Pick up · {offer.pickupLabel}</Text>
+          {offer.pickupNote ? (
+            <Text style={styles.offerNote}>“{offer.pickupNote}”</Text>
+          ) : null}
+          <Text style={styles.offerLeg}>Drop off · {offer.dropoffLabel}</Text>
+
+          <Pressable
+            style={[styles.cta, busy && styles.ctaDisabled]}
+            onPress={onAccept}
+            disabled={busy}
+            accessibilityRole="button"
+          >
+            <Text style={styles.ctaText}>Accept</Text>
+          </Pressable>
+          <Pressable style={styles.ghost} onPress={onDecline} disabled={busy}>
+            <Text style={styles.ghostText}>Pass</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {trip ? (
+        <View style={styles.trip}>
+          <Text style={styles.tripState}>
+            {trip.state === "accepted"
+              ? "Head to the pickup"
+              : trip.state === "arrived"
+                ? "Waiting for your rider"
+                : "Trip in progress"}
+          </Text>
+          <Text style={styles.offerFare}>
+            {trip.fareRwf === null ? "—" : `${money(trip.fareRwf)} RWF`}
+          </Text>
+          <Text style={styles.offerLeg}>Pick up · {trip.pickupLabel}</Text>
+          {trip.pickupNote ? <Text style={styles.offerNote}>“{trip.pickupNote}”</Text> : null}
+          <Text style={styles.offerLeg}>Drop off · {trip.dropoffLabel}</Text>
+
+          {trip.state === "accepted" ? (
+            <Pressable
+              style={[styles.cta, busy && styles.ctaDisabled]}
+              onPress={() => onAdvance("arrived")}
+              disabled={busy}
+            >
+              <Text style={styles.ctaText}>I've arrived</Text>
+            </Pressable>
+          ) : trip.state === "arrived" ? (
+            <Pressable
+              style={[styles.cta, busy && styles.ctaDisabled]}
+              onPress={() => onAdvance("in_progress")}
+              disabled={busy}
+            >
+              <Text style={styles.ctaText}>Start trip</Text>
+            </Pressable>
+          ) : (
+            <Pressable
+              style={[styles.cta, busy && styles.ctaDisabled]}
+              onPress={onComplete}
+              disabled={busy}
+            >
+              <Text style={styles.ctaText}>Finish · collect cash</Text>
+            </Pressable>
+          )}
+        </View>
+      ) : null}
+
+      {online && !offer && !trip ? (
+        <View style={styles.waiting}>
+          <ActivityIndicator color={lightTheme.accent} />
+          <Text style={styles.waitingText}>Looking for trips near you…</Text>
+        </View>
+      ) : null}
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1, backgroundColor: lightTheme.surface,
-    alignItems: "center", justifyContent: "center", padding: tokens.space.lg,
+  root: { flex: 1, backgroundColor: lightTheme.surface },
+  content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
+  flex: { flex: 1 },
+  centre: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: lightTheme.surface,
   },
-  title: {
-    fontSize: tokens.type.display.size, fontWeight: "700", color: lightTheme.textStrong,
+  statusRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: lightTheme.surfaceRaised,
+    minHeight: tokens.MIN_TOUCH_TARGET,
   },
-  sub: { fontSize: tokens.type.body.size, color: lightTheme.textMuted, marginTop: tokens.space.sm },
+  statusLabel: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  statusSub: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  walletRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginTop: tokens.space.md,
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: lightTheme.surfaceRaised,
+  },
+  walletLabel: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  walletValue: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  warn: {
+    marginTop: tokens.space.md,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textStrong,
+    backgroundColor: lightTheme.surfaceRaised,
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    borderLeftWidth: 4,
+    borderLeftColor: lightTheme.accent,
+  },
+  error: {
+    marginTop: tokens.space.md,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.danger,
+  },
+  offer: {
+    marginTop: tokens.space.lg,
+    padding: tokens.space.lg,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: lightTheme.surfaceRaised,
+    borderWidth: 3,
+    borderColor: lightTheme.accent,
+  },
+  // The countdown is the most urgent thing on the screen, so it is the largest.
+  offerCountdown: {
+    fontSize: tokens.type.display.size,
+    fontWeight: "700",
+    color: lightTheme.accent,
+  },
+  offerFare: {
+    fontSize: tokens.type.display.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  offerLeg: {
+    marginTop: tokens.space.sm,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textStrong,
+  },
+  offerNote: {
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textMuted,
+    fontStyle: "italic",
+  },
+  trip: {
+    marginTop: tokens.space.lg,
+    padding: tokens.space.lg,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: lightTheme.surfaceRaised,
+  },
+  tripState: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+    marginBottom: tokens.space.sm,
+  },
+  waiting: { marginTop: tokens.space.xxl, alignItems: "center" },
+  waitingText: {
+    marginTop: tokens.space.md,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textMuted,
+  },
+  cta: {
+    marginTop: tokens.space.lg,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    backgroundColor: lightTheme.accent,
+    borderRadius: tokens.radius.lg,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ctaDisabled: { opacity: 0.5 },
+  ctaText: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: lightTheme.onAccent,
+  },
+  ghost: {
+    marginTop: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ghostText: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
 });

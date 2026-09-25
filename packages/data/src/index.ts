@@ -4,3 +4,4 @@ export * from "./auth";
 export * from "./trips";
 export * from "./places";
 export * from "./trip-watch";
+export * from "./driver";
