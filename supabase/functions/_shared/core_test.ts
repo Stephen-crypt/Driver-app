@@ -61,9 +61,21 @@ const _receiptTypesMatch: AssertSame<RealReceipt, BundleReceipt> = true;
 // twice: only the fare shapes above were covered, so the four dispatch
 // declarations - the ones supabase/functions/dispatch actually calls - could
 // drift freely. `DISPATCH_RADII_M` widening from `readonly [1000, 2000, 4000]`
-// to `readonly number[]`, or `AVERAGE_SPEED_MPS` losing its exhaustive
-// `Record<VehicleClass, number>` key set, would both type-check fine here and
-// be wrong at the call site.
+// to `readonly number[]` would type-check fine here and be wrong at the call
+// site, and AssertSame does catch that: the tuple and the array are not
+// mutually assignable.
+//
+// It does NOT catch `AVERAGE_SPEED_MPS` widening from
+// `Record<VehicleClass, number>` to `Record<string, number>`, and an earlier
+// version of this comment claimed it did. It cannot: a mapped type over a
+// finite union and an index signature over `string` ARE mutually assignable in
+// TypeScript, so `[A] extends [B] ? [B] extends [A]` is satisfied in both
+// directions and AssertSame reports a match. No arrangement of this idiom
+// closes that gap. The exhaustive key set is held honest elsewhere - by
+// `Record<VehicleClass, number>` in packages/core itself, which fails to
+// compile if a vehicle_class is added without a speed - and the assertion
+// below is worth keeping for the value type and for the declaration existing at
+// all, but it is not the protection the old comment advertised.
 //
 // These are `import type` of VALUES, which TypeScript permits so long as they
 // are only ever used in a type position - `typeof X` is one. Nothing is

@@ -15,21 +15,37 @@ export function isDispatchable(state: string): boolean {
   return state === "requested" || state === "offered";
 }
 
+/** One ranked candidate: who to offer to, and the ETA that ranked them. */
+export interface RankedCandidate {
+  driverId: string;
+  etaSeconds: number;
+}
+
 /** Pure ranking: given a candidate set already narrowed by geography and
- *  eligibility (find_candidates_for_trip's job), rank by real ETA and return
- *  the winner, or null when there is nobody to rank.
+ *  eligibility (find_candidates_for_trip's job), rank it by real ETA, best
+ *  first. Empty in, empty out.
  *
- *  This is only the PROPOSAL dispatch makes. Whether this candidate is who
- *  actually ends up holding the offer is decided by create_trip_offer, which
- *  can idempotently hand back a different, pre-existing offer - the caller
- *  must build its response from that RPC's return value, never from this
- *  function's. */
-export async function selectBestCandidate(
+ *  This returns the WHOLE ranked list, not just its head, and that is the
+ *  point. The head alone was a one-shot proposal: when create_trip_offer
+ *  refused the best candidate - `driver_already_offered` or
+ *  `driver_already_committed`, because the driver took something else between
+ *  the candidate search and the insert - the dispatcher had nothing left to
+ *  try and left the trip sitting in `requested` with no offer and nothing
+ *  scheduled to retry it. That is the same stranding shape the offer chain
+ *  exists to remove, reached from the other end. With the list, a refusal is
+ *  just a reason to ask the next-best driver.
+ *
+ *  Ranking is still only a PROPOSAL. Whether the candidate the caller picks is
+ *  who actually ends up holding the offer is decided by create_trip_offer,
+ *  which can idempotently hand back a different, pre-existing offer - the
+ *  caller must build its response from that RPC's return value, never from
+ *  this function's. */
+export async function rankCandidates(
   rows: readonly { driver_id: string; distance_m: number }[],
   vehicleClass: VehicleClass,
   provider: EtaProvider,
-): Promise<{ driverId: string; etaSeconds: number } | null> {
-  if (rows.length === 0) return null;
+): Promise<RankedCandidate[]> {
+  if (rows.length === 0) return [];
 
   const ranked = await rankByEta(
     rows.map((c) => ({ driverId: c.driver_id, distanceM: Number(c.distance_m) })),
@@ -37,6 +53,5 @@ export async function selectBestCandidate(
     provider,
   );
 
-  const best = ranked[0];
-  return best ? { driverId: best.driverId, etaSeconds: best.etaSeconds } : null;
+  return ranked.map((c) => ({ driverId: c.driverId, etaSeconds: c.etaSeconds }));
 }
