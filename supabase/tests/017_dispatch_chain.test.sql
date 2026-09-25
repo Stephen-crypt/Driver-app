@@ -3,7 +3,7 @@
 -- moved again, and it did not - the trip sat in `offered` with no live offer and
 -- its driver, still attached, was excluded from every future match.
 begin;
-select plan(26);
+select plan(43);
 
 -- Three verified, funded, online motos at 100m, 200m and 300m from one pickup,
 -- so "the next candidate" has an unambiguous answer. D4 is a cab 5km away: far
@@ -256,8 +256,38 @@ values ('a0000000-0000-4000-8000-000000000005','online','cab',
 
 set local role postgres;
 set local request.jwt.claims to '';
+
+-- ---------------------------------------------------------------------------
+-- I1: funding is enforced at the point of dispatch, not only at the door.
+-- ---------------------------------------------------------------------------
+-- The control. 600 RWF against a 500 minimum, verified, online, fresh
+-- heartbeat, idle: this driver is dispatchable on every filter there is. If
+-- this assertion ever fails the one below it proves nothing, because absence
+-- would have some other cause.
+select ok(
+  exists (
+    select 1 from public.find_candidate_drivers(
+      st_point(30.1200,-1.9441)::geography, 'cab', 2000, 10)
+     where driver_id = 'a0000000-0000-4000-8000-000000000005'
+  ),
+  'a funded, verified, online driver with a fresh heartbeat is dispatchable');
+
 insert into public.ledger_entries (driver_id, kind, amount_rwf)
 values ('a0000000-0000-4000-8000-000000000005','commission_debit',300);
+
+-- 300 RWF now, below the 500 minimum, and nothing about the presence row
+-- changed: still 'online', still verified, still beating. Before 0021 this was
+-- the hole - the presence policy gates only the transition INTO online, which
+-- this driver made while they could still afford it, so an underfunded driver
+-- stayed in the dispatch index until they chose to go offline. Spec 3.5 says a
+-- driver below the minimum cannot be online; dispatch is where that has to bite.
+select ok(
+  not exists (
+    select 1 from public.find_candidate_drivers(
+      st_point(30.1200,-1.9441)::geography, 'cab', 2000, 10)
+     where driver_id = 'a0000000-0000-4000-8000-000000000005'
+  ),
+  'but an online driver whose wallet fell below the minimum mid-shift is not');
 
 set local role authenticated;
 set local request.jwt.claims to
@@ -283,5 +313,200 @@ select throws_ok(
   '42501', null,
   'but going back INTO online is still gated on the wallet');
 
+-- ---------------------------------------------------------------------------
+-- C1 again, reached by DECLINING: the decline must advance the chain.
+-- ---------------------------------------------------------------------------
+-- Everything above this line is about a driver who IGNORED an offer. Declining
+-- one used to strand the trip in exactly the same way and was never covered:
+-- decline_offer set outcome = 'declined' and stopped, expire_stale_offers only
+-- ever looks at `outcome is null`, and offer_next_candidate had one caller - the
+-- sweeper. So a declined trip sat in `offered` forever with driver_id on the
+-- decliner, and find_candidate_drivers excludes drivers committed to an
+-- `offered` trip, which made the decliner permanently unmatchable. A timeout is
+-- an edge case; declining is normal driver behaviour granted to every
+-- authenticated driver.
+--
+-- Its own scene, ~15km east of the one above, so the drivers already holding
+-- T1's and T5's offers are outside offer_next_candidate's 4km radius and cannot
+-- change which candidate wins here.
+set local role postgres;
+set local request.jwt.claims to '';
+
+insert into auth.users (instance_id, id, aud, role, email) values
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000006',
+   'authenticated','authenticated','c.driver6@test.local'),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000007',
+   'authenticated','authenticated','c.driver7@test.local'),
+  ('00000000-0000-0000-0000-000000000000','a0000000-0000-4000-8000-000000000008',
+   'authenticated','authenticated','c.driver8@test.local');
+
+insert into public.profiles (id, role, first_name, phone) values
+  ('a0000000-0000-4000-8000-000000000006','driver','Decliner','+250788970006'),
+  ('a0000000-0000-4000-8000-000000000007','driver','Nextup','+250788970007'),
+  ('a0000000-0000-4000-8000-000000000008','driver','Lonely','+250788970008');
+
+insert into public.drivers (id, verification) values
+  ('a0000000-0000-4000-8000-000000000006','verified'),
+  ('a0000000-0000-4000-8000-000000000007','verified'),
+  ('a0000000-0000-4000-8000-000000000008','verified');
+
+insert into public.ledger_entries (driver_id, kind, amount_rwf) values
+  ('a0000000-0000-4000-8000-000000000006','topup_credit',5000),
+  ('a0000000-0000-4000-8000-000000000007','topup_credit',5000),
+  ('a0000000-0000-4000-8000-000000000008','topup_credit',5000);
+
+insert into public.driver_presence (driver_id, status, vehicle_class, position, heartbeat_at) values
+  -- ~100m and ~200m from T6's pickup: who is "next" is unambiguous.
+  ('a0000000-0000-4000-8000-000000000006','online','moto',st_point(30.2009,-1.9441)::geography, now()),
+  ('a0000000-0000-4000-8000-000000000007','online','moto',st_point(30.2018,-1.9441)::geography, now()),
+  -- T7's only candidate, ~11km further east, so declining T7 leaves the chain
+  -- with nobody at all to advance to.
+  ('a0000000-0000-4000-8000-000000000008','online','moto',st_point(30.3009,-1.9441)::geography, now());
+
+insert into public.trips (id, rider_id, vehicle_class, state,
+                          pickup, pickup_label, dropoff, dropoff_label) values
+  -- T6: a decline with somebody left to ask.
+  ('a1000000-0000-4000-8000-000000000006','a0000000-0000-4000-8000-000000000001',
+   'moto','requested', st_point(30.2000,-1.9441)::geography,'Kabuga',
+   st_point(30.2100,-1.9536)::geography,'Ndera'),
+  -- T7: a decline with nobody left to ask.
+  ('a1000000-0000-4000-8000-000000000007','a0000000-0000-4000-8000-000000000001',
+   'moto','requested', st_point(30.3000,-1.9441)::geography,'Rwamagana road',
+   st_point(30.3100,-1.9536)::geography,'Nowhere');
+
+select public.create_trip_offer('a1000000-0000-4000-8000-000000000006',
+  'a0000000-0000-4000-8000-000000000006', 1, 40, 15, 'offer-t6-1');
+
+set local role authenticated;
+set local request.jwt.claims to
+  '{"sub":"a0000000-0000-4000-8000-000000000006","role":"authenticated"}';
+
+-- The decline is made by the DRIVER, so the chain now advances inside a
+-- transaction whose auth.uid() belongs to somebody who is not the next
+-- candidate. That is why 0021 splits the wallet arithmetic out of the guarded
+-- driver_balance(): find_candidate_drivers has to ask about other people's
+-- balances by definition, and the guarded form would raise not_your_balance on
+-- every search reached this way. If that split is ever undone, this fails first.
+select lives_ok(
+  $decline$ select public.decline_offer(
+       (select id from public.trip_offers
+         where trip_id='a1000000-0000-4000-8000-000000000006'
+           and outcome is null)) $decline$,
+  'a driver can decline a live offer');
+
+set local role postgres;
+set local request.jwt.claims to '';
+
+select is(
+  (select outcome::text from public.trip_offers
+    where trip_id='a1000000-0000-4000-8000-000000000006'
+      and driver_id='a0000000-0000-4000-8000-000000000006'),
+  'declined',
+  'the decline is recorded as a decline, not a timeout');
+
+select is(
+  (select count(*)::int from public.trip_offers
+    where trip_id='a1000000-0000-4000-8000-000000000006' and outcome is null),
+  1,
+  'and the trip holds a NEW live offer rather than sitting in offered with none');
+
+select is(
+  (select driver_id from public.trip_offers
+    where trip_id='a1000000-0000-4000-8000-000000000006' and outcome is null),
+  'a0000000-0000-4000-8000-000000000007'::uuid,
+  'which went to a DIFFERENT driver - the next nearest candidate');
+
+select is(
+  (select rank from public.trip_offers
+    where trip_id='a1000000-0000-4000-8000-000000000006' and outcome is null),
+  2,
+  'the rank increments: this is the second offer made for this trip');
+
+select is(
+  (select driver_id from public.trips where id='a1000000-0000-4000-8000-000000000006'),
+  'a0000000-0000-4000-8000-000000000007'::uuid,
+  'trips.driver_id moves off the decliner onto the new holder');
+
+select is(
+  (select state::text from public.trips where id='a1000000-0000-4000-8000-000000000006'),
+  'offered',
+  'and the trip is still offered, to somebody who can actually see it');
+
+-- The half of the bug that burned the driver rather than the rider.
+select ok(
+  exists (
+    select 1 from public.find_candidate_drivers(
+      st_point(30.2000,-1.9441)::geography, 'moto', 2000, 10)
+     where driver_id = 'a0000000-0000-4000-8000-000000000006'
+  ),
+  'the decliner is matchable again instead of being burned by their own decline');
+
+select ok(
+  not exists (
+    select 1 from public.find_candidate_drivers(
+      st_point(30.2000,-1.9441)::geography, 'moto', 2000, 10)
+     where driver_id = 'a0000000-0000-4000-8000-000000000007'
+  ),
+  'and the driver now holding the offer is the one counted as committed');
+
+-- ---------------------------------------------------------------------------
+-- A decline with nobody left to ask terminates instead of stranding.
+-- ---------------------------------------------------------------------------
+select public.create_trip_offer('a1000000-0000-4000-8000-000000000007',
+  'a0000000-0000-4000-8000-000000000008', 1, 80, 15, 'offer-t7-1');
+
+set local role authenticated;
+set local request.jwt.claims to
+  '{"sub":"a0000000-0000-4000-8000-000000000008","role":"authenticated"}';
+
+select lives_ok(
+  $decline$ select public.decline_offer(
+       (select id from public.trip_offers
+         where trip_id='a1000000-0000-4000-8000-000000000007'
+           and outcome is null)) $decline$,
+  'the only candidate there is can still decline');
+
+set local role postgres;
+set local request.jwt.claims to '';
+
+select is(
+  (select state::text from public.trips where id='a1000000-0000-4000-8000-000000000007'),
+  'no_drivers',
+  'a decline with no candidate left reaches no_drivers rather than waiting forever');
+
+select is(
+  (select count(*)::int from public.trip_offers
+    where trip_id='a1000000-0000-4000-8000-000000000007' and outcome is null),
+  0,
+  'and leaves no live offer behind for a sweeper that would never look at it');
+
+select ok(
+  (select driver_id from public.trips where id='a1000000-0000-4000-8000-000000000007') is null,
+  'the terminal trip releases its driver instead of keeping them attached');
+
+select ok(
+  exists (
+    select 1 from public.find_candidate_drivers(
+      st_point(30.3000,-1.9441)::geography, 'moto', 2000, 10)
+     where driver_id = 'a0000000-0000-4000-8000-000000000008'
+  ),
+  'so the driver who declined an undispatchable trip is matchable again too');
+
+-- ---------------------------------------------------------------------------
+-- The invariant the whole wave exists to hold.
+-- ---------------------------------------------------------------------------
+-- `offered` with no live offer is the corrupt state: a rider waiting on an offer
+-- nobody holds, and a driver excluded from every future match. Whatever paths
+-- the tests above took, none of them may leave one behind.
+select is(
+  (select count(*)::int from public.trips t
+    where t.state = 'offered'
+      and not exists (
+        select 1 from public.trip_offers o
+         where o.trip_id = t.id and o.outcome is null)),
+  0,
+  'no trip anywhere is left in offered with no live offer');
+
 select * from finish();
 rollback;
+
