@@ -6,9 +6,11 @@ import {
   requestQuote,
   createTripFromQuote,
   getTrip,
+  getDriverCard,
   isTripLive,
   type QuoteResult,
   type TripSnapshot,
+  type DriverCard,
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { TripMap, type MapMarker } from "../src/components/TripMap";
@@ -61,6 +63,7 @@ export default function Ride() {
   const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [trip, setTrip] = useState<TripSnapshot | null>(null);
+  const [driver, setDriver] = useState<DriverCard | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -104,6 +107,24 @@ export default function Ride() {
     return () => clearInterval(id);
   }, [trip]);
 
+  // Fetch the driver card once, when a driver is first assigned. It does not
+  // change for the life of the trip, so re-fetching it on every poll would be
+  // three requests a second for a name and a plate.
+  useEffect(() => {
+    if (!trip?.driverId || driver) return;
+    let active = true;
+    getDriverCard(supabase, trip.id)
+      .then((d) => {
+        if (active) setDriver(d);
+      })
+      .catch(() => {
+        // The card is a convenience. Losing it must not break the trip screen.
+      });
+    return () => {
+      active = false;
+    };
+  }, [trip?.driverId, trip?.id, driver]);
+
   const book = useCallback(async () => {
     if (!quote) return;
     setBusy(true);
@@ -145,7 +166,36 @@ export default function Ride() {
             {trip.quotedAmountRwf !== null ? (
               <Text style={styles.fare}>{money(trip.quotedAmountRwf)} RWF</Text>
             ) : null}
-            <Text style={styles.payNote}>Pay your driver in cash at the end.</Text>
+            <Text style={styles.payNote}>
+              {trip.state === "completed"
+                ? "Pay your driver in cash now."
+                : "Pay your driver in cash at the end."}
+            </Text>
+
+            {/* What the rider needs at the kerb: who to look for, and which
+                vehicle is theirs. Nothing here identifies the driver further. */}
+            {driver ? (
+              <View style={styles.driverCard}>
+                <View style={styles.flex}>
+                  <Text style={styles.driverName}>{driver.firstName}</Text>
+                  <Text style={styles.driverMeta}>
+                    {driver.vehicleClass === "moto"
+                      ? "Moto"
+                      : driver.vehicleClass === "cab_xl"
+                        ? "Cab XL"
+                        : "Cab"}
+                    {driver.vestNumber ? ` · vest ${driver.vestNumber}` : ""}
+                  </Text>
+                </View>
+                {driver.plate ? <Text style={styles.plate}>{driver.plate}</Text> : null}
+              </View>
+            ) : null}
+
+            {trip.state === "no_drivers" ? (
+              <Text style={styles.sorry}>
+                Nobody is free near you right now. Try again in a few minutes.
+              </Text>
+            ) : null}
 
             {isTripLive(trip.state) ? (
               <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
@@ -242,6 +292,34 @@ const styles = StyleSheet.create({
     fontSize: tokens.type.label.size,
     color: lightTheme.textMuted,
     marginTop: tokens.space.xs,
+  },
+  driverCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: tokens.space.md,
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: lightTheme.surface,
+    borderWidth: 2,
+    borderColor: lightTheme.accent,
+  },
+  driverName: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  driverMeta: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  // The plate is what the rider scans the kerb for, so it is set like a plate.
+  plate: {
+    fontSize: tokens.type.title.size,
+    fontWeight: "700",
+    letterSpacing: 1,
+    color: lightTheme.textStrong,
+  },
+  sorry: {
+    marginTop: tokens.space.md,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textMuted,
   },
   spin: { marginTop: tokens.space.lg },
   error: {
