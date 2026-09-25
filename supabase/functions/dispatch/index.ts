@@ -1,5 +1,4 @@
 import {
-  rankByEta,
   straightLineEta,
   DISPATCH_RADII_M,
   CANDIDATE_SHORTLIST,
@@ -7,10 +6,58 @@ import {
 } from "../_shared/core.ts";
 import type { VehicleClass } from "../_shared/core.ts";
 import { serviceClient, json } from "../_shared/supabase.ts";
+import { isDispatchable, selectBestCandidate } from "./logic.ts";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface Candidate {
   driver_id: string;
   distance_m: number;
+}
+
+interface OfferRow {
+  id: string;
+  driver_id: string;
+  rank: number;
+  eta_seconds: number;
+}
+
+const POSTGRES_UNIQUE_VIOLATION = "23505";
+
+interface OfferArgs {
+  p_trip_id: string;
+  p_driver_id: string;
+  p_rank: number;
+  p_eta_seconds: number;
+  p_ttl_seconds: number;
+  p_idempotency_key: string;
+}
+
+/** Creates the offer, treating losing the create-offer race as a normal
+ * outcome rather than a failure to surface. create_trip_offer is idempotent
+ * on trip_id: it returns the existing live offer whenever one already
+ * exists, instead of inserting a second one. Two concurrent dispatch calls
+ * can both pass that check before either commits, so the loser's insert can
+ * still raise a unique_violation (23505) on `trip_offers_one_live_per_trip`.
+ * When that happens the winner has, by definition, already committed - so
+ * calling create_trip_offer again now takes the idempotent early-return path
+ * and hands back the real offer, which is what the caller must be told
+ * about, not a database error string. */
+async function createOfferOrJoinExisting(
+  svc: SupabaseClient,
+  args: OfferArgs,
+): Promise<{ offer: OfferRow } | { errorBody: Record<string, unknown>; status: number }> {
+  const first = await svc.rpc("create_trip_offer", args).single();
+  if (!first.error) return { offer: first.data as OfferRow };
+
+  if (first.error.code === POSTGRES_UNIQUE_VIOLATION) {
+    const retry = await svc.rpc("create_trip_offer", args).single();
+    if (!retry.error) return { offer: retry.data as OfferRow };
+    console.error("dispatch: retry after offer race failed", retry.error);
+    return { errorBody: { error: "offer_conflict" }, status: 409 };
+  }
+
+  console.error("dispatch: create_trip_offer failed", first.error);
+  return { errorBody: { error: "offer_failed" }, status: 500 };
 }
 
 Deno.serve(async (req: Request) => {
@@ -35,7 +82,7 @@ Deno.serve(async (req: Request) => {
     .single();
 
   if (tripError || !trip) return json({ error: "trip_not_found" }, 404);
-  if (trip.state !== "requested" && trip.state !== "offered") {
+  if (!isDispatchable(trip.state)) {
     return json({ error: "trip_not_dispatchable", state: trip.state }, 409);
   }
 
@@ -52,38 +99,33 @@ Deno.serve(async (req: Request) => {
     if (matchError) return json({ error: matchError.message }, 500);
 
     const rows = (candidates ?? []) as Candidate[];
-    if (rows.length === 0) continue;
-
-    const ranked = await rankByEta(
-      rows.map((c) => ({ driverId: c.driver_id, distanceM: Number(c.distance_m) })),
-      trip.vehicle_class as VehicleClass,
-      straightLineEta,
-    );
-
-    const best = ranked[0];
+    const best = await selectBestCandidate(rows, trip.vehicle_class as VehicleClass, straightLineEta);
     if (!best) continue;
 
-    const { data: offer, error: offerError } = await svc
-      .rpc("create_trip_offer", {
-        p_trip_id: tripId,
-        p_driver_id: best.driverId,
-        p_rank: 1,
-        p_eta_seconds: best.etaSeconds,
-        p_ttl_seconds: OFFER_TTL_SECONDS,
-        p_idempotency_key: `offer-${tripId}-${best.driverId}-${Date.now()}`,
-      })
-      .single();
+    const result = await createOfferOrJoinExisting(svc, {
+      p_trip_id: tripId,
+      p_driver_id: best.driverId,
+      p_rank: 1,
+      p_eta_seconds: best.etaSeconds,
+      p_ttl_seconds: OFFER_TTL_SECONDS,
+      p_idempotency_key: `offer-${tripId}-${best.driverId}-${Date.now()}`,
+    });
 
-    if (offerError) return json({ error: offerError.message }, 409);
+    if ("errorBody" in result) return json(result.errorBody, result.status);
 
+    // The offer row the RPC actually returned is the only true outcome - it
+    // may belong to a different driver than `best` when create_trip_offer
+    // rejoined an existing live offer instead of creating a fresh one.
+    const { offer } = result;
     return json({
       tripId,
       offered: true,
-      offerId: (offer as { id?: string } | null)?.id,
-      driverId: best.driverId,
-      rank: 1,
-      etaSeconds: best.etaSeconds,
+      offerId: offer.id,
+      driverId: offer.driver_id,
+      rank: offer.rank,
+      etaSeconds: offer.eta_seconds,
       radiusM,
+      alreadyOffered: offer.driver_id !== best.driverId,
     });
   }
 
