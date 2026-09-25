@@ -1,36 +1,37 @@
 import { useEffect, useState } from "react";
-import { View, Text, ActivityIndicator, StyleSheet } from "react-native";
-import { Redirect } from "expo-router";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { Redirect, useRouter } from "expo-router";
 import { lightTheme, tokens } from "@gera/ui";
 import { supabase } from "../src/lib/supabase";
+import { TripMap } from "../src/components/TripMap";
+import { Sheet } from "../src/components/Sheet";
+
+// Kimironko Market. Real GPS pickup arrives with background location; until
+// then every trip starts here, which is honest rather than silently wrong.
+const KIGALI = { lat: -1.9403, lng: 30.1128 };
 
 export default function Home() {
-  // null while the stored session is still being read off disk. Rendering the
-  // redirect before that resolves would bounce a signed-in rider back through
-  // onboarding on every cold start.
+  const router = useRouter();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
     let active = true;
-
     supabase.auth.getSession().then(({ data }) => {
-      if (active) setSignedIn(data.session !== null);
+      if (active) setSignedIn(Boolean(data.session));
     });
-
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (active) setSignedIn(session !== null);
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (active) setSignedIn(Boolean(session));
     });
-
     return () => {
       active = false;
-      listener.subscription.unsubscribe();
+      sub.subscription.unsubscribe();
     };
   }, []);
 
   if (signedIn === null) {
     return (
-      <View style={styles.root}>
-        <ActivityIndicator color={lightTheme.accent} size="large" />
+      <View style={styles.centre}>
+        <ActivityIndicator color={lightTheme.accent} />
       </View>
     );
   }
@@ -39,24 +40,50 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <Text style={styles.title}>Gera</Text>
-      <Text style={styles.sub}>Map and booking sheet arrive in Phase 2.</Text>
+      <TripMap
+        center={KIGALI}
+        markers={[{ id: "me", at: KIGALI, label: "You are near here", kind: "pickup" }]}
+      />
+      <Sheet state="idle">
+        <Pressable
+          style={styles.search}
+          onPress={() => router.push("/destination")}
+          accessibilityRole="button"
+          accessibilityLabel="Choose where you are going"
+        >
+          <Text style={styles.searchText}>Where to?</Text>
+        </Pressable>
+        <Text style={styles.hint}>Search a landmark, or drop a pin on the map.</Text>
+      </Sheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: {
+  root: { flex: 1, backgroundColor: lightTheme.surface },
+  centre: {
     flex: 1,
-    backgroundColor: lightTheme.surface,
     alignItems: "center",
     justifyContent: "center",
-    padding: tokens.space.lg,
+    backgroundColor: lightTheme.surface,
   },
-  title: {
-    fontSize: tokens.type.display.size,
+  search: {
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    justifyContent: "center",
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    borderWidth: 2,
+    borderColor: lightTheme.accent,
+    backgroundColor: lightTheme.surface,
+  },
+  searchText: {
+    fontSize: tokens.type.title.size,
     fontWeight: "700",
     color: lightTheme.textStrong,
   },
-  sub: { fontSize: tokens.type.body.size, color: lightTheme.textMuted, marginTop: tokens.space.sm },
+  hint: {
+    marginTop: tokens.space.md,
+    fontSize: tokens.type.body.size,
+    color: lightTheme.textMuted,
+  },
 });
