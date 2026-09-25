@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { lightTheme, tokens, sheetHeightFor, sheetTitleFor } from "@gera/ui";
+import { theme, tokens, sheetHeightFor, sheetTitleFor } from "@gera/ui";
 
 interface Props {
   readonly state: string;
@@ -29,7 +29,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     borderTopLeftRadius: tokens.radius.lg,
     borderTopRightRadius: tokens.radius.lg,
     paddingHorizontal: tokens.space.lg,
@@ -46,14 +46,14 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: tokens.radius.pill,
-    backgroundColor: lightTheme.textMuted,
+    backgroundColor: theme.textMuted,
     opacity: 0.35,
     marginBottom: tokens.space.md,
   },
   title: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     marginBottom: tokens.space.md,
   },
   body: { flex: 1 },

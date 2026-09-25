@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens, ROUTE_DOT, railGeometry } from "@gera/ui";
 import {
   requestQuote,
   createTripFromQuote,
@@ -261,9 +261,19 @@ export default function Ride() {
       <Sheet state={state}>
         {trip ? (
           <View style={styles.flex}>
-            <Text style={styles.route}>
-              {trip.pickupLabel} → {trip.dropoffLabel}
-            </Text>
+            <View style={styles.routeBlock}>
+              <View style={styles.rail}>
+                <View style={[styles.dot, styles.dotOrigin]} />
+                <View style={styles.railLine} />
+                <View style={[styles.dot, styles.dotDestination]} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.leg} numberOfLines={1}>{trip.pickupLabel}</Text>
+                <Text style={[styles.leg, styles.legLast]} numberOfLines={1}>
+                  {trip.dropoffLabel}
+                </Text>
+              </View>
+            </View>
             {trip.quotedAmountRwf !== null ? (
               <Text style={styles.fare}>{money(trip.quotedAmountRwf)} RWF</Text>
             ) : null}
@@ -293,9 +303,27 @@ export default function Ride() {
             ) : null}
 
             {driver && isTripLive(trip.state) ? (
-              <Pressable style={styles.callButton} onPress={onCall} accessibilityRole="button">
-                <Text style={styles.callText}>Call {driver.firstName}</Text>
-              </Pressable>
+              <View style={styles.actions}>
+                <Pressable style={styles.action} onPress={onCall} accessibilityRole="button">
+                  <View style={styles.actionCircle}>
+                    <Text style={styles.actionGlyph}>call</Text>
+                  </View>
+                  <Text style={styles.actionLabel}>Call</Text>
+                </Pressable>
+                {cancellable ? (
+                  <Pressable
+                    style={styles.action}
+                    onPress={onCancel}
+                    disabled={busy}
+                    accessibilityRole="button"
+                  >
+                    <View style={styles.actionCircle}>
+                      <Text style={styles.actionGlyph}>×</Text>
+                    </View>
+                    <Text style={styles.actionLabel}>Cancel</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
 
             {/* Rating lives on the completed sheet, not a separate screen: the
@@ -330,8 +358,10 @@ export default function Ride() {
 
             {isTripLive(trip.state) ? (
               <>
-                <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
-                {cancellable ? (
+                <ActivityIndicator style={styles.spin} color={theme.accent} />
+                {/* Before a driver is assigned there is no action row, so
+                    cancelling needs its own way out. */}
+                {cancellable && !driver ? (
                   <Pressable
                     style={styles.cancel}
                     onPress={onCancel}
@@ -399,7 +429,7 @@ export default function Ride() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   flex: { flex: 1 },
   card: {
     flexDirection: "row",
@@ -412,28 +442,28 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
     marginBottom: tokens.space.sm,
   },
-  cardActive: { borderColor: lightTheme.accent, backgroundColor: lightTheme.surface },
+  cardActive: { borderColor: theme.accent, backgroundColor: theme.surface },
   cardLabel: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  cardBlurb: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  cardBlurb: { fontSize: tokens.type.label.size, color: theme.textMuted },
   cardPrice: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  route: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  route: { fontSize: tokens.type.body.size, color: theme.textMuted },
   fare: {
     fontSize: tokens.type.display.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     marginTop: tokens.space.sm,
   },
   payNote: {
     fontSize: tokens.type.label.size,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
     marginTop: tokens.space.xs,
   },
   driverCard: {
@@ -442,41 +472,68 @@ const styles = StyleSheet.create({
     marginTop: tokens.space.md,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: lightTheme.surface,
+    backgroundColor: theme.surface,
     borderWidth: 2,
-    borderColor: lightTheme.accent,
+    borderColor: theme.accent,
   },
   driverName: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  driverMeta: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  driverMeta: { fontSize: tokens.type.label.size, color: theme.textMuted },
   // The plate is what the rider scans the kerb for, so it is set like a plate.
   plate: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
     letterSpacing: 1,
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   sorry: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
-  callButton: {
+  routeBlock: { flexDirection: "row", alignItems: "center" },
+  rail: { width: ROUTE_DOT.size, alignItems: "center", marginRight: tokens.space.md },
+  dot: { width: ROUTE_DOT.size, height: ROUTE_DOT.size, borderRadius: tokens.radius.pill },
+  dotOrigin: { backgroundColor: theme.origin },
+  dotDestination: { backgroundColor: theme.destination },
+  railLine: {
+    width: ROUTE_DOT.railWidth,
+    height: railGeometry().height,
+    backgroundColor: theme.border,
+  },
+  leg: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "600",
+    color: theme.textStrong,
+    height: ROUTE_DOT.size + ROUTE_DOT.gap / 2,
+  },
+  legLast: { height: undefined },
+  actions: {
+    flexDirection: "row",
+    gap: tokens.space.xl,
     marginTop: tokens.space.md,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: lightTheme.textStrong,
+  },
+  action: { alignItems: "center" },
+  actionCircle: {
+    width: tokens.MIN_TOUCH_TARGET,
+    height: tokens.MIN_TOUCH_TARGET,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
   },
-  callText: {
-    fontSize: tokens.type.body.size,
+  actionGlyph: {
+    fontSize: tokens.type.label.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
+  },
+  actionLabel: {
+    marginTop: tokens.space.xs,
+    fontSize: tokens.type.label.size,
+    color: theme.textMuted,
   },
   cancel: {
     marginTop: "auto",
@@ -484,9 +541,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  cancelText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
+  cancelText: { fontSize: tokens.type.body.size, color: theme.danger },
   rateBlock: { marginTop: tokens.space.lg },
-  rateLabel: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  rateLabel: { fontSize: tokens.type.body.size, color: theme.textMuted },
   stars: { flexDirection: "row", marginTop: tokens.space.sm },
   star: {
     minWidth: tokens.MIN_TOUCH_TARGET,
@@ -494,19 +551,19 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  starGlyph: { fontSize: 34, color: lightTheme.textMuted, opacity: 0.35 },
-  starOn: { color: lightTheme.accent, opacity: 1 },
+  starGlyph: { fontSize: 34, color: theme.textMuted, opacity: 0.35 },
+  starOn: { color: theme.accent, opacity: 1 },
   spin: { marginTop: tokens.space.lg },
   error: {
-    color: lightTheme.danger,
+    color: theme.danger,
     marginBottom: tokens.space.sm,
     fontSize: tokens.type.body.size,
   },
   cta: {
     marginTop: "auto",
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: lightTheme.accent,
-    borderRadius: tokens.radius.lg,
+    minHeight: tokens.MIN_TOUCH_TARGET + 6,
+    backgroundColor: theme.accent,
+    borderRadius: tokens.radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -514,6 +571,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.onAccent,
+    color: theme.onAccent,
   },
 });

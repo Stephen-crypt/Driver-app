@@ -18,6 +18,12 @@ export const palette = {
 
   success: "#0E7C4A",
   danger: "#C0342B",
+
+  // Dark-theme variants. The light-theme green and red are too dark against an
+  // indigo ground - measured at 3.60 and 3.39 against #0B1022, both under the
+  // 4.5 floor. A "completed" label nobody can read is worse than no label.
+  successBright: "#34D399",
+  dangerBright: "#F87171",
 } as const;
 
 export const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;

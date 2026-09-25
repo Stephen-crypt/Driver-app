@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
-import { lightTheme } from "@gera/ui";
+import { theme } from "@gera/ui";
 
 export interface LatLng {
   readonly lat: number;
@@ -22,9 +22,9 @@ interface Props {
 }
 
 const PIN_COLOUR: Record<MapMarker["kind"], string> = {
-  pickup: lightTheme.success,
-  dropoff: lightTheme.danger,
-  driver: lightTheme.accent,
+  pickup: theme.origin,
+  dropoff: theme.destination,
+  driver: theme.accent,
 };
 
 /**
@@ -48,13 +48,17 @@ function buildHtml(center: LatLng, markers: readonly MapMarker[]): string {
   return `<!doctype html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{height:100%;margin:0;background:${lightTheme.surface}}</style>
+<style>html,body,#m{height:100%;margin:0;background:${theme.surface}}</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var map = L.map('m', {zoomControl:false, attributionControl:false})
               .setView([${center.lat}, ${center.lng}], 14);
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+  // Carto's dark basemap rather than standard OSM tiles: a white map inside a
+  // dark app is a torch in the face at night, which is exactly when a rider is
+  // most likely to be looking at it. Free for this use and still OSM data.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {maxZoom:20, subdomains:'abcd'}).addTo(map);
   ${pins}
   map.on('click', function(e){
     if (window.ReactNativeWebView) {
@@ -106,7 +110,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: lightTheme.surface,
+    backgroundColor: theme.surface,
   },
-  web: { flex: 1, backgroundColor: lightTheme.surface },
+  web: { flex: 1, backgroundColor: theme.surface },
 });

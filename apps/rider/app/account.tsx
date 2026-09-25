@@ -1,20 +1,11 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens, ROUTE_DOT, railGeometry, statusFor } from "@gera/ui";
 import { listTrips, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
-
-// Riders read outcomes, not schema - the same rule the trip sheet follows.
-const OUTCOME: Record<string, string> = {
-  completed: "Completed",
-  cancelled_by_rider: "You cancelled",
-  cancelled_by_driver: "Driver cancelled",
-  no_drivers: "No drivers found",
-  expired: "Timed out",
-};
 
 function when(iso: string): string {
   const d = new Date(iso);
@@ -82,25 +73,50 @@ export default function Account() {
       <Text style={styles.section}>Your trips</Text>
 
       {loading ? (
-        <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
+        <ActivityIndicator style={styles.spin} color={theme.accent} />
       ) : trips.length === 0 ? (
         <Text style={styles.empty}>No trips yet. Your first one will show up here.</Text>
       ) : (
-        trips.map((t) => (
-          <View key={t.id} style={styles.trip}>
-            <View style={styles.flex}>
-              <Text style={styles.tripRoute} numberOfLines={1}>
-                {t.pickupLabel} → {t.dropoffLabel}
-              </Text>
-              <Text style={styles.tripMeta}>
-                {when(t.createdAt)} · {OUTCOME[t.state] ?? "In progress"}
-              </Text>
+        trips.map((t) => {
+          const status = statusFor(t.state);
+          return (
+            <View key={t.id} style={styles.trip}>
+              <View style={styles.tripTop}>
+                {/* Origin and destination as a joined pair, so the row reads as
+                    one journey rather than two lines of text. */}
+                <View style={styles.rail}>
+                  <View style={[styles.dot, styles.dotOrigin]} />
+                  <View style={styles.railLine} />
+                  <View style={[styles.dot, styles.dotDestination]} />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.leg} numberOfLines={1}>
+                    {t.pickupLabel}
+                  </Text>
+                  <Text style={[styles.leg, styles.legLast]} numberOfLines={1}>
+                    {t.dropoffLabel}
+                  </Text>
+                </View>
+                {t.fareRwf !== null && t.state === "completed" ? (
+                  <Text style={styles.tripFare}>{money(t.fareRwf)}</Text>
+                ) : null}
+              </View>
+
+              <View style={styles.tripFoot}>
+                <Text style={styles.tripMeta}>{when(t.createdAt)}</Text>
+                <Text
+                  style={[
+                    styles.tripStatus,
+                    status.tone === "success" && styles.statusSuccess,
+                    status.tone === "danger" && styles.statusDanger,
+                  ]}
+                >
+                  {status.label}
+                </Text>
+              </View>
             </View>
-            {t.fareRwf !== null && t.state === "completed" ? (
-              <Text style={styles.tripFare}>{money(t.fareRwf)}</Text>
-            ) : null}
-          </View>
-        ))
+          );
+        })
       )}
 
       <Pressable
@@ -118,7 +134,7 @@ export default function Account() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
   header: { flexDirection: "row", alignItems: "center", gap: tokens.space.md },
@@ -126,21 +142,21 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: tokens.radius.pill,
-    backgroundColor: lightTheme.accent,
+    backgroundColor: theme.accent,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.onAccent,
+    color: theme.onAccent,
   },
   name: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  phone: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  phone: { fontSize: tokens.type.body.size, color: theme.textMuted },
   link: {
     flexDirection: "row",
     alignItems: "center",
@@ -148,15 +164,15 @@ const styles = StyleSheet.create({
     marginTop: tokens.space.lg,
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
   },
   linkLabel: {
     flex: 1,
     fontSize: tokens.type.body.size,
     fontWeight: "600",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  linkChevron: { fontSize: tokens.type.title.size, color: lightTheme.textMuted },
+  linkChevron: { fontSize: tokens.type.title.size, color: theme.textMuted },
   section: {
     marginTop: tokens.space.xl,
     marginBottom: tokens.space.sm,
@@ -164,29 +180,53 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
   spin: { marginTop: tokens.space.lg },
-  empty: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  empty: { fontSize: tokens.type.body.size, color: theme.textMuted },
   trip: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: tokens.space.md,
-    paddingHorizontal: tokens.space.md,
+    padding: tokens.space.md,
     marginBottom: tokens.space.sm,
-    borderRadius: tokens.radius.md,
-    backgroundColor: lightTheme.surfaceRaised,
+    borderRadius: tokens.radius.lg,
+    backgroundColor: theme.surfaceRaised,
   },
-  tripRoute: {
+  tripTop: { flexDirection: "row", alignItems: "center" },
+  rail: { width: ROUTE_DOT.size, alignItems: "center", marginRight: tokens.space.md },
+  dot: {
+    width: ROUTE_DOT.size,
+    height: ROUTE_DOT.size,
+    borderRadius: tokens.radius.pill,
+  },
+  dotOrigin: { backgroundColor: theme.origin },
+  dotDestination: { backgroundColor: theme.destination },
+  railLine: {
+    width: ROUTE_DOT.railWidth,
+    height: railGeometry().height,
+    backgroundColor: theme.border,
+  },
+  leg: {
     fontSize: tokens.type.body.size,
     fontWeight: "600",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
+    height: ROUTE_DOT.size + ROUTE_DOT.gap / 2,
   },
-  tripMeta: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  legLast: { height: undefined },
+  tripFoot: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: tokens.space.sm,
+    paddingTop: tokens.space.sm,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.border,
+  },
+  tripMeta: { fontSize: tokens.type.label.size, color: theme.textMuted },
+  tripStatus: { fontSize: tokens.type.label.size, fontWeight: "700", color: theme.textMuted },
+  statusSuccess: { color: theme.success },
+  statusDanger: { color: theme.danger },
   tripFare: {
-    fontSize: tokens.type.body.size,
+    fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   signOut: {
     marginTop: tokens.space.xxl,
@@ -194,5 +234,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  signOutText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
+  signOutText: { fontSize: tokens.type.body.size, color: theme.danger },
 });

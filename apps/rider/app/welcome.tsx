@@ -1,16 +1,24 @@
 import { useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Image,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useRouter } from "expo-router";
-import { lightTheme, palette, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 
 const PROMISES = [
   {
     title: "The price before you go",
-    body: "You see the fare and agree to it before you book. No meter, no argument at the end.",
+    body: "You agree the fare before you book. No meter, no argument at the end.",
   },
   {
     title: "Moto first",
-    body: "The fastest way through Kigali traffic, and the one most people actually take.",
+    body: "The fastest way through Kigali traffic, and the one most people take.",
   },
   {
     title: "Pay in cash",
@@ -24,7 +32,15 @@ export default function Welcome() {
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <Image
+          source={require("../assets/welcome-hero.jpg")}
+          style={styles.hero}
+          resizeMode="cover"
+          accessible
+          accessibilityLabel="A moto climbing a winding road through the Kigali hills at night"
+        />
+
         <View style={styles.brandBlock}>
           <Text style={styles.wordmark}>Gera</Text>
           {/* kugera: to arrive, to reach. The name is the promise. */}
@@ -71,6 +87,7 @@ export default function Welcome() {
       >
         <View style={styles.backdrop}>
           <View style={styles.sheet}>
+            <View style={styles.grabber} />
             <Text style={styles.sheetTitle}>Drive with Gera</Text>
             <Text style={styles.sheetBody}>
               Driving uses a separate app, Gera Driver, so your map and your earnings
@@ -95,87 +112,101 @@ export default function Welcome() {
 }
 
 const styles = StyleSheet.create({
-  // Indigo ground: this is the one screen that is pure brand.
-  root: { flex: 1, backgroundColor: palette.indigo900 },
+  root: { flex: 1, backgroundColor: theme.surface },
   flex: { flex: 1 },
-  content: {
-    flexGrow: 1,
-    justifyContent: "center",
-    padding: tokens.space.xl,
-    paddingTop: tokens.space.xxl * 2,
+  content: { paddingBottom: tokens.space.lg },
+  hero: {
+    width: "100%",
+    // The illustration is 16:9 and its horizon sits low, so the wordmark below
+    // reads as a continuation of the hillside rather than a caption under it.
+    aspectRatio: 16 / 9,
   },
-  brandBlock: { marginBottom: tokens.space.xxl },
+  brandBlock: {
+    paddingHorizontal: tokens.space.xl,
+    marginTop: tokens.space.lg,
+    marginBottom: tokens.space.xl,
+  },
   wordmark: {
-    fontSize: 64,
+    fontSize: 56,
     fontWeight: "700",
     letterSpacing: -2,
-    color: palette.white,
+    color: theme.textStrong,
   },
   tagline: {
-    marginTop: tokens.space.sm,
+    marginTop: tokens.space.xs,
     fontSize: tokens.type.title.size,
-    color: palette.amber500,
+    color: theme.accent,
     fontWeight: "600",
   },
-  promises: { gap: tokens.space.lg },
+  promises: { paddingHorizontal: tokens.space.xl, gap: tokens.space.lg },
   promise: { flexDirection: "row", gap: tokens.space.md },
   bullet: {
     width: 10,
     height: 10,
     borderRadius: tokens.radius.pill,
-    backgroundColor: palette.amber500,
+    backgroundColor: theme.accent,
     marginTop: 7,
   },
   promiseTitle: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: palette.white,
+    color: theme.textStrong,
   },
   promiseBody: {
     marginTop: 2,
     fontSize: tokens.type.body.size,
     lineHeight: tokens.type.body.leading,
-    color: palette.indigo300,
+    color: theme.textMuted,
   },
   footer: {
     padding: tokens.space.xl,
-    paddingTop: tokens.space.lg,
+    paddingTop: tokens.space.md,
     gap: tokens.space.sm,
   },
   cta: {
     minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    backgroundColor: palette.amber500,
-    borderRadius: tokens.radius.lg,
+    backgroundColor: theme.accent,
+    borderRadius: tokens.radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },
   ctaText: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: palette.indigo900,
+    color: theme.onAccent,
   },
   ghost: {
     minHeight: tokens.MIN_TOUCH_TARGET,
     alignItems: "center",
     justifyContent: "center",
   },
-  ghostText: { fontSize: tokens.type.body.size, color: palette.indigo300 },
-  backdrop: { flex: 1, backgroundColor: "rgba(11,16,34,0.6)", justifyContent: "flex-end" },
+  ghostText: { fontSize: tokens.type.body.size, color: theme.textMuted },
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
   sheet: {
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     borderTopLeftRadius: tokens.radius.lg,
     borderTopRightRadius: tokens.radius.lg,
     padding: tokens.space.xl,
+    paddingTop: tokens.space.md,
     gap: tokens.space.md,
+  },
+  grabber: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.textMuted,
+    opacity: 0.35,
+    marginBottom: tokens.space.sm,
   },
   sheetTitle: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   sheetBody: {
     fontSize: tokens.type.body.size,
     lineHeight: tokens.type.body.leading,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
 });

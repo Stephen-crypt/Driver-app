@@ -9,7 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import {
   searchLandmarks,
   listSavedPlaces,
@@ -106,7 +106,7 @@ export default function Destination() {
           value={query}
           onChangeText={setQuery}
           placeholder="Kimironko, Simba, airport…"
-          placeholderTextColor={lightTheme.textMuted}
+          placeholderTextColor={theme.textMuted}
           autoFocus
           returnKeyType="search"
         />
@@ -122,7 +122,7 @@ export default function Destination() {
           keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             busy ? (
-              <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
+              <ActivityIndicator style={styles.spin} color={theme.accent} />
             ) : (
               <Text style={styles.hint}>
                 No landmark matches that. Clear the box to drop a pin on the map instead.
@@ -173,7 +173,7 @@ export default function Destination() {
                 value={note}
                 onChangeText={setNote}
                 placeholder="How to find you — blue gate opposite the pharmacy"
-                placeholderTextColor={lightTheme.textMuted}
+                placeholderTextColor={theme.textMuted}
               />
               <Pressable
                 style={styles.cta}
@@ -214,14 +214,14 @@ export default function Destination() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   searchBar: { padding: tokens.space.lg, paddingBottom: tokens.space.sm },
   input: {
     minHeight: tokens.MIN_TOUCH_TARGET,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     borderWidth: 2,
-    borderColor: lightTheme.accent,
+    borderColor: theme.accent,
     borderRadius: tokens.radius.md,
     paddingHorizontal: tokens.space.md,
   },
@@ -232,25 +232,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.space.lg,
     paddingVertical: tokens.space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: lightTheme.textMuted,
+    borderBottomColor: theme.textMuted,
   },
   rowName: {
     fontSize: tokens.type.body.size,
     fontWeight: "600",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  rowSector: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  rowSector: { fontSize: tokens.type.label.size, color: theme.textMuted },
   hint: {
     padding: tokens.space.lg,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
     fontSize: tokens.type.body.size,
   },
   tapHint: {
     position: "absolute",
     top: tokens.space.md,
     alignSelf: "center",
-    backgroundColor: lightTheme.surfaceRaised,
-    color: lightTheme.textStrong,
+    backgroundColor: theme.surfaceRaised,
+    color: theme.textStrong,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
     borderRadius: tokens.radius.pill,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
   },
   spin: { marginTop: tokens.space.xl },
   error: {
-    color: lightTheme.danger,
+    color: theme.danger,
     paddingHorizontal: tokens.space.lg,
     fontSize: tokens.type.body.size,
   },
@@ -278,7 +278,7 @@ const styles = StyleSheet.create({
     minHeight: tokens.MIN_TOUCH_TARGET,
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.pill,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     alignItems: "center",
     justifyContent: "center",
     elevation: 4,
@@ -286,20 +286,20 @@ const styles = StyleSheet.create({
   savedChipText: {
     fontSize: tokens.type.label.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   saveLink: {
     minHeight: tokens.MIN_TOUCH_TARGET,
     alignItems: "center",
     justifyContent: "center",
   },
-  saveLinkText: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  saveLinkText: { fontSize: tokens.type.body.size, color: theme.textMuted },
   pinPanel: {
     position: "absolute",
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     padding: tokens.space.lg,
     borderTopLeftRadius: tokens.radius.lg,
     borderTopRightRadius: tokens.radius.lg,
@@ -307,20 +307,20 @@ const styles = StyleSheet.create({
   pinTitle: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   noteInput: {
     marginTop: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     borderBottomWidth: 2,
-    borderBottomColor: lightTheme.accent,
+    borderBottomColor: theme.accent,
   },
   cta: {
     marginTop: tokens.space.lg,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: lightTheme.accent,
+    backgroundColor: theme.accent,
     borderRadius: tokens.radius.lg,
     alignItems: "center",
     justifyContent: "center",
@@ -328,6 +328,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.onAccent,
+    color: theme.onAccent,
   },
 });

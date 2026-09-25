@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import { verifyOtp } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 
@@ -54,33 +54,33 @@ export default function VerifyScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface, padding: tokens.space.lg },
+  root: { flex: 1, backgroundColor: theme.surface, padding: tokens.space.lg },
   title: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     marginTop: tokens.space.xxl,
   },
-  sub: { fontSize: tokens.type.body.size, color: lightTheme.textMuted, marginTop: tokens.space.sm },
+  sub: { fontSize: tokens.type.body.size, color: theme.textMuted, marginTop: tokens.space.sm },
   input: {
     marginTop: tokens.space.xl,
     fontSize: tokens.type.display.size,
     letterSpacing: 8,
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     borderBottomWidth: 2,
-    borderBottomColor: lightTheme.accent,
+    borderBottomColor: theme.accent,
     paddingVertical: tokens.space.sm,
   },
-  error: { color: lightTheme.danger, marginTop: tokens.space.md },
+  error: { color: theme.danger, marginTop: tokens.space.md },
   cta: {
     marginTop: "auto",
     marginBottom: tokens.space.xl,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: lightTheme.accent,
+    backgroundColor: theme.accent,
     borderRadius: tokens.radius.lg,
     alignItems: "center",
     justifyContent: "center",
   },
   ctaBusy: { opacity: 0.6 },
-  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: lightTheme.onAccent },
+  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.onAccent },
 });

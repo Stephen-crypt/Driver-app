@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import { registerDeviceToken } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { registerForPush } from "../src/lib/push";
@@ -55,7 +55,7 @@ export default function Home() {
   if (signedIn === null) {
     return (
       <View style={styles.centre}>
-        <ActivityIndicator color={lightTheme.accent} />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -94,12 +94,12 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   centre: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: lightTheme.surface,
+    backgroundColor: theme.surface,
   },
   search: {
     minHeight: tokens.MIN_TOUCH_TARGET,
@@ -107,18 +107,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.md,
     borderWidth: 2,
-    borderColor: lightTheme.accent,
-    backgroundColor: lightTheme.surface,
+    borderColor: theme.accent,
+    backgroundColor: theme.surface,
   },
   searchText: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   hint: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
   accountButton: {
     position: "absolute",
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     width: tokens.MIN_TOUCH_TARGET,
     height: tokens.MIN_TOUCH_TARGET,
     borderRadius: tokens.radius.pill,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
@@ -136,5 +136,5 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
-  accountGlyph: { fontSize: 20, color: lightTheme.textStrong },
+  accountGlyph: { fontSize: 20, color: theme.textStrong },
 });

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import {
   PAYMENT_KINDS,
   listPaymentMethods,
@@ -67,7 +67,7 @@ export default function Payment() {
   if (loading) {
     return (
       <View style={styles.centre}>
-        <ActivityIndicator color={lightTheme.accent} />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -111,26 +111,26 @@ export default function Payment() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
   centre: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: lightTheme.surface,
+    backgroundColor: theme.surface,
   },
   title: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   sub: {
     marginTop: tokens.space.sm,
     marginBottom: tokens.space.lg,
     fontSize: tokens.type.body.size,
     lineHeight: tokens.type.body.leading,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
   row: {
     flexDirection: "row",
@@ -142,27 +142,27 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     borderWidth: 2,
     borderColor: "transparent",
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
   },
-  rowActive: { borderColor: lightTheme.accent },
+  rowActive: { borderColor: theme.accent },
   rowDim: { opacity: 0.55 },
   rowLabel: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  rowBlurb: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  rowBlurb: { fontSize: tokens.type.label.size, color: theme.textMuted },
   check: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.accent,
+    color: theme.accent,
   },
-  soon: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
-  error: { color: lightTheme.danger, fontSize: tokens.type.body.size },
+  soon: { fontSize: tokens.type.label.size, color: theme.textMuted },
+  error: { color: theme.danger, fontSize: tokens.type.body.size },
   cta: {
     marginTop: tokens.space.lg,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: lightTheme.accent,
+    backgroundColor: theme.accent,
     borderRadius: tokens.radius.lg,
     alignItems: "center",
     justifyContent: "center",
@@ -170,6 +170,6 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.onAccent,
+    color: theme.onAccent,
   },
 });

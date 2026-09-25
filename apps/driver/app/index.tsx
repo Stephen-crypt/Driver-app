@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 import { Redirect } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import {
   setPresence,
   heartbeat,
@@ -369,7 +369,7 @@ export default function Console() {
   if (signedIn === null) {
     return (
       <View style={styles.centre}>
-        <ActivityIndicator color={lightTheme.accent} />
+        <ActivityIndicator color={theme.accent} />
       </View>
     );
   }
@@ -390,7 +390,7 @@ export default function Console() {
           value={online}
           onValueChange={toggleOnline}
           disabled={busy || Boolean(blocked)}
-          trackColor={{ true: lightTheme.accent, false: lightTheme.textMuted }}
+          trackColor={{ true: theme.accent, false: theme.textMuted }}
         />
       </View>
 
@@ -520,7 +520,7 @@ export default function Console() {
 
       {online && !offer && !trip ? (
         <View style={styles.waiting}>
-          <ActivityIndicator color={lightTheme.accent} />
+          <ActivityIndicator color={theme.accent} />
           <Text style={styles.waitingText}>Looking for trips near you…</Text>
         </View>
       ) : null}
@@ -529,29 +529,29 @@ export default function Console() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface },
+  root: { flex: 1, backgroundColor: theme.surface },
   content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
   centre: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: lightTheme.surface,
+    backgroundColor: theme.surface,
   },
   statusRow: {
     flexDirection: "row",
     alignItems: "center",
     padding: tokens.space.md,
     borderRadius: tokens.radius.lg,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     minHeight: tokens.MIN_TOUCH_TARGET,
   },
   statusLabel: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  statusSub: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  statusSub: { fontSize: tokens.type.label.size, color: theme.textMuted },
   walletRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -559,80 +559,80 @@ const styles = StyleSheet.create({
     marginTop: tokens.space.md,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
   },
-  walletLabel: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  walletLabel: { fontSize: tokens.type.body.size, color: theme.textMuted },
   walletValue: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   warn: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textStrong,
-    backgroundColor: lightTheme.surfaceRaised,
+    color: theme.textStrong,
+    backgroundColor: theme.surfaceRaised,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
     borderLeftWidth: 4,
-    borderLeftColor: lightTheme.accent,
+    borderLeftColor: theme.accent,
   },
   error: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
-    color: lightTheme.danger,
+    color: theme.danger,
   },
   offer: {
     marginTop: tokens.space.lg,
     padding: tokens.space.lg,
     borderRadius: tokens.radius.lg,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
     borderWidth: 3,
-    borderColor: lightTheme.accent,
+    borderColor: theme.accent,
   },
   // The countdown is the most urgent thing on the screen, so it is the largest.
   offerCountdown: {
     fontSize: tokens.type.display.size,
     fontWeight: "700",
-    color: lightTheme.accent,
+    color: theme.accent,
   },
   offerFare: {
     fontSize: tokens.type.display.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   offerLeg: {
     marginTop: tokens.space.sm,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
   offerNote: {
     fontSize: tokens.type.body.size,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
     fontStyle: "italic",
   },
   trip: {
     marginTop: tokens.space.lg,
     padding: tokens.space.lg,
     borderRadius: tokens.radius.lg,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
   },
   tripState: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
     marginBottom: tokens.space.sm,
   },
   waiting: { marginTop: tokens.space.xxl, alignItems: "center" },
   waitingText: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
   },
   cta: {
     marginTop: tokens.space.lg,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: lightTheme.accent,
+    backgroundColor: theme.accent,
     borderRadius: tokens.radius.lg,
     alignItems: "center",
     justifyContent: "center",
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
   ctaText: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.onAccent,
+    color: theme.onAccent,
   },
   ghost: {
     marginTop: tokens.space.sm,
@@ -649,34 +649,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  ghostText: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  ghostText: { fontSize: tokens.type.body.size, color: theme.textMuted },
   call: {
     marginTop: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET,
     borderRadius: tokens.radius.md,
     borderWidth: 2,
-    borderColor: lightTheme.textStrong,
+    borderColor: theme.textStrong,
     alignItems: "center",
     justifyContent: "center",
   },
   callText: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  cancelText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
+  cancelText: { fontSize: tokens.type.body.size, color: theme.danger },
   earnings: {
     marginTop: tokens.space.md,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: lightTheme.surfaceRaised,
+    backgroundColor: theme.surfaceRaised,
   },
   earningsTitle: {
     fontSize: tokens.type.label.size,
     fontWeight: "700",
     letterSpacing: 1,
     textTransform: "uppercase",
-    color: lightTheme.textMuted,
+    color: theme.textMuted,
     marginBottom: tokens.space.sm,
   },
   earningsRow: { flexDirection: "row", justifyContent: "space-between" },
@@ -684,8 +684,8 @@ const styles = StyleSheet.create({
   earningsValue: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
-    color: lightTheme.textStrong,
+    color: theme.textStrong,
   },
-  earningsNet: { color: lightTheme.success },
-  earningsLabel: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
+  earningsNet: { color: theme.success },
+  earningsLabel: { fontSize: tokens.type.label.size, color: theme.textMuted },
 });

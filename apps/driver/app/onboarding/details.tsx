@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 import { VEHICLE_CLASSES, type VehicleClass } from "@gera/core";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
@@ -75,14 +75,14 @@ export default function DetailsScreen() {
       <Text style={styles.title}>Your details</Text>
 
       <TextInput style={styles.input} value={name} onChangeText={setName}
-        placeholder="First name" placeholderTextColor={lightTheme.textMuted} />
+        placeholder="First name" placeholderTextColor={theme.textMuted} />
       <TextInput style={styles.input} value={licence} onChangeText={setLicence}
-        placeholder="Licence number" placeholderTextColor={lightTheme.textMuted} />
+        placeholder="Licence number" placeholderTextColor={theme.textMuted} />
       <TextInput style={styles.input} value={plate} onChangeText={setPlate}
-        placeholder="Plate, e.g. RAD 123 B" placeholderTextColor={lightTheme.textMuted}
+        placeholder="Plate, e.g. RAD 123 B" placeholderTextColor={theme.textMuted}
         autoCapitalize="characters" />
       <TextInput style={styles.input} value={vest} onChangeText={setVest}
-        placeholder="Vest number (motos only)" placeholderTextColor={lightTheme.textMuted}
+        placeholder="Vest number (motos only)" placeholderTextColor={theme.textMuted}
         keyboardType="number-pad" />
 
       <View style={styles.classRow}>
@@ -109,31 +109,31 @@ export default function DetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: lightTheme.surface, padding: tokens.space.lg },
+  root: { flex: 1, backgroundColor: theme.surface, padding: tokens.space.lg },
   title: {
     fontSize: tokens.type.title.size, fontWeight: "700",
-    color: lightTheme.textStrong, marginTop: tokens.space.xl,
+    color: theme.textStrong, marginTop: tokens.space.xl,
   },
   input: {
     marginTop: tokens.space.md, fontSize: tokens.type.body.size,
-    color: lightTheme.textStrong, borderBottomWidth: 1,
-    borderBottomColor: lightTheme.textMuted, paddingVertical: tokens.space.sm,
+    color: theme.textStrong, borderBottomWidth: 1,
+    borderBottomColor: theme.textMuted, paddingVertical: tokens.space.sm,
   },
   classRow: { flexDirection: "row", gap: tokens.space.sm, marginTop: tokens.space.lg },
   chip: {
     paddingHorizontal: tokens.space.md, minHeight: tokens.MIN_TOUCH_TARGET,
     justifyContent: "center", borderRadius: tokens.radius.pill,
-    borderWidth: 1, borderColor: lightTheme.textMuted,
+    borderWidth: 1, borderColor: theme.textMuted,
   },
-  chipActive: { backgroundColor: lightTheme.accent, borderColor: lightTheme.accent },
-  chipText: { color: lightTheme.text, fontWeight: "600" },
-  chipTextActive: { color: lightTheme.onAccent },
-  error: { color: lightTheme.danger, marginTop: tokens.space.md },
+  chipActive: { backgroundColor: theme.accent, borderColor: theme.accent },
+  chipText: { color: theme.text, fontWeight: "600" },
+  chipTextActive: { color: theme.onAccent },
+  error: { color: theme.danger, marginTop: tokens.space.md },
   cta: {
     marginTop: "auto", marginBottom: tokens.space.xl,
-    minHeight: tokens.MIN_TOUCH_TARGET, backgroundColor: lightTheme.accent,
+    minHeight: tokens.MIN_TOUCH_TARGET, backgroundColor: theme.accent,
     borderRadius: tokens.radius.lg, alignItems: "center", justifyContent: "center",
   },
   ctaDisabled: { opacity: 0.5 },
-  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: lightTheme.onAccent },
+  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.onAccent },
 });

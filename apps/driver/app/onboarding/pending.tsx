@@ -1,5 +1,5 @@
 import { View, Text, StyleSheet } from "react-native";
-import { lightTheme, tokens } from "@gera/ui";
+import { theme, tokens } from "@gera/ui";
 
 export default function PendingScreen() {
   return (
@@ -15,15 +15,15 @@ export default function PendingScreen() {
 
 const styles = StyleSheet.create({
   root: {
-    flex: 1, backgroundColor: lightTheme.surface,
+    flex: 1, backgroundColor: theme.surface,
     alignItems: "center", justifyContent: "center", padding: tokens.space.lg,
   },
   title: {
     fontSize: tokens.type.title.size, fontWeight: "700",
-    color: lightTheme.textStrong, textAlign: "center",
+    color: theme.textStrong, textAlign: "center",
   },
   body: {
-    fontSize: tokens.type.body.size, color: lightTheme.textMuted,
+    fontSize: tokens.type.body.size, color: theme.textMuted,
     textAlign: "center", marginTop: tokens.space.md, lineHeight: tokens.type.body.leading,
   },
 });
