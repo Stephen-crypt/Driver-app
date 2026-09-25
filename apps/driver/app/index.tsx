@@ -40,6 +40,7 @@ import {
 import { supabase } from "../src/lib/supabase";
 import { registerForPush } from "../src/lib/push";
 import * as loc from "../src/lib/location";
+import { EmptyState } from "../src/components/EmptyState";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
 
@@ -373,7 +374,7 @@ export default function Console() {
       </View>
     );
   }
-  if (!signedIn) return <Redirect href="/onboarding/phone" />;
+  if (!signedIn) return <Redirect href="/welcome" />;
 
   const left = offer ? secondsLeft(offer.expiresAt) : 0;
 
@@ -524,6 +525,17 @@ export default function Console() {
           <Text style={styles.waitingText}>Looking for trips near you…</Text>
         </View>
       ) : null}
+
+      {/* Offline with nothing running: the screen would otherwise be a toggle
+          and a lot of empty space. */}
+      {!online && !trip ? (
+        <View style={styles.offlineArt}>
+          <EmptyState
+            title="You're offline"
+            body="Go online and trips near you will come straight to this screen."
+          />
+        </View>
+      ) : null}
     </ScrollView>
   );
 }
@@ -624,6 +636,7 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.sm,
   },
   waiting: { marginTop: tokens.space.xxl, alignItems: "center" },
+  offlineArt: { marginTop: tokens.space.lg },
   waitingText: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,

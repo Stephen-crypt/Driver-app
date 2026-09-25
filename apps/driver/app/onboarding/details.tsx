@@ -67,7 +67,9 @@ export default function DetailsScreen() {
       return;
     }
 
-    router.replace("/onboarding/pending");
+    // Documents before the waiting room: a driver parked on "pending" with
+    // nothing uploaded is waiting for a review that can never happen.
+    router.replace("/onboarding/documents");
   }
 
   return (

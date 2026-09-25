@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { theme, tokens, ROUTE_DOT, railGeometry, statusFor } from "@gera/ui";
 import { listTrips, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
+import { EmptyState } from "../src/components/EmptyState";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
 
@@ -75,7 +76,10 @@ export default function Account() {
       {loading ? (
         <ActivityIndicator style={styles.spin} color={theme.accent} />
       ) : trips.length === 0 ? (
-        <Text style={styles.empty}>No trips yet. Your first one will show up here.</Text>
+        <EmptyState
+          title="No trips yet"
+          body="Your first ride will show up here, with what you paid and who drove you."
+        />
       ) : (
         trips.map((t) => {
           const status = statusFor(t.state);

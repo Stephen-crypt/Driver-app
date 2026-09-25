@@ -303,3 +303,82 @@ export function startOfToday(now = new Date()): Date {
   d.setHours(0, 0, 0, 0);
   return d;
 }
+
+export type DocumentKind =
+  | "national_id"
+  | "driving_licence"
+  | "vehicle_registration"
+  | "insurance";
+
+export type DocumentStatus = "pending" | "approved" | "rejected";
+
+export interface DriverDocument {
+  readonly kind: DocumentKind;
+  readonly status: DocumentStatus;
+  readonly note: string | null;
+  readonly uploaded: boolean;
+}
+
+/** Human labels for the checklist. The server owns which kinds are required. */
+export const DOCUMENT_LABELS: Record<DocumentKind, string> = {
+  national_id: "National ID",
+  driving_licence: "Driving licence",
+  vehicle_registration: "Vehicle registration",
+  insurance: "Insurance certificate",
+};
+
+/**
+ * What the driver still owes, one row per required kind whether uploaded or
+ * not - so the checklist is the server's idea of "required", not the app's.
+ */
+export async function listMyDocuments(client: GeraClient): Promise<DriverDocument[]> {
+  const { data, error } = await client.rpc("my_documents");
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as DriverDocument[]).map((r) => ({
+    kind: r.kind,
+    status: r.status,
+    note: r.note,
+    uploaded: r.uploaded,
+  }));
+}
+
+const BUCKET = "driver-documents";
+
+/**
+ * Uploads one document and records it.
+ *
+ * The path is always `<driver_id>/<kind>`, which is what the storage policy
+ * checks: a driver can only write inside the folder named for their own uid.
+ *
+ * Note this never sets `status`. The column is not grantable to a driver at
+ * all - a first cut let one PATCH status='approved' onto their own licence and
+ * go online unvetted.
+ */
+export async function uploadDocument(
+  client: GeraClient,
+  driverId: string,
+  kind: DocumentKind,
+  file: { uri: string; mimeType: string; extension: string },
+): Promise<void> {
+  const path = `${driverId}/${kind}.${file.extension}`;
+
+  // React Native has no File; supabase-js takes the ArrayBuffer instead.
+  const response = await fetch(file.uri);
+  const body = await response.arrayBuffer();
+
+  const up = await client.storage.from(BUCKET).upload(path, body, {
+    contentType: file.mimeType,
+    upsert: true,
+  });
+  if (up.error) throw new Error(up.error.message);
+
+  // Re-submitting resets nothing the driver controls; a reviewer decides the
+  // status, so the row only ever carries where the file is.
+  const { error } = await client
+    .from("driver_documents")
+    .upsert(
+      { driver_id: driverId, kind, storage_path: path, updated_at: new Date().toISOString() },
+      { onConflict: "driver_id,kind" },
+    );
+  if (error) throw new Error(error.message);
+}
