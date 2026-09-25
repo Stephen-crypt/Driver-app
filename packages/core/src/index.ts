@@ -1,5 +1,7 @@
 export * from "./trip/states";
 export * from "./trip/machine";
+export * from "./trip/waiting";
+export * from "./trip/shift";
 export * from "./fare/policy";
 export * from "./fare/quote";
 export * from "./fare/finalize";

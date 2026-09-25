@@ -85,7 +85,7 @@ describe("TS/SQL terminal state parity", () => {
     expect(sqlTerminal).toEqual([...TERMINAL_STATES].sort());
   });
 
-  it("classifies every one of the ten states", () => {
+  it("classifies every one of the eleven states", () => {
     const terminal = new Set<string>(TERMINAL_STATES);
 
     // Not a restatement of TERMINAL_STATES: it walks TRIP_STATES, so a state
@@ -94,7 +94,7 @@ describe("TS/SQL terminal state parity", () => {
       expect(isTerminal(state), state).toBe(terminal.has(state));
     }
 
-    expect(TRIP_STATES).toHaveLength(10);
+    expect(TRIP_STATES).toHaveLength(11);
   });
 });
 

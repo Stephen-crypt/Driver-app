@@ -61,6 +61,12 @@ describe("the shipped theme", () => {
     expect(contrastRatio(theme.onAccent, theme.accent)).toBeGreaterThanOrEqual(AA);
   });
 
+  it("the vest patch numeral clears AAA - it is read from a moving moto", () => {
+    // A PIN or a vest number is read at arm's length, in sun, often on the
+    // move. AA is the floor for body text; this is the one place held higher.
+    expect(contrastRatio(theme.onAccent, theme.accentDeep)).toBeGreaterThanOrEqual(7);
+  });
+
   it("stacks three distinct surface levels, so a card can sit inside a card", () => {
     const levels = new Set([theme.surface, theme.surfaceRaised, theme.surfaceHigh]);
     expect(levels.size).toBe(3);

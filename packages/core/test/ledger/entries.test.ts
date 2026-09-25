@@ -99,7 +99,12 @@ describe("the split of a fare", () => {
 });
 
 describe("canGoOnline", () => {
-  const under = { hasActiveVehicle: true, cashHeldRwf: 10_000, maxCashHeldRwf: 50_000 };
+  const under = {
+    hasActiveVehicle: true,
+    hasOpenShift: true,
+    cashHeldRwf: 10_000,
+    maxCashHeldRwf: 50_000,
+  };
 
   it("lets a rider with a vehicle and little cash work", () => {
     expect(canGoOnline(under)).toBe(true);
@@ -116,5 +121,10 @@ describe("canGoOnline", () => {
   it("stops a rider with no vehicle, however little cash they hold", () => {
     // A fleet owns the vehicles. No vehicle means not working today.
     expect(canGoOnline({ ...under, hasActiveVehicle: false, cashHeldRwf: 0 })).toBe(false);
+  });
+
+  it("stops a rider who has not started a shift", () => {
+    // The shift is where the safety checks happen. No shift, no checks, no work.
+    expect(canGoOnline({ ...under, hasOpenShift: false, cashHeldRwf: 0 })).toBe(false);
   });
 });

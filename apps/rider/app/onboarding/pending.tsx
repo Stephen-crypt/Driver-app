@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, tokens } from "@gera/ui";
+import { Button, Txt, c as theme, space } from "@gera/kit";
+import { tokens } from "@gera/ui";
 import { supabase } from "../../src/lib/supabase";
 
 type Verification = "submitted" | "verified" | "rejected" | string;
@@ -51,17 +52,13 @@ export default function PendingScreen() {
         <View style={[styles.well, styles.wellBad]}>
           <Ionicons name="alert-circle-outline" size={32} color={theme.danger} />
         </View>
-        <Text style={styles.title}>Something needs fixing</Text>
-        <Text style={styles.body}>
+        <Txt v="title" align="center">Something needs fixing</Txt>
+        <Txt v="body" tone="muted" align="center" style={styles.body}>
           One or more of your documents was not accepted. Each one says why.
-        </Text>
-        <Pressable
-          style={styles.cta}
-          onPress={() => router.replace("/onboarding/documents")}
-          accessibilityRole="button"
-        >
-          <Text style={styles.ctaText}>See my documents</Text>
-        </Pressable>
+        </Txt>
+        <View style={styles.cta}>
+          <Button label="See my documents" onPress={() => router.replace("/onboarding/documents")} />
+        </View>
       </View>
     );
   }
@@ -73,11 +70,11 @@ export default function PendingScreen() {
       <View style={styles.well}>
         <Ionicons name="hourglass-outline" size={32} color={theme.accent} />
       </View>
-      <Text style={styles.title}>We're checking your documents</Text>
-      <Text style={styles.body}>
+      <Txt v="title" align="center">We're checking your documents</Txt>
+      <Txt v="body" tone="muted" align="center" style={styles.body}>
         This usually takes a few hours. This screen moves on by itself the moment
         you're approved.
-      </Text>
+      </Txt>
 
       <Pressable
         style={styles.ghost}
@@ -88,7 +85,7 @@ export default function PendingScreen() {
         {checking ? (
           <ActivityIndicator color={theme.accent} />
         ) : (
-          <Text style={styles.ghostText}>Check now</Text>
+          <Txt v="bodyStrong" tone="accent">Check now</Txt>
         )}
       </Pressable>
     </View>
@@ -107,14 +104,7 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.lg,
   },
   wellBad: { backgroundColor: theme.dangerSoft },
-  title: {
-    fontSize: tokens.type.title.size, fontWeight: "700",
-    color: theme.textStrong, textAlign: "center",
-  },
-  body: {
-    fontSize: tokens.type.body.size, color: theme.textMuted,
-    textAlign: "center", marginTop: tokens.space.md, lineHeight: tokens.type.body.leading,
-  },
+  body: { marginTop: space.sm },
   ghost: {
     marginTop: tokens.space.lg,
     minHeight: tokens.MIN_TOUCH_TARGET,
@@ -125,15 +115,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  ghostText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.accent },
-  cta: {
-    marginTop: tokens.space.xl,
-    alignSelf: "stretch",
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    borderRadius: tokens.radius.pill,
-    backgroundColor: theme.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaText: { fontSize: tokens.type.body.size + 1, fontWeight: "700", color: theme.onAccent },
+  cta: { marginTop: tokens.space.xl, alignSelf: "stretch" },
 });

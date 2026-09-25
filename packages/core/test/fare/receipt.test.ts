@@ -41,4 +41,25 @@ describe("buildReceipt", () => {
     const r = buildReceipt(MOTO, 1700, 4000, 5600);
     expect(r.lines.reduce((t, l) => t + l.amountRwf, 0)).toBe(r.totalRwf);
   });
+
+  it("itemises waiting time as its own line and bills it", () => {
+    const r = buildReceipt(MOTO, 1700, 4000, 4000, 300);
+    expect(r.lines).toEqual([
+      { label: "Fare", amountRwf: 1700 },
+      { label: "Waiting time", amountRwf: 300 },
+    ]);
+    expect(r.totalRwf).toBe(2000);
+    // The rider's share covers the time they spent waiting, too.
+    expect(r.riderEarningRwf).toBe(1700);
+  });
+
+  it("adds no waiting line when the passenger came out inside the grace", () => {
+    expect(buildReceipt(MOTO, 1700, 4000, 4000, 0).lines).toHaveLength(1);
+  });
+
+  it("still sums with an overage and waiting together", () => {
+    const r = buildReceipt(MOTO, 1700, 4000, 5600, 150);
+    expect(r.lines.map((l) => l.label)).toEqual(["Fare", "Extra distance", "Waiting time"]);
+    expect(r.lines.reduce((t, l) => t + l.amountRwf, 0)).toBe(r.totalRwf);
+  });
 });

@@ -84,7 +84,11 @@ psql(`insert into public.profiles (id,role,first_name,phone) values
  ('${PASSENGER}','passenger','Aline','+2507881${suffix}'),
  ('${RIDER}','rider','Eric','+2507882${suffix}');`);
 psql(`insert into public.riders (id,verification) values ('${RIDER}','verified');`);
-psql(`insert into public.ledger_entries (rider_id,kind,amount_rwf) values ('${RIDER}','topup_credit',5000);`);
+// A fleet rider works a company vehicle inside an open shift (0035, 0037).
+psql(`insert into public.vehicles (rider_id,class,plate,is_active)
+      values ('${RIDER}','moto','RAD ' || substr('${RIDER}',1,4),true);`);
+psql(`insert into public.shifts (rider_id,vehicle_id,safety_checks)
+      select rider_id,id,'{"e2e":true}'::jsonb from public.vehicles where rider_id='${RIDER}';`);
 // One moto, online, 300m from the pickup - wherever this run's pickup landed.
 psql(`insert into public.rider_presence (rider_id,status,vehicle_class,position,heartbeat_at)
       values ('${RIDER}','online','moto',${point(RIDER_AT)},now());`);
@@ -134,22 +138,33 @@ check("rider accepts", accepted.body.state, "accepted");
 check("offer records the outcome",
   psql(`select outcome from public.trip_offers where id='${offerId}';`), "accepted");
 
-for (const [to, key] of [["arrived", "a2"], ["in_progress", "a3"]]) {
+for (const [to, key] of [["arrived", "a2"]]) {
   const r = await call("/rest/v1/rpc/trip_transition", riderJwt, {
     p_trip_id: tripId, p_to: to, p_idempotency_key: key,
   });
   check(`transition to ${to}`, r.body.state, to);
 }
 
+// The passenger reads the PIN out at the kerb; this script reads it as postgres.
+const pin = psql(`select pin from public.trip_pins where trip_id='${tripId}';`);
+const wrong = await call("/rest/v1/rpc/start_trip", riderJwt, {
+  p_trip_id: tripId, p_pin: pin === "0000" ? "1111" : "0000", p_idempotency_key: "go-wrong",
+});
+check("a wrong PIN does not start the trip", wrong.body.started, false);
+const started = await call("/rest/v1/rpc/start_trip", riderJwt, {
+  p_trip_id: tripId, p_pin: pin, p_idempotency_key: "go-right",
+});
+check("the right PIN starts it", started.body.started, true);
+
 const done = await call("/functions/v1/complete-trip", riderJwt, {
   tripId, actualDistanceM: 4100, idempotencyKey: "done-1",
 });
 check("completion returns 200", done.status, 200);
 check("trip completed", done.body.state, "completed");
-check("exactly one commission debit",
-  psql(`select count(*) from public.ledger_entries where trip_id='${tripId}';`), "1");
-check("rider balance is 5000 - 255",
-  psql(`select public.rider_balance('${RIDER}');`), "4745");
+check("one cash row and one earning row",
+  psql(`select count(*) from public.ledger_entries where trip_id='${tripId}';`), "2");
+check("the rider now carries the fare",
+  psql(`select public.rider_cash_held_internal('${RIDER}');`), done.body.receipt.totalRwf);
 
 parkRider();
 

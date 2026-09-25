@@ -25,6 +25,7 @@ select ('d0000000-0000-4000-8000-00000000000' || n)::uuid,
        case when n = 5 then 'submitted'::verification_status else 'verified'::verification_status end
   from generate_series(1,6) n;
 
+
 -- A fleet rider is dispatchable because they have a vehicle, not because they
 -- funded a float. The float was the marketplace gate and no longer grants
 -- anything.
@@ -32,6 +33,12 @@ insert into public.vehicles (rider_id, class, plate, is_active)
 select ('d0000000-0000-4000-8000-00000000000' || n)::uuid, 'moto',
        'RAM 00' || n, true
   from generate_series(1,6) n;
+
+-- A rider works inside an open shift (0037). Opened directly here, so the
+-- tests that follow are about what they test, not about the checklist.
+insert into public.shifts (rider_id, vehicle_id, safety_checks)
+select v.rider_id, v.id, '{}'::jsonb from public.vehicles v
+ where v.rider_id in ('d0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000004', 'd0000000-0000-4000-8000-000000000005', 'd0000000-0000-4000-8000-000000000006');
 
 insert into public.rider_presence (rider_id, status, vehicle_class, position, heartbeat_at) values
   ('d0000000-0000-4000-8000-000000000001','online','moto', st_point(30.0650,-1.9441)::geography, now()),

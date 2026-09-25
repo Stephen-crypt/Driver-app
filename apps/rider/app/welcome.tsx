@@ -1,28 +1,22 @@
-import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, ScrollView, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, tokens } from "@gera/ui";
+import { Button, Txt, c, font, space, type IconName } from "@gera/kit";
 
 /**
  * What a rider actually wants to know before they sign up, in the order they
  * ask it: whose vehicle, what do I earn, and what happens to the cash.
  *
- * The version this replaces described a marketplace - the rider keeping the
- * fare and topping up a wallet we took commission from. Gera owns the vehicles,
- * so every one of those sentences was the opposite of true. This is the screen
- * a rider reads before they agree to anything, and a rider who believes the
- * cash in their pocket is theirs will spend it.
+ * Gera owns the vehicles. A rider who believes the cash in their pocket is
+ * theirs will spend it, so this screen says otherwise before they agree to
+ * anything.
  */
-const TERMS: readonly {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  body: string;
-}[] = [
+const TERMS: readonly { icon: IconName; title: string; body: string }[] = [
   {
     icon: "key-outline",
     title: "The vehicle is ours",
-    body: "You do not buy it, fuel it or fix it. We hand you a working vehicle and you ride.",
+    body: "You don't buy it, fuel it or fix it. We hand you a working vehicle and you ride.",
   },
   {
     icon: "eye-outline",
@@ -32,153 +26,103 @@ const TERMS: readonly {
   {
     icon: "wallet-outline",
     title: "You earn a share of every fare",
-    body: "Your share of each completed trip is yours, and we pay it out on a fixed schedule.",
+    body: "Your share of each completed trip is yours, paid out on a fixed schedule.",
   },
   {
     icon: "swap-horizontal-outline",
     title: "The cash you collect is handed in",
-    body: "Passengers pay cash, and that money is the company’s from the moment it reaches your hand. What you carry and what you are owed are two separate numbers, and the app shows you both.",
+    body: "Passengers pay cash, and it is the company's from the moment it reaches your hand. The app always shows you what you're carrying and what you're owed, separately.",
   },
 ];
 
 export default function RiderWelcome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
 
   return (
     <View style={styles.root}>
-      <ScrollView
-        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Boxed in a rounded frame: the art is drawn on a near-white sky
-            that is a shade off the page ground, and without an edge the top of
-            the picture dissolves into the screen and reads as a layout gap. */}
-        <View style={styles.heroFrame}>
-          <Image
-            source={require("../assets/welcome-hero.jpg")}
-            style={styles.hero}
-            resizeMode="cover"
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+        {/* Full width at its own proportions. Cropped to a taller box it lost
+            the rider off the left edge on a narrow phone - and the rider is
+            the picture. The sky is within a shade of the page, so it needs no
+            frame. */}
+        <Image
+          source={require("../assets/welcome-hero.jpg")}
+          style={{ width, height: (width * 714) / 1280, marginTop: insets.top + space.lg }}
+          resizeMode="cover"
           accessible
-            accessibilityLabel="A rider in a numbered safety vest standing beside their motorbike, looking down a road through the hills"
-          />
-        </View>
+          accessibilityLabel="A rider in a numbered safety vest standing beside their motorbike, looking down a road through the hills"
+        />
 
-        <View style={styles.brandBlock}>
-          <Text style={styles.wordmark}>Gera Rider</Text>
-          <Text style={styles.tagline}>Your road, your earnings.</Text>
-        </View>
+        <View style={styles.body}>
+          <Txt v="hero" style={styles.wordmark}>
+            Gera Rider
+          </Txt>
+          <Txt v="heading" tone="muted">
+            Ride a Gera vehicle. Earn on every trip.
+          </Txt>
 
-        <View style={styles.terms}>
-          {TERMS.map((t) => (
-            <View key={t.title} style={styles.term}>
-              <View style={styles.bullet}>
-                <Ionicons name={t.icon} size={18} color={theme.accent} />
+          <View style={styles.terms}>
+            {TERMS.map((t) => (
+              <View key={t.title} style={styles.term}>
+                <View style={styles.bullet}>
+                  <Ionicons name={t.icon} size={19} color={c.accent} />
+                </View>
+                <View style={styles.flex}>
+                  <Txt v="bodyStrong">{t.title}</Txt>
+                  <Txt v="body" tone="muted">
+                    {t.body}
+                  </Txt>
+                </View>
               </View>
-              <View style={styles.flex}>
-                <Text style={styles.termTitle}>{t.title}</Text>
-                <Text style={styles.termBody}>{t.body}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
+            ))}
+          </View>
 
-        {/* Said plainly here rather than discovered at the end of onboarding. */}
-        <Text style={styles.requirements}>
-          You'll need a valid licence, your vehicle's papers and a national ID. We check
-          them before your first trip.
-        </Text>
+          {/* Said plainly here rather than discovered at the end of onboarding. */}
+          <View style={styles.needs}>
+            <Ionicons name="document-text-outline" size={18} color={c.textMuted} />
+            <Txt v="label" tone="muted" style={styles.flex}>
+              You'll need a valid licence and a national ID. We check them before your first shift.
+            </Txt>
+          </View>
+        </View>
       </ScrollView>
 
-      <View style={[styles.footer, { paddingBottom: insets.bottom + tokens.space.lg }]}>
-        <Pressable
-          style={styles.cta}
-          onPress={() => router.push("/onboarding/phone")}
-          accessibilityRole="button"
-        >
-          <Text style={styles.ctaText}>Start driving</Text>
-        </Pressable>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+        <Button label="Get started" onPress={() => router.push("/onboarding/phone")} />
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface },
   flex: { flex: 1 },
-  content: { paddingBottom: tokens.space.lg },
-  heroFrame: {
-    marginHorizontal: tokens.space.lg,
-    borderRadius: tokens.radius.xl,
-    overflow: "hidden",
-    backgroundColor: theme.surfaceHigh,
-  },
-  hero: { width: "100%", aspectRatio: 16 / 9, maxHeight: 200 },
-  brandBlock: {
-    paddingHorizontal: tokens.space.lg,
-    marginTop: tokens.space.lg,
-    marginBottom: tokens.space.xl,
-  },
-  wordmark: {
-    fontSize: 42,
-    fontWeight: "700",
-    letterSpacing: -1.5,
-    color: theme.textStrong,
-  },
-  tagline: {
-    marginTop: tokens.space.xs,
-    fontSize: tokens.type.title.size,
-    color: theme.accent,
-    fontWeight: "600",
-  },
-  terms: { paddingHorizontal: tokens.space.lg, gap: tokens.space.lg },
-  term: { flexDirection: "row", gap: tokens.space.md },
+  root: { flex: 1, backgroundColor: c.surface },
+  scroll: { paddingBottom: space.lg },
+  body: { paddingHorizontal: space.lg, marginTop: space.md },
+  wordmark: { fontFamily: font.numBold, fontSize: 60, lineHeight: 62, letterSpacing: -1 },
+  terms: { marginTop: space.xl, gap: space.lg },
+  term: { flexDirection: "row", gap: space.md },
   bullet: {
-    width: 34,
-    height: 34,
-    borderRadius: tokens.radius.sm,
-    backgroundColor: theme.accentSoft,
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: c.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
-  termTitle: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  termBody: {
-    marginTop: 2,
-    fontSize: tokens.type.body.size,
-    lineHeight: tokens.type.body.leading,
-    color: theme.textMuted,
-  },
-  requirements: {
-    marginTop: tokens.space.xl,
-    marginHorizontal: tokens.space.lg,
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
-    fontSize: tokens.type.body.size,
-    lineHeight: tokens.type.body.leading,
-    color: theme.textMuted,
+  needs: {
+    flexDirection: "row",
+    gap: space.sm,
+    marginTop: space.xl,
+    padding: space.md,
+    borderRadius: 16,
+    backgroundColor: c.surfaceRaised,
   },
   footer: {
-    paddingHorizontal: tokens.space.lg,
-    paddingTop: tokens.space.md,
-    backgroundColor: theme.surface,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: theme.border,
-  },
-  cta: {
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaText: {
-    fontSize: tokens.type.body.size + 2,
-    fontWeight: "700",
-    color: theme.onAccent,
+    paddingHorizontal: space.lg,
+    paddingTop: space.md,
+    backgroundColor: c.surface,
   },
 });

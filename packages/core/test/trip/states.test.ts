@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { TRIP_STATES, TERMINAL_STATES, isTerminal } from "../../src/trip/states";
 
 describe("trip states", () => {
-  it("declares exactly the ten states in the spec", () => {
+  it("declares exactly the eleven states in the spec", () => {
     expect([...TRIP_STATES].sort()).toEqual([
       "accepted",
       "arrived",
@@ -12,6 +12,7 @@ describe("trip states", () => {
       "expired",
       "in_progress",
       "no_riders",
+      "no_show",
       "offered",
       "requested",
     ]);
@@ -32,6 +33,7 @@ describe("trip states", () => {
       "completed",
       "expired",
       "no_riders",
+      "no_show",
     ]);
   });
 });

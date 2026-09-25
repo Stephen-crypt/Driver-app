@@ -35,6 +35,12 @@ insert into public.vehicles (rider_id, class, plate, is_active) values
   ('b0000000-0000-4000-8000-000000000003','moto','RAB 003A',true),
   ('b0000000-0000-4000-8000-000000000004','moto','RAB 004A',true);
 
+-- A rider works inside an open shift (0037). Opened directly here, so the
+-- tests that follow are about what they test, not about the checklist.
+insert into public.shifts (rider_id, vehicle_id, safety_checks)
+select v.rider_id, v.id, '{}'::jsonb from public.vehicles v
+ where v.rider_id in ('b0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000004');
+
 -- Loaded is carrying one franc more of company cash than the ceiling allows.
 -- Clear collected the same and handed it all back, which is the point of
 -- tracking remittances separately: the same fares, a different answer.

@@ -32,6 +32,8 @@ export const TRANSITIONS: readonly TransitionRule[] = [
   { from: "arrived", to: "in_progress", actors: ["rider"] },
   { from: "arrived", to: "cancelled_by_passenger", actors: ["passenger"] },
   { from: "arrived", to: "cancelled_by_rider", actors: ["rider"] },
+  // Only after the grace period - enforced by report_no_show(), not by the edge.
+  { from: "arrived", to: "no_show", actors: ["rider"] },
 
   { from: "in_progress", to: "completed", actors: ["rider"] },
 ] as const;

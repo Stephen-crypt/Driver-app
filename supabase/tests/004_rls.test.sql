@@ -46,6 +46,12 @@ values (
 insert into public.vehicles (rider_id, class, plate, is_active)
 values ('33333333-3333-3333-3333-333333333333', 'moto', 'RAR 331A', true);
 
+-- A rider works inside an open shift (0037). Opened directly here, so the
+-- tests that follow are about what they test, not about the checklist.
+insert into public.shifts (rider_id, vehicle_id, safety_checks)
+select v.rider_id, v.id, '{}'::jsonb from public.vehicles v
+ where v.rider_id in ('33333333-3333-3333-3333-333333333333');
+
 -- One ledger row each for two different riders. Asserting "the rider sees one
 -- row" only means something when there is a second row they must NOT see;
 -- against a single-row table the same assertion passes with no RLS at all.

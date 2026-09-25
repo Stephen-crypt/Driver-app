@@ -66,11 +66,20 @@ Deno.serve(async (req: Request) => {
   const policy = policyFromRow(row as FarePolicyRow | null);
   if (policyError || !policy) return json({ error: "no_fare_policy" }, 503);
 
+  // The waiting charge comes from the same SQL complete_trip() bills from, so
+  // the receipt and the ledger cannot disagree about it. The trip is already
+  // in_progress here, so the wait it measures is closed and will not move.
+  const { data: wait } = await caller
+    .rpc("trip_wait_status", { p_trip_id: tripId })
+    .single();
+  const waitingChargeRwf = Number((wait as { charge_rwf?: number } | null)?.charge_rwf ?? 0);
+
   const receipt = buildReceipt(
     policy,
     trip.quoted_amount_rwf,
     trip.quoted_distance_m ?? 0,
     distanceM,
+    waitingChargeRwf,
   );
 
   // No amounts are passed. complete_trip() derives the total and the commission

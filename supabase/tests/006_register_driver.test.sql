@@ -18,7 +18,7 @@ set local request.jwt.claims to
 
 select lives_ok(
   $$ select public.register_rider(
-       'Aline', '+250788123456', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
+       'Aline', '+250788990006', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
   'a passenger can register as a rider over their existing profile'
 );
 
@@ -26,7 +26,7 @@ select lives_ok(
 -- is an upsert now, so the identical submission simply succeeds again.
 select lives_ok(
   $$ select public.register_rider(
-       'Aline', '+250788123456', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
+       'Aline', '+250788990006', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
   're-submitting the same details succeeds instead of wedging'
 );
 

@@ -98,6 +98,13 @@ select lives_ok(
   'dispatch still assigns a rider'
 );
 
+-- The rider can never read the PIN table; the passenger reads the PIN out to
+-- them. A temp copy stands in for the passenger here.
+create temp table pin_given as
+  select p.pin from public.trip_pins p join public.trips t on t.id = p.trip_id
+   where t.passenger_id = 'b1111111-0000-4000-8000-000000000001';
+grant select on pin_given to authenticated;
+
 set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"b1111111-0000-4000-8000-000000000002","role":"authenticated"}';
@@ -109,9 +116,9 @@ select lives_ok(
      select public.trip_transition(
        (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        'arrived','j-a2');
-     select public.trip_transition(
+     select public.start_trip(
        (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
-       'in_progress','j-a3');
+       (select pin from pin_given),'j-a3');
      select public.complete_trip(
        (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        4100,'j-done') $$,

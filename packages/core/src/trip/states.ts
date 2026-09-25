@@ -9,6 +9,7 @@ export const TRIP_STATES = [
   "cancelled_by_rider",
   "expired",
   "no_riders",
+  "no_show",
 ] as const;
 
 export type TripState = (typeof TRIP_STATES)[number];
@@ -22,6 +23,8 @@ export const TERMINAL_STATES = [
   "cancelled_by_rider",
   "expired",
   "no_riders",
+  // The rider waited past the grace period and the passenger never came.
+  "no_show",
 ] as const satisfies readonly TripState[];
 
 export function isTerminal(state: TripState): boolean {

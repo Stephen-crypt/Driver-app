@@ -119,9 +119,9 @@ describe("the go-online gate matches SQL", () => {
   it("agrees on the cash ceiling", () => {
     const limit = Number(sql("select max_cash_held_rwf from public.platform_settings;"));
 
-    expect(canGoOnline({ hasActiveVehicle: true, cashHeldRwf: limit, maxCashHeldRwf: limit }))
+    expect(canGoOnline({ hasActiveVehicle: true, hasOpenShift: true, cashHeldRwf: limit, maxCashHeldRwf: limit }))
       .toBe(true);
-    expect(canGoOnline({ hasActiveVehicle: true, cashHeldRwf: limit + 1, maxCashHeldRwf: limit }))
+    expect(canGoOnline({ hasActiveVehicle: true, hasOpenShift: true, cashHeldRwf: limit + 1, maxCashHeldRwf: limit }))
       .toBe(false);
   });
 
@@ -143,7 +143,7 @@ describe("the go-online gate matches SQL", () => {
 
     const sqlSaysYes = out.split("\n").filter(Boolean).pop() === "t";
     expect(sqlSaysYes).toBe(false);
-    expect(canGoOnline({ hasActiveVehicle: false, cashHeldRwf: 0, maxCashHeldRwf: 50_000 }))
+    expect(canGoOnline({ hasActiveVehicle: false, hasOpenShift: true, cashHeldRwf: 0, maxCashHeldRwf: 50_000 }))
       .toBe(false);
   });
 });

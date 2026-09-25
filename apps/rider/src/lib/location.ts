@@ -17,12 +17,25 @@ export async function requestPermission(): Promise<boolean> {
   return status === "granted";
 }
 
-export async function getCurrent(): Promise<Coords | null> {
+/**
+ * A position, or null - never a wait. A first fix indoors can take tens of
+ * seconds, and starting a shift, ending one, or filing a report must not hang
+ * on it: the position is useful context on those records, not a precondition.
+ * The last known fix answers instantly and is minutes fresh at worst.
+ */
+export async function getCurrent(timeoutMs = 5000): Promise<Coords | null> {
   try {
-    const p = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.Balanced,
-    });
-    return { lat: p.coords.latitude, lng: p.coords.longitude };
+    const known = await Location.getLastKnownPositionAsync({ maxAge: 5 * 60_000 });
+    if (known) return { lat: known.coords.latitude, lng: known.coords.longitude };
+  } catch {
+    // Fall through to a fresh fix.
+  }
+  try {
+    const p = await Promise.race([
+      Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), timeoutMs)),
+    ]);
+    return p ? { lat: p.coords.latitude, lng: p.coords.longitude } : null;
   } catch {
     return null;
   }

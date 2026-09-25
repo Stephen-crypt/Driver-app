@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
+import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme, tokens } from "@gera/ui";
+import { Banner, Button, Field, Screen, Txt, c, radius, space, tap } from "@gera/kit";
 import { VEHICLE_CLASSES, type VehicleClass } from "@gera/core";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
@@ -16,9 +15,10 @@ function normalisePhone(raw: string | undefined): string | null {
   }
 }
 
+const CLASS_LABEL: Record<VehicleClass, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
+
 export default function DetailsScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [licence, setLicence] = useState("");
   const [plate, setPlate] = useState("");
@@ -26,128 +26,129 @@ export default function DetailsScreen() {
   // moto is first and default: it is the dominant mode in Kigali.
   const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
   const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
 
-  const ready = name.trim() && licence.trim() && plate.trim();
+  const ready = Boolean(name.trim() && licence.trim() && plate.trim());
 
   async function submit() {
     setError(null);
-    const { data: auth } = await supabase.auth.getUser();
-    if (!auth.user) {
-      setError("Session expired. Start again.");
-      return;
+    setBusy(true);
+    try {
+      const { data: auth } = await supabase.auth.getUser();
+      if (!auth.user) {
+        setError("Session expired. Start again.");
+        return;
+      }
+
+      // Supabase Auth stores the phone digits-only (250788123456), but
+      // profiles.phone is E.164 by contract and its unique constraint cannot see
+      // that the two spellings are the same person.
+      const phone = normalisePhone(auth.user.phone);
+      if (!phone) {
+        setError("We could not read your phone number. Start again.");
+        return;
+      }
+
+      // One atomic call. Three separate inserts were not a transaction: a
+      // failure after the first one left the rider wedged.
+      const { error: registerError } = await supabase.rpc("register_rider", {
+        p_first_name: name.trim(),
+        p_phone: phone,
+        p_licence: licence.trim(),
+        p_plate: plate.trim().toUpperCase(),
+        p_vest: vest.trim() || null,
+        p_class: vehicleClass,
+      });
+
+      if (registerError) {
+        setError(
+          registerError.code === "23505"
+            ? "Those details are already registered to another account."
+            : "We could not submit your details. Check your connection and try again.",
+        );
+        return;
+      }
+
+      // Documents before the waiting room: a rider parked on "pending" with
+      // nothing uploaded is waiting for a review that can never happen.
+      router.replace("/onboarding/documents");
+    } finally {
+      setBusy(false);
     }
-
-    // Supabase Auth stores the phone digits-only (250788123456), but
-    // profiles.phone is E.164 by contract and its unique constraint cannot see
-    // that the two spellings are the same person. The old `?? ""` fallback was
-    // worse still: it claimed the unique empty-string slot for the first user
-    // whose session carried no phone, locking every later one out.
-    const phone = normalisePhone(auth.user.phone);
-    if (!phone) {
-      setError("We could not read your phone number. Start again.");
-      return;
-    }
-
-    // One atomic call. Three separate inserts were not a transaction: a failure
-    // after the first one left the rider wedged, unable to retry and unable to
-    // skip the step that had already committed.
-    const { error: registerError } = await supabase.rpc("register_rider", {
-      p_first_name: name.trim(),
-      p_phone: phone,
-      p_licence: licence.trim(),
-      p_plate: plate.trim().toUpperCase(),
-      p_vest: vest.trim() || null,
-      p_class: vehicleClass,
-    });
-
-    if (registerError) {
-      setError(
-        registerError.code === "23505"
-          ? "Those details are already registered to another account."
-          : "We could not submit your details. Check your connection and try again.",
-      );
-      return;
-    }
-
-    // Documents before the waiting room: a rider parked on "pending" with
-    // nothing uploaded is waiting for a review that can never happen.
-    router.replace("/onboarding/documents");
   }
 
   return (
-    <View
-      style={[
-        styles.root,
-        { paddingTop: insets.top + tokens.space.lg, paddingBottom: insets.bottom + tokens.space.lg },
-      ]}
+    <Screen
+      title="About you"
+      subtitle="As it appears on your licence."
+      footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!ready} />}
     >
-      <Text style={styles.title}>Your details</Text>
+      <View style={styles.stack}>
+        <Field label="First name" value={name} onChangeText={setName} autoCapitalize="words" />
+        <Field label="Driving licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters" />
 
-      <TextInput style={styles.input} value={name} onChangeText={setName}
-        placeholder="First name" placeholderTextColor={theme.textMuted} />
-      <TextInput style={styles.input} value={licence} onChangeText={setLicence}
-        placeholder="Licence number" placeholderTextColor={theme.textMuted} />
-      <TextInput style={styles.input} value={plate} onChangeText={setPlate}
-        placeholder="Plate, e.g. RAD 123 B" placeholderTextColor={theme.textMuted}
-        autoCapitalize="characters" />
-      <TextInput style={styles.input} value={vest} onChangeText={setVest}
-        placeholder="Vest number (motos only)" placeholderTextColor={theme.textMuted}
-        keyboardType="number-pad" />
+        <View style={styles.group}>
+          <Txt v="label" tone="muted" style={styles.label}>
+            What you ride
+          </Txt>
+          <View style={styles.segments}>
+            {VEHICLE_CLASSES.map((k) => {
+              const on = vehicleClass === k;
+              return (
+                <Pressable
+                  key={k}
+                  onPress={() => {
+                    tap();
+                    setVehicleClass(k);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: on }}
+                  style={[styles.segment, on && styles.segmentOn]}
+                >
+                  <Txt v="bodyStrong" tone={on ? "inverse" : "strong"}>
+                    {CLASS_LABEL[k]}
+                  </Txt>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
-      <View style={styles.classRow}>
-        {VEHICLE_CLASSES.map((c) => (
-          <Pressable
-            key={c}
-            onPress={() => setVehicleClass(c)}
-            style={[styles.chip, vehicleClass === c && styles.chipActive]}
-          >
-            <Text style={[styles.chipText, vehicleClass === c && styles.chipTextActive]}>
-              {c === "cab_xl" ? "Cab XL" : c === "cab" ? "Cab" : "Moto"}
-            </Text>
-          </Pressable>
-        ))}
+        <Field
+          label="Plate"
+          value={plate}
+          onChangeText={setPlate}
+          placeholder="RAD 123 B"
+          autoCapitalize="characters"
+        />
+        {vehicleClass === "moto" ? (
+          <Field
+            label="Vest number"
+            value={vest}
+            onChangeText={setVest}
+            keyboardType="number-pad"
+            hint="The number on the back of your vest. Passengers look for it."
+          />
+        ) : null}
+
+        {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
       </View>
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable style={[styles.cta, !ready && styles.ctaDisabled]} onPress={submit} disabled={!ready}>
-        <Text style={styles.ctaText}>Submit for verification</Text>
-      </Pressable>
-    </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  // Vertical padding comes from the safe-area insets at the call site.
-  root: { flex: 1, backgroundColor: theme.surface, paddingHorizontal: tokens.space.lg },
-  title: {
-    fontSize: tokens.type.title.size, fontWeight: "700",
-    color: theme.textStrong, marginTop: tokens.space.xl,
+  stack: { gap: space.md },
+  group: { gap: 6 },
+  label: { marginLeft: space.xs },
+  segments: { flexDirection: "row", gap: space.sm },
+  segment: {
+    flex: 1,
+    minHeight: 52,
+    borderRadius: radius.md,
+    backgroundColor: c.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  input: {
-    marginTop: tokens.space.md,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    paddingHorizontal: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
-    fontSize: tokens.type.body.size,
-    color: theme.textStrong,
-  },
-  classRow: { flexDirection: "row", gap: tokens.space.sm, marginTop: tokens.space.lg },
-  chip: {
-    paddingHorizontal: tokens.space.md, minHeight: tokens.MIN_TOUCH_TARGET,
-    justifyContent: "center", borderRadius: tokens.radius.pill,
-    backgroundColor: theme.surfaceRaised,
-  },
-  chipActive: { backgroundColor: theme.accent },
-  chipText: { color: theme.text, fontWeight: "600" },
-  chipTextActive: { color: theme.onAccent },
-  error: { color: theme.danger, marginTop: tokens.space.md },
-  cta: {
-    marginTop: "auto", marginBottom: tokens.space.xl,
-    minHeight: tokens.MIN_TOUCH_TARGET + 8, backgroundColor: theme.accent,
-    borderRadius: tokens.radius.pill, alignItems: "center", justifyContent: "center",
-  },
-  ctaDisabled: { opacity: 0.5 },
-  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.onAccent },
+  segmentOn: { backgroundColor: c.textStrong },
 });

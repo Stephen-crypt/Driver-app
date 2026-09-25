@@ -67,6 +67,10 @@ Deno.test("index.ts rounds the distance once and uses it for both paths", async 
   assertEquals(roundings.length, 1, "actualDistanceM must be rounded exactly once");
   assertEquals(src.includes("const distanceM = Math.round(actualDistanceM);"), true);
   assertEquals(src.includes("p_actual_distance_m: distanceM,"), true);
-  // buildReceipt's fourth argument is the same single value.
-  assertEquals(/buildReceipt\([\s\S]*?distanceM,\s*\)/.test(src), true);
+  // buildReceipt's fourth argument is the same single value; the fifth is the
+  // waiting charge.
+  assertEquals(/buildReceipt\([\s\S]*?distanceM,\s*waitingChargeRwf,\s*\)/.test(src), true);
+  // And the waiting charge comes from the same SQL complete_trip() bills from,
+  // never computed here - two sources for one charge would drift.
+  assertEquals(src.includes(`rpc("trip_wait_status", { p_trip_id: tripId })`), true);
 });

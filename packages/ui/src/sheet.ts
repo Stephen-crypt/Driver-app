@@ -30,6 +30,7 @@ const HEIGHT_BY_STATE: Record<string, number> = {
   cancelled_by_passenger: SHEET_HEIGHTS.half,
   cancelled_by_rider: SHEET_HEIGHTS.half,
   expired: SHEET_HEIGHTS.half,
+  no_show: SHEET_HEIGHTS.half,
 };
 
 export function sheetHeightFor(state: string): number {
@@ -54,6 +55,7 @@ const TITLE_BY_STATE: Record<string, string> = {
   cancelled_by_passenger: "Trip cancelled",
   cancelled_by_rider: "Trip cancelled",
   expired: "That request timed out",
+  no_show: "Your rider couldn't find you",
 };
 
 export function sheetTitleFor(state: string): string {

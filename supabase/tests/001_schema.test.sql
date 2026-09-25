@@ -13,8 +13,8 @@ select is(
   (select count(*)::int from pg_enum e
     join pg_type t on t.oid = e.enumtypid
    where t.typname = 'trip_state'),
-  10,
-  'trip_state enum has exactly ten values'
+  11,
+  'trip_state enum has exactly eleven values'
 );
 
 select * from finish();

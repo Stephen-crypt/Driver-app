@@ -59,6 +59,7 @@ export declare function buildReceipt(
   quotedRwf: number,
   quotedDistanceMetres: number,
   actualDistanceMetres: number,
+  waitingChargeRwf?: number,
 ): Receipt;
 
 /** A rider holds an exclusive offer for this long before it passes on. */

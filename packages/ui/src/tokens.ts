@@ -20,6 +20,9 @@ export const palette = {
   inkMuted: "#5E6676",
 
   blue: "#0057E7",
+  // The vest patch and the online slab: the one place blue is a ground, not a
+  // signal. Deep enough that white type on it clears AAA.
+  blueDeep: "#0A3A9C",
   blueSoft: "#E6EDFD",
 
   white: "#FFFFFF",

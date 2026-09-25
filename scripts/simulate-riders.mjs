@@ -119,8 +119,13 @@ psql(`insert into public.riders (id,verification) values ${
 // that has none makes the passenger's rider card untestable.
 psql(`insert into public.vehicles (rider_id,class,plate,vest_number,is_active) values ${
   riders.map((d) => `('${d.id}','${d.class}','${d.plate}','${d.vest}',true)`).join(",")};`);
+// Dispatch only matches riders inside an open shift (0037). A simulated rider
+// passed its checks by fiat - the checklist is the app's job, not this script's.
+psql(`insert into public.shifts (rider_id,vehicle_id,safety_checks)
+      select rider_id,id,'{"simulated":true}'::jsonb from public.vehicles
+       where rider_id in (${riders.map((d) => `'${d.id}'`).join(",")});`);
 // No float. A fleet rider does not buy their way onto the road - what they
-// need is an active vehicle, which the insert above already gave them.
+// need is an active vehicle and an open shift, both given above.
 psql(`insert into public.rider_presence (rider_id,status,vehicle_class,position,heartbeat_at) values ${
   riders.map((d) => `('${d.id}','online','${d.class}',st_point(${d.lng},${d.lat})::geography,now())`).join(",")};`);
 
@@ -209,10 +214,13 @@ async function work() {
       } else rearm(tripId, 10_000);
     } else if (state === "arrived") {
       if (!due(tripId, START_AFTER_MS)) continue;
-      const r = await call("/rest/v1/rpc/trip_transition", d.jwt, {
-        p_trip_id: tripId, p_to: "in_progress", p_idempotency_key: `sim-go-${tripId}`,
+      // The passenger reads the PIN out at the kerb. A simulated rider cannot
+      // hear it, so it reads it the only other way - as postgres.
+      const pin = psql(`select pin from public.trip_pins where trip_id='${tripId}';`);
+      const r = await call("/rest/v1/rpc/start_trip", d.jwt, {
+        p_trip_id: tripId, p_pin: pin, p_idempotency_key: `sim-go-${tripId}`,
       });
-      if (r.body?.state === "in_progress") {
+      if (r.body?.started === true) {
         console.log(`  ${d.name} started the trip`);
         rearm(tripId, FINISH_AFTER_MS);
       } else rearm(tripId, 10_000);

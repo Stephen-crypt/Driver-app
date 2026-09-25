@@ -23,8 +23,8 @@ select ok(
 
 select is(
   (select count(*)::int from public.trip_transition_rules),
-  16,
-  'the SQL rule table has sixteen rows'
+  17,
+  'the SQL rule table has seventeen rows'
 );
 
 -- The transition function is security definer and owned by a role that bypasses

@@ -242,10 +242,14 @@ export async function getActiveTrip(
   };
 }
 
+/**
+ * Arrival only. Starting the trip needs the passenger's PIN and goes through
+ * startTrip() - trip_transition refuses in_progress while the PIN is unchecked.
+ */
 export async function advanceTrip(
   client: GeraClient,
   tripId: string,
-  to: "arrived" | "in_progress",
+  to: "arrived",
 ): Promise<{ id: string; state: string }> {
   const { data, error } = await client.rpc("trip_transition", {
     p_trip_id: tripId,

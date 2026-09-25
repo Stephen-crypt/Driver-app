@@ -42,6 +42,8 @@ export function statusFor(state: string): { readonly label: string; readonly ton
       return { label: "No riders found", tone: "danger" };
     case "expired":
       return { label: "Timed out", tone: "danger" };
+    case "no_show":
+      return { label: "Rider couldn't find you", tone: "danger" };
     case "requested":
     case "offered":
       return { label: "Finding a rider", tone: "muted" };

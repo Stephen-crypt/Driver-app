@@ -48,12 +48,12 @@ describe("completeTrip", () => {
     const client = fakeClient({
       tripId: "t1", state: "completed",
       receipt: { lines: [{ label: "Fare", amountRwf: 1700 }], totalRwf: 1700 },
-      commissionRwf: 255,
+      riderEarningRwf: 1445,
     });
     const r = await completeTrip(client, {
       tripId: "t1", actualDistanceM: 4000, idempotencyKey: "k1",
     });
     expect(r.receipt.totalRwf).toBe(1700);
-    expect(r.commissionRwf).toBe(255);
+    expect(r.riderEarningRwf).toBe(1445);
   });
 });

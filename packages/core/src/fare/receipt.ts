@@ -19,13 +19,19 @@ export interface Receipt {
 /**
  * Spec 3.4: an overage is always its own line. A passenger who paid more than the
  * quote must be able to see exactly why, so the fare line keeps the quoted
- * figure and the excess is stated separately.
+ * figure and the excess is stated separately. Waiting time (NOVA §15) is the
+ * same: its own line, never folded into the fare.
+ *
+ * The waiting charge is passed in, not computed here: it depends on the trip's
+ * event timestamps, which only the database holds. trip_wait_status() is where
+ * the caller gets it, and it is the same function complete_trip() bills from.
  */
 export function buildReceipt(
   policy: FarePolicy,
   quotedRwf: number,
   quotedDistanceMetres: number,
   actualDistanceMetres: number,
+  waitingChargeRwf = 0,
 ): Receipt {
   const final = finalizeFare(policy, quotedRwf, quotedDistanceMetres, actualDistanceMetres);
 
@@ -33,11 +39,16 @@ export function buildReceipt(
   if (final.overageRwf > 0) {
     lines.push({ label: "Extra distance", amountRwf: final.overageRwf });
   }
+  if (waitingChargeRwf > 0) {
+    lines.push({ label: "Waiting time", amountRwf: waitingChargeRwf });
+  }
+
+  const totalRwf = final.totalRwf + Math.max(0, waitingChargeRwf);
 
   return {
     lines,
-    totalRwf: final.totalRwf,
-    commissionRwf: commissionFor(final.totalRwf, policy.commissionPct),
-    riderEarningRwf: riderEarningFor(final.totalRwf, policy.commissionPct),
+    totalRwf,
+    commissionRwf: commissionFor(totalRwf, policy.commissionPct),
+    riderEarningRwf: riderEarningFor(totalRwf, policy.commissionPct),
   };
 }

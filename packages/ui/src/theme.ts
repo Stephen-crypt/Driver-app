@@ -15,6 +15,8 @@ export interface Theme {
   readonly accent: string;
   /** A tint of the accent, for chips and icon wells. */
   readonly accentSoft: string;
+  /** The accent as a ground: the vest patch, the online slab. */
+  readonly accentDeep: string;
   readonly onAccent: string;
   readonly success: string;
   readonly successSoft: string;
@@ -49,6 +51,7 @@ export const lightTheme: Theme = {
   textMuted: palette.inkMuted,
   accent: palette.blue,
   accentSoft: palette.blueSoft,
+  accentDeep: palette.blueDeep,
   onAccent: palette.white,
   success: palette.green,
   successSoft: palette.greenSoft,
@@ -75,6 +78,7 @@ export const darkTheme: Theme = {
   textMuted: "#9AA2B1",
   accent: palette.blueBright,
   accentSoft: "#17233A",
+  accentDeep: "#1B4FC4",
   onAccent: palette.night,
   success: palette.greenBright,
   successSoft: "#12281F",

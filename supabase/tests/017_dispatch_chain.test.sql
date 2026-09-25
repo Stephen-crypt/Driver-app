@@ -40,6 +40,12 @@ insert into public.vehicles (rider_id, class, plate, is_active) values
   ('a0000000-0000-4000-8000-000000000004','moto','RAC 004A',true),
   ('a0000000-0000-4000-8000-000000000005','moto','RAC 005A',true);
 
+-- A rider works inside an open shift (0037). Opened directly here, so the
+-- tests that follow are about what they test, not about the checklist.
+insert into public.shifts (rider_id, vehicle_id, safety_checks)
+select v.rider_id, v.id, '{}'::jsonb from public.vehicles v
+ where v.rider_id in ('a0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000004', 'a0000000-0000-4000-8000-000000000005');
+
 -- Rider 5 is close to the cash ceiling: one more fare takes them over it,
 -- mid-shift. The fleet analogue of the old near-the-float-minimum case, and
 -- the reason the presence policy needs its already-online escape hatch.
@@ -368,6 +374,12 @@ insert into public.vehicles (rider_id, class, plate, is_active) values
   ('a0000000-0000-4000-8000-000000000006','moto','RAC 006A',true),
   ('a0000000-0000-4000-8000-000000000007','moto','RAC 007A',true),
   ('a0000000-0000-4000-8000-000000000008','moto','RAC 008A',true);
+
+-- A rider works inside an open shift (0037). Opened directly here, so the
+-- tests that follow are about what they test, not about the checklist.
+insert into public.shifts (rider_id, vehicle_id, safety_checks)
+select v.rider_id, v.id, '{}'::jsonb from public.vehicles v
+ where v.rider_id in ('a0000000-0000-4000-8000-000000000006', 'a0000000-0000-4000-8000-000000000007', 'a0000000-0000-4000-8000-000000000008');
 
 insert into public.rider_presence (rider_id, status, vehicle_class, position, heartbeat_at) values
   -- ~100m and ~200m from T6's pickup: who is "next" is unambiguous.

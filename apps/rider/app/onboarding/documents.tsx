@@ -1,18 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { theme, tokens } from "@gera/ui";
+import { Banner, Button, Chip, Divider, Group, Row, Screen, c, space } from "@gera/kit";
 import {
   listMyDocuments,
   uploadDocument,
@@ -32,7 +22,6 @@ function extensionFor(uri: string, mime: string): string {
 
 export default function Documents() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const [riderId, setRiderId] = useState<string | null>(null);
   const [docs, setDocs] = useState<RiderDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -106,49 +95,49 @@ export default function Documents() {
 
   if (loading) {
     return (
-      <View style={styles.centre}>
-        <ActivityIndicator color={theme.accent} />
-      </View>
+      <Screen title="Your documents">
+        <ActivityIndicator color={c.accent} />
+      </Screen>
     );
   }
 
   const outstanding = docs.filter((d) => !d.uploaded).length;
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
-      ]}
+    <Screen
+      title="Your documents"
+      subtitle="We check these before your first shift. Clear photos, all four corners in view."
+      footer={
+        <Button
+          label={outstanding === 0 ? "Send for review" : `${outstanding} still to upload`}
+          onPress={() => router.replace("/onboarding/pending")}
+          disabled={outstanding > 0}
+        />
+      }
     >
-      <Text style={styles.title}>Your documents</Text>
-      <Text style={styles.sub}>
-        We check these before your first trip. Clear photos, all four corners visible.
-      </Text>
-
-      {docs.map((d) => {
-        const busy = busyKind === d.kind;
-        return (
-          <Pressable
-            key={d.kind}
-            style={styles.row}
-            onPress={() => pick(d.kind)}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            {/* The state of each document is carried by the mark as well as the
-                words, so a rider can see at a glance which one is holding them
-                up without reading four lines of status text. */}
-            <View
-              style={[
-                styles.well,
-                d.status === "approved" && styles.wellGood,
-                d.status === "rejected" && styles.wellBad,
-              ]}
-            >
-              <Ionicons
-                name={
+      <Group>
+        {docs.map((d, i) => {
+          const busy = busyKind === d.kind;
+          const state =
+            d.status === "approved" ? "good" : d.status === "rejected" ? "bad" : d.uploaded ? "warn" : "neutral";
+          return (
+            <View key={d.kind}>
+              {i > 0 ? <Divider inset={70} /> : null}
+              {/* The state of each document is carried by the mark as well as
+                  the words, so a rider sees at a glance which one is holding
+                  them up without reading four lines of status text. */}
+              <Row
+                title={DOCUMENT_LABELS[d.kind]}
+                subtitle={
+                  d.status === "approved"
+                    ? "Approved"
+                    : d.status === "rejected"
+                      ? (d.note ?? "Not accepted - upload it again")
+                      : d.uploaded
+                        ? "Waiting for review"
+                        : "Not uploaded yet"
+                }
+                icon={
                   d.status === "approved"
                     ? "checkmark-circle"
                     : d.status === "rejected"
@@ -157,129 +146,29 @@ export default function Documents() {
                         ? "hourglass-outline"
                         : "cloud-upload-outline"
                 }
-                size={20}
-                color={
-                  d.status === "approved"
-                    ? theme.success
-                    : d.status === "rejected"
-                      ? theme.danger
-                      : theme.textMuted
+                iconTone={state}
+                onPress={busy ? undefined : () => void pick(d.kind)}
+                trailing={
+                  busy ? (
+                    <ActivityIndicator color={c.accent} />
+                  ) : (
+                    <Chip label={d.uploaded ? "Replace" : "Upload"} tone="accent" />
+                  )
                 }
               />
             </View>
-            <View style={styles.flex}>
-              <Text style={styles.rowLabel}>{DOCUMENT_LABELS[d.kind]}</Text>
-              {d.uploaded ? (
-                <Text
-                  style={[
-                    styles.rowStatus,
-                    d.status === "approved" && styles.approved,
-                    d.status === "rejected" && styles.rejected,
-                  ]}
-                >
-                  {d.status === "approved"
-                    ? "Approved"
-                    : d.status === "rejected"
-                      ? (d.note ?? "Rejected — please upload again")
-                      : "Waiting for review"}
-                </Text>
-              ) : (
-                <Text style={styles.rowStatus}>Not uploaded yet</Text>
-              )}
-            </View>
-            {busy ? (
-              <ActivityIndicator color={theme.accent} />
-            ) : (
-              <View style={styles.actionPill}>
-                <Text style={styles.action}>{d.uploaded ? "Replace" : "Upload"}</Text>
-              </View>
-            )}
-          </Pressable>
-        );
-      })}
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Text style={styles.note}>
-        {outstanding === 0
-          ? "All four are in. We'll let you know as soon as they're checked."
-          : `${outstanding} still to upload.`}
-      </Text>
-
-      <Pressable
-        style={styles.cta}
-        onPress={() => router.replace("/onboarding/pending")}
-        accessibilityRole="button"
-      >
-        <Text style={styles.ctaText}>Done</Text>
-      </Pressable>
-    </ScrollView>
+          );
+        })}
+      </Group>
+      {error ? (
+        <View style={styles.error}>
+          <Banner tone="bad" icon="alert-circle">{error}</Banner>
+        </View>
+      ) : null}
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface },
-  content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
-  flex: { flex: 1 },
-  centre: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: theme.surface,
-  },
-  title: { fontSize: tokens.type.title.size, fontWeight: "700", color: theme.textStrong },
-  sub: {
-    marginTop: tokens.space.sm,
-    marginBottom: tokens.space.lg,
-    fontSize: tokens.type.body.size,
-    lineHeight: tokens.type.body.leading,
-    color: theme.textMuted,
-  },
-  row: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: tokens.space.sm,
-    minHeight: tokens.MIN_TOUCH_TARGET + 12,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm,
-    marginBottom: tokens.space.sm,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
-  },
-  well: {
-    width: 36,
-    height: 36,
-    borderRadius: tokens.radius.sm,
-    backgroundColor: theme.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  wellGood: { backgroundColor: theme.successSoft },
-  wellBad: { backgroundColor: theme.dangerSoft },
-  actionPill: {
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.xs + 2,
-    borderRadius: tokens.radius.pill,
-    backgroundColor: theme.accentSoft,
-  },
-  rowLabel: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.textStrong },
-  rowStatus: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  approved: { color: theme.success },
-  rejected: { color: theme.danger },
-  action: { fontSize: tokens.type.label.size, fontWeight: "700", color: theme.accent },
-  error: { color: theme.danger, fontSize: tokens.type.body.size },
-  note: {
-    marginTop: tokens.space.md,
-    fontSize: tokens.type.body.size,
-    color: theme.textMuted,
-  },
-  cta: {
-    marginTop: tokens.space.lg,
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.onAccent },
+  error: { marginTop: space.md },
 });

@@ -31,7 +31,6 @@ const RIDER = crypto.randomUUID();
 const phoneSuffix = crypto.randomInt(1_000_000, 10_000_000);
 const PASSENGER_PHONE = `+2507${String(phoneSuffix).padStart(7, "0")}`;
 const RIDER_PHONE = `+2508${String(phoneSuffix).padStart(7, "0")}`;
-const TOPUP_RWF = 5000;
 
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
 function mint(sub) {
@@ -72,8 +71,11 @@ psql(`insert into public.profiles (id,role,first_name,phone) values
   ('${PASSENGER}','passenger','Aline','${PASSENGER_PHONE}'),
   ('${RIDER}','rider','Eric','${RIDER_PHONE}');`);
 psql(`insert into public.riders (id,verification) values ('${RIDER}','verified');`);
-psql(`insert into public.ledger_entries (rider_id,kind,amount_rwf)
-      values ('${RIDER}','topup_credit',${TOPUP_RWF});`);
+// A fleet rider works a company vehicle inside an open shift (0035, 0037).
+psql(`insert into public.vehicles (rider_id,class,plate,is_active)
+      values ('${RIDER}','moto','RAZ ' || substr('${RIDER}',1,4),true);`);
+psql(`insert into public.shifts (rider_id,vehicle_id,safety_checks)
+      select rider_id,id,'{"e2e":true}'::jsonb from public.vehicles where rider_id='${RIDER}';`);
 
 const passengerJwt = mint(PASSENGER);
 const riderJwt = mint(RIDER);
@@ -115,12 +117,27 @@ check("rider assigned", assigned.status, 200);
 check("trip is offered", assigned.body.state, "offered");
 
 // --- 4. rider accepts, arrives, starts --------------------------------------
-for (const [to, key] of [["accepted","a1"],["arrived","a2"],["in_progress","a3"]]) {
+for (const [to, key] of [["accepted","a1"],["arrived","a2"]]) {
   const r = await call("/rest/v1/rpc/trip_transition", riderJwt, {
     p_trip_id: tripId, p_to: to, p_idempotency_key: key,
   });
   check(`transition to ${to}`, r.body.state, to);
 }
+
+// The passenger took seven minutes to come out: two minutes past the grace.
+psql(`update public.trip_events set created_at = created_at - interval '7 minutes'
+       where trip_id='${tripId}' and to_state='arrived';`);
+
+// The passenger reads the PIN out at the kerb; this script reads it as postgres.
+const pin = psql(`select pin from public.trip_pins where trip_id='${tripId}';`);
+const wrong = await call("/rest/v1/rpc/start_trip", riderJwt, {
+  p_trip_id: tripId, p_pin: pin === "0000" ? "1111" : "0000", p_idempotency_key: "go-wrong",
+});
+check("a wrong PIN does not start the trip", wrong.body.started, false);
+const started = await call("/rest/v1/rpc/start_trip", riderJwt, {
+  p_trip_id: tripId, p_pin: pin, p_idempotency_key: "go-right",
+});
+check("the right PIN starts it", started.body.started, true);
 
 // --- 5. complete --------------------------------------------------------------
 const done = await call("/functions/v1/complete-trip", riderJwt, {
@@ -128,23 +145,20 @@ const done = await call("/functions/v1/complete-trip", riderJwt, {
 });
 check("completion returns 200", done.status, 200);
 check("trip completed", done.body.state, "completed");
-check("total is the quoted fare", done.body.receipt.totalRwf, 1700);
-check("commission is 15%", done.body.commissionRwf, 255);
+check("the receipt itemises the waiting",
+  JSON.stringify(done.body.receipt.lines),
+  JSON.stringify([{ label: "Fare", amountRwf: 1700 }, { label: "Waiting time", amountRwf: 100 }]));
+check("total is the fare plus two minutes of waiting", done.body.receipt.totalRwf, 1800);
 
 // --- 6. replay must not double-charge -----------------------------------------
 await call("/functions/v1/complete-trip", riderJwt, {
   tripId, actualDistanceM: 4100, idempotencyKey: "done-1",
 });
-check("exactly one commission debit",
-  psql(`select count(*) from public.ledger_entries where trip_id='${tripId}';`), "1");
-
-// Scoped to THIS run's rider: with no teardown, other runs' rows share the
-// table, so a global sum would be meaningless. The expected figure is derived
-// from this run's own top-up and commission, not a hardcoded constant.
-const commissionRwf = done.body.commissionRwf;
-check(`rider balance is ${TOPUP_RWF} - ${commissionRwf}`,
-  psql(`select sum(case when kind in ('topup_credit','adjustment_credit')
-        then amount_rwf else -amount_rwf end) from public.ledger_entries
-        where rider_id='${RIDER}';`), TOPUP_RWF - commissionRwf);
+check("one cash row and one earning row, even after a replay",
+  psql(`select count(*) from public.ledger_entries where trip_id='${tripId}';`), "2");
+check("the ledger bills what the receipt shows",
+  psql(`select public.rider_cash_held_internal('${RIDER}');`), 1800);
+check("and the rider is owed their share of all of it",
+  psql(`select public.rider_net_owed_internal('${RIDER}');`), done.body.riderEarningRwf);
 
 console.log("\nAll end-to-end checks passed.");

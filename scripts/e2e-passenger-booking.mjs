@@ -82,7 +82,11 @@ async function main() {
    ('${PASSENGER}','passenger','Aline','+2507883${suffix}'),
    ('${RIDER}','rider','Eric','+2507884${suffix}');`);
   psql(`insert into public.riders (id,verification) values ('${RIDER}','verified');`);
-  psql(`insert into public.ledger_entries (rider_id,kind,amount_rwf) values ('${RIDER}','topup_credit',5000);`);
+  // A fleet rider works a company vehicle inside an open shift (0035, 0037).
+  psql(`insert into public.vehicles (rider_id,class,plate,is_active)
+        values ('${RIDER}','moto','RAB ' || substr('${RIDER}',1,4),true);`);
+  psql(`insert into public.shifts (rider_id,vehicle_id,safety_checks)
+        select rider_id,id,'{"e2e":true}'::jsonb from public.vehicles where rider_id='${RIDER}';`);
   psql(`insert into public.rider_presence (rider_id,status,vehicle_class,position,heartbeat_at)
         values ('${RIDER}','online','moto',
                 st_point(${PICKUP.lng + 0.003},${PICKUP.lat})::geography, now());`);

@@ -24,7 +24,12 @@ export interface CompleteTripResult {
   readonly tripId: string;
   readonly state: string;
   readonly receipt: { readonly lines: readonly ReceiptLine[]; readonly totalRwf: number };
-  readonly commissionRwf: number;
+  /**
+   * What the rider made on this trip. The Edge Function returns this, not the
+   * company's commission - the type used to say commissionRwf, which the
+   * response never contained.
+   */
+  readonly riderEarningRwf: number;
 }
 
 export async function requestQuote(

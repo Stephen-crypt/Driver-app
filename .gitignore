@@ -7,3 +7,6 @@ dist/
 coverage/
 .superpowers/
 .claude/
+
+# Browser automation screenshots and logs
+.playwright-mcp/

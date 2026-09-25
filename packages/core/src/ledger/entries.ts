@@ -114,14 +114,18 @@ export function riderEarningFor(fareRwf: number, commissionPercent: number): num
 }
 
 /**
- * A fleet rider works if they have a vehicle and are not carrying too much of
- * the company's cash. The marketplace test - "has a positive float" - is gone:
- * the riders work for us, so they do not buy their way onto the road.
+ * A fleet rider works if they have a vehicle, an open shift, and are not
+ * carrying too much of the company's cash. The marketplace test - "has a
+ * positive float" - is gone: the riders work for us, so they do not buy their
+ * way onto the road. The shift is what makes the safety checks mandatory.
  */
 export function canGoOnline(args: {
   readonly hasActiveVehicle: boolean;
+  readonly hasOpenShift: boolean;
   readonly cashHeldRwf: number;
   readonly maxCashHeldRwf: number;
 }): boolean {
-  return args.hasActiveVehicle && args.cashHeldRwf <= args.maxCashHeldRwf;
+  return (
+    args.hasActiveVehicle && args.hasOpenShift && args.cashHeldRwf <= args.maxCashHeldRwf
+  );
 }

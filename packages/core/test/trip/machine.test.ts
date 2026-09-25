@@ -106,10 +106,11 @@ describe("the table itself", () => {
     "arrived>in_progress>rider",
     "arrived>cancelled_by_passenger>passenger",
     "arrived>cancelled_by_rider>rider",
+    "arrived>no_show>rider",
     "in_progress>completed>rider",
   ].sort();
 
-  it("contains exactly the sixteen intended edges and no others", () => {
+  it("contains exactly the seventeen intended edges and no others", () => {
     const actual = TRANSITIONS.flatMap((r) =>
       r.actors.map((a) => `${r.from}>${r.to}>${a}`),
     ).sort();

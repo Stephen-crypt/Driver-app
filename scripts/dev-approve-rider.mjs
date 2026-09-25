@@ -61,15 +61,13 @@ console.log("verification: verified");
 
 const plate = `RAD ${String(Math.floor(Math.random() * 900) + 100)}X`;
 psql(`insert into public.vehicles (rider_id, class, plate, vest_number, is_active)
-      values ('${id}', ${lit(vehicleClass)}, ${lit(plate)}, ${lit(String(Math.floor(Math.random() * 9000) + 1000))}, true)
+      values ('${id}', ${lit(vehicleClass)}, ${lit(plate)}, ${lit(String(Math.floor(Math.random() * 98) + 2))}, true)
       on conflict do nothing;`);
 console.log(`vehicle: ${vehicleClass} ${plate}`);
 
-// Nothing to fund. In a fleet the gate is a vehicle and a clean cash position,
-// and the vehicle was assigned above - so all that is left is to report it.
+// Nothing to fund. In a fleet the gate is a vehicle, an open shift and a clean
+// cash position. The vehicle was assigned above; the shift is the rider's to
+// start, in the app, because that is where the safety checks are.
 const held = Number(psql(`select public.rider_cash_held_internal('${id}');`));
 console.log(`carrying: ${held} RWF of company cash`);
-
-const allowed = psql(`select public.can_go_online('${id}');`);
-console.log(`can go online: ${allowed}`);
-console.log(`\nRider ${id} is ready. Toggle online in the rider app.`);
+console.log(`\nRider ${id} is ready. Open the rider app and start a shift.`);

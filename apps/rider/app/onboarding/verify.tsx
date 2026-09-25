@@ -1,21 +1,18 @@
 import { useState } from "react";
-import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { theme, tokens } from "@gera/ui";
+import { Banner, Button, Field, Screen } from "@gera/kit";
 import { verifyOtp } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 
 export default function VerifyScreen() {
   const router = useRouter();
-  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ phone?: string | string[] }>();
   const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone;
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  async function submit() {
+  async function submit(value = code) {
     setError(null);
     if (!phone) {
       setError("We lost your number. Go back and enter it again.");
@@ -23,8 +20,11 @@ export default function VerifyScreen() {
     }
     setBusy(true);
     try {
-      await verifyOtp(supabase, phone, code);
-      router.replace("/onboarding/details");
+      await verifyOtp(supabase, phone, value);
+      // The tabs decide where an existing rider belongs - details, the review
+      // queue, or straight to work. Sending everyone to details made a rider
+      // who signed back in fill the form in again.
+      router.replace("/");
     } catch {
       setError("That code didn't work. Try again.");
     } finally {
@@ -33,62 +33,29 @@ export default function VerifyScreen() {
   }
 
   return (
-    <View
-      style={[
-        styles.root,
-        { paddingTop: insets.top + tokens.space.lg, paddingBottom: insets.bottom + tokens.space.lg },
-      ]}
+    <Screen
+      title="Enter the code"
+      subtitle={phone ? `Sent to ${phone}` : "Enter the code we sent you"}
+      onBack={() => router.back()}
+      footer={<Button label="Verify" onPress={() => submit()} loading={busy} disabled={code.length < 6} />}
     >
-      <Text style={styles.title}>Enter the code</Text>
-      <Text style={styles.sub}>{phone ? `Sent to ${phone}` : "Enter the code we sent you"}</Text>
-
-      <TextInput
-        style={styles.input}
+      <Field
+        big
         value={code}
-        onChangeText={setCode}
+        onChangeText={(v) => {
+          setCode(v);
+          // Six digits is the whole code - go, without making them find a button.
+          if (v.length === 6) void submit(v);
+        }}
         keyboardType="number-pad"
         maxLength={6}
+        placeholder="000000"
         autoFocus
+        textContentType="oneTimeCode"
+        autoComplete="sms-otp"
+        accessibilityLabel="Six digit code"
       />
-
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-
-      <Pressable style={[styles.cta, busy && styles.ctaBusy]} onPress={submit} disabled={busy}>
-        <Text style={styles.ctaText}>{busy ? "Checking…" : "Verify"}</Text>
-      </Pressable>
-    </View>
+      {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  // Vertical padding comes from the safe-area insets at the call site.
-  root: { flex: 1, backgroundColor: theme.surface, paddingHorizontal: tokens.space.lg },
-  title: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-    marginTop: tokens.space.xxl,
-  },
-  sub: { fontSize: tokens.type.body.size, color: theme.textMuted, marginTop: tokens.space.sm },
-  input: {
-    marginTop: tokens.space.xl,
-    fontSize: tokens.type.display.size,
-    letterSpacing: 8,
-    color: theme.textStrong,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.accent,
-    paddingVertical: tokens.space.sm,
-  },
-  error: { color: theme.danger, marginTop: tokens.space.md },
-  cta: {
-    marginTop: "auto",
-    marginBottom: tokens.space.xl,
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaBusy: { opacity: 0.6 },
-  ctaText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.onAccent },
-});

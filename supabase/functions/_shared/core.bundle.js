@@ -12,7 +12,8 @@ var TRIP_STATES = [
   "cancelled_by_passenger",
   "cancelled_by_rider",
   "expired",
-  "no_riders"
+  "no_riders",
+  "no_show"
 ];
 var ACTORS = [
   "passenger",
@@ -24,7 +25,9 @@ var TERMINAL_STATES = [
   "cancelled_by_passenger",
   "cancelled_by_rider",
   "expired",
-  "no_riders"
+  "no_riders",
+  // The rider waited past the grace period and the passenger never came.
+  "no_show"
 ];
 function isTerminal(state) {
   return TERMINAL_STATES.includes(state);
@@ -139,6 +142,14 @@ var TRANSITIONS = [
       "rider"
     ]
   },
+  // Only after the grace period - enforced by report_no_show(), not by the edge.
+  {
+    from: "arrived",
+    to: "no_show",
+    actors: [
+      "rider"
+    ]
+  },
   {
     from: "in_progress",
     to: "completed",
@@ -172,6 +183,66 @@ function applyTransition(from, to, actor) {
     state: to
   };
 }
+
+// packages/core/src/trip/waiting.ts
+function waitingChargeFor(waitedSeconds, graceSeconds, perMinuteRwf) {
+  if (waitedSeconds <= graceSeconds) return 0;
+  return Math.floor((waitedSeconds - graceSeconds) / 60) * perMinuteRwf;
+}
+function graceRemaining(waitedSeconds, graceSeconds) {
+  return Math.max(0, graceSeconds - waitedSeconds);
+}
+
+// packages/core/src/trip/shift.ts
+var SHIFT_CHECKS = [
+  {
+    key: "helmets",
+    label: "Two helmets, both fastening",
+    hint: "One for you, one for your passenger"
+  },
+  {
+    key: "lights",
+    label: "Lights and indicators work",
+    hint: "Front, back and both indicators"
+  },
+  {
+    key: "brakes",
+    label: "Brakes are firm",
+    hint: "Front and back, before you leave"
+  },
+  {
+    key: "tyres",
+    label: "Tyres look right",
+    hint: "No bulges, no bald patches"
+  },
+  {
+    key: "fuel",
+    label: "Enough fuel for the shift",
+    hint: "Or a full battery"
+  },
+  {
+    key: "phone",
+    label: "Phone charged",
+    hint: "Passengers are tracked through it"
+  }
+];
+var VEHICLE_CONDITIONS = [
+  {
+    key: "good",
+    label: "Good",
+    hint: "Nothing to report"
+  },
+  {
+    key: "minor_issue",
+    label: "Minor issue",
+    hint: "Still safe to ride"
+  },
+  {
+    key: "needs_repair",
+    label: "Needs repair",
+    hint: "Should not go out again"
+  }
+];
 
 // packages/core/src/fare/policy.ts
 var VEHICLE_CLASSES = [
@@ -285,11 +356,11 @@ function riderEarningFor(fareRwf, commissionPercent) {
   return fareRwf - commissionFor(fareRwf, commissionPercent);
 }
 function canGoOnline(args) {
-  return args.hasActiveVehicle && args.cashHeldRwf <= args.maxCashHeldRwf;
+  return args.hasActiveVehicle && args.hasOpenShift && args.cashHeldRwf <= args.maxCashHeldRwf;
 }
 
 // packages/core/src/fare/receipt.ts
-function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMetres) {
+function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMetres, waitingChargeRwf = 0) {
   const final = finalizeFare(policy, quotedRwf, quotedDistanceMetres, actualDistanceMetres);
   const lines = [
     {
@@ -303,11 +374,18 @@ function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
       amountRwf: final.overageRwf
     });
   }
+  if (waitingChargeRwf > 0) {
+    lines.push({
+      label: "Waiting time",
+      amountRwf: waitingChargeRwf
+    });
+  }
+  const totalRwf = final.totalRwf + Math.max(0, waitingChargeRwf);
   return {
     lines,
-    totalRwf: final.totalRwf,
-    commissionRwf: commissionFor(final.totalRwf, policy.commissionPct),
-    riderEarningRwf: riderEarningFor(final.totalRwf, policy.commissionPct)
+    totalRwf,
+    commissionRwf: commissionFor(totalRwf, policy.commissionPct),
+    riderEarningRwf: riderEarningFor(totalRwf, policy.commissionPct)
   };
 }
 
@@ -347,10 +425,12 @@ export {
   LEDGER_ENTRY_KINDS,
   OFFER_TTL_SECONDS,
   OVERAGE_TOLERANCE,
+  SHIFT_CHECKS,
   TERMINAL_STATES,
   TRANSITIONS,
   TRIP_STATES,
   VEHICLE_CLASSES,
+  VEHICLE_CONDITIONS,
   applyTransition,
   buildReceipt,
   canGoOnline,
@@ -358,11 +438,13 @@ export {
   cashHeldOf,
   commissionFor,
   finalizeFare,
+  graceRemaining,
   isTerminal,
   netOwedOf,
   quoteFare,
   rankByEta,
   riderEarningFor,
   roundFareRwf,
-  straightLineEta
+  straightLineEta,
+  waitingChargeFor
 };
