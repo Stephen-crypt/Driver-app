@@ -485,11 +485,18 @@ create policy presence_owner_all on public.driver_presence
       -- offline sits in driver_presence_dispatchable_idx being matched to real
       -- passengers.
       status <> 'online'
-      -- Already online: this write reports a position, it grants nothing. The
-      -- eligibility filters that matter are enforced where they actually bite -
-      -- find_candidate_drivers requires verification = 'verified' and a
-      -- heartbeat inside 30 seconds - so this does not make an ineligible
-      -- driver dispatchable, it only stops their map from freezing.
+      -- Already online: this write reports a position, it grants nothing.
+      --
+      -- CORRECTED by 0021. This comment used to claim "the eligibility filters
+      -- that matter are enforced where they actually bite", and that was false
+      -- about the one filter this branch stops applying: find_candidate_drivers
+      -- checked verification and the 30-second heartbeat but NOT the balance,
+      -- so ungating this branch left an underfunded driver who was already
+      -- online dispatchable indefinitely, and let a stale `online` row re-enter
+      -- dispatch by pinging position alone. 0021 adds the funding predicate to
+      -- find_candidate_drivers, which is what makes the sentence true. The
+      -- split itself is still right - a driver in arrears must not have their
+      -- map freeze - but it was only ever safe together with that predicate.
       or public.presence_status_now(auth.uid()) = 'online'
       -- A genuine transition INTO online. This is the act being gated, and the
       -- only one.
