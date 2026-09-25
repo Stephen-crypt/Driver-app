@@ -1,28 +1,28 @@
-import { Image, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 
 interface Props {
+  readonly icon: keyof typeof Ionicons.glyphMap;
   readonly title: string;
   readonly body: string;
 }
 
 /**
- * The picture is the point: an empty list with only grey text on it reads as a
- * broken screen, and the one thing a passenger seeing "no riders nearby" needs is
- * the sense that nothing is wrong with the app.
+ * An icon in a tinted well rather than an illustration.
  *
- * The illustration's own ground is #161C34, within a hair of surfaceRaised, so
- * it sits on a card with no visible seam.
+ * This used to render a generated picture. A raster illustration carries its own
+ * background colour, so it only sits cleanly on the exact card it was drawn
+ * against - the moment the theme moved, the art was a dark rectangle on a white
+ * card with a visible seam. An icon well takes its colours from the theme, so it
+ * can never fall out of step with it again.
  */
-export function EmptyState({ title, body }: Props) {
+export function EmptyState({ icon, title, body }: Props) {
   return (
     <View style={styles.root}>
-      <Image
-        source={require("../../assets/empty-state.jpg")}
-        style={styles.art}
-        resizeMode="cover"
-        accessible={false}
-      />
+      <View style={styles.well}>
+        <Ionicons name={icon} size={28} color={theme.accent} />
+      </View>
       <Text style={styles.title}>{title}</Text>
       <Text style={styles.body}>{body}</Text>
     </View>
@@ -33,24 +33,29 @@ const styles = StyleSheet.create({
   root: {
     borderRadius: tokens.radius.lg,
     backgroundColor: theme.surfaceRaised,
-    overflow: "hidden",
-    paddingBottom: tokens.space.lg,
+    padding: tokens.space.lg,
+    alignItems: "center",
   },
-  // Capped: at full 16:9 on a tall phone the art filled the viewport and the
-  // title underneath fell below the fold, so the screen read as just a picture.
-  art: { width: "100%", aspectRatio: 16 / 9, maxHeight: 150 },
+  well: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: theme.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   title: {
     marginTop: tokens.space.md,
-    marginHorizontal: tokens.space.lg,
     fontSize: tokens.type.title.size,
     fontWeight: "700",
     color: theme.textStrong,
+    textAlign: "center",
   },
   body: {
     marginTop: tokens.space.xs,
-    marginHorizontal: tokens.space.lg,
     fontSize: tokens.type.body.size,
     lineHeight: tokens.type.body.leading,
     color: theme.textMuted,
+    textAlign: "center",
   },
 });

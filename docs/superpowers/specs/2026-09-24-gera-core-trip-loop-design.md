@@ -27,9 +27,11 @@ Two rider-facing differentiators support this: **upfront locked fares** (Yego is
 - **Rejected for conflict:** Vuba (Vuba Vuba, Rwandan delivery platform), Tugende (Ugandan moto-financing company), Genda (shadowed by Gendayo, African mobility platform).
 - **ACTION REQUIRED:** the above is a web-search sanity check only. A formal RDB trademark search must be completed before any public use of the name.
 
-**Palette.** Deep indigo base (`#141B34` family) with warm amber accent (`#F5A524` family). Chosen to avoid Bolt's green and Uber's monochrome, and because amber reads as both a Kigali moto vest and a high-visibility safety marker, and stays legible in direct equatorial sunlight.
+**Palette (revised).** A light ground (`#F2F3F7`) with white cards and a single blue accent (`#0057E7`). Every value is chosen against the contrast test in `packages/ui/test/contrast.test.ts` rather than by eye: the obvious iOS blue `#0A84FF` measures 3.65:1 as text on white and fails AA, and the common muted grey `#6B7280` measures 4.36:1 on the page ground and also fails. Green, red and amber survive only as small signals - a status chip, a cancel, a warning - and never as a background.
 
-**Motif.** Layered ridge silhouettes ("land of a thousand hills") for loading states, empty states, onboarding illustration, and custom map styling.
+This replaces a deep-indigo-and-amber pair. That scheme asked the eye to treat two colours as brand at once, which made every screen louder than the task on it. Booking a moto is errand software: the money and the map should carry the only weight.
+
+**Motif.** No illustration is load-bearing. Empty states are an icon in a tinted well, drawn from the theme, because a raster illustration carries its own background colour and falls out of step the moment the palette moves - which is exactly what happened to the first set.
 
 **Typography.** One geometric sans with full Latin Extended coverage. Display-size numerals for fares and ETAs — the most-read text in the product.
 

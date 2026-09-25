@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import { Redirect, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 import { registerDeviceToken } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
@@ -14,6 +16,7 @@ const KIGALI = { lat: -1.9403, lng: 30.1128 };
 
 export default function Home() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
 
   useEffect(() => {
@@ -70,12 +73,12 @@ export default function Home() {
       />
 
       <Pressable
-        style={styles.accountButton}
+        style={[styles.accountButton, { top: insets.top + tokens.space.sm }]}
         onPress={() => router.push("/account")}
         accessibilityRole="button"
         accessibilityLabel="Your account"
       >
-        <Text style={styles.accountGlyph}>☰</Text>
+        <Ionicons name="person-circle-outline" size={26} color={theme.textStrong} />
       </Pressable>
 
       <Sheet state="idle">
@@ -85,7 +88,9 @@ export default function Home() {
           accessibilityRole="button"
           accessibilityLabel="Choose where you are going"
         >
+          <Ionicons name="search" size={20} color={theme.accent} />
           <Text style={styles.searchText}>Where to?</Text>
+          <Ionicons name="arrow-forward" size={18} color={theme.textMuted} />
         </Pressable>
         <Text style={styles.hint}>Search a landmark, or drop a pin on the map.</Text>
       </Sheet>
@@ -101,17 +106,21 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     backgroundColor: theme.surface,
   },
+  // A filled field rather than an outlined one. The outline was the only
+  // 2pt accent border on the screen and it pulled the eye away from the map,
+  // which is the thing the passenger is actually reading.
   search: {
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET + 4,
     paddingHorizontal: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: theme.accent,
-    backgroundColor: theme.surface,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.surfaceHigh,
   },
   searchText: {
-    fontSize: tokens.type.title.size,
+    flex: 1,
+    fontSize: tokens.type.body.size + 2,
     fontWeight: "700",
     color: theme.textStrong,
   },
@@ -120,9 +129,11 @@ const styles = StyleSheet.create({
     fontSize: tokens.type.body.size,
     color: theme.textMuted,
   },
+  // Top comes from the inset at the call site: the status bar is not a fixed
+  // height across Android devices, and the guessed 48 put this under the clock
+  // on a tall phone.
   accountButton: {
     position: "absolute",
-    top: tokens.space.xxl,
     left: tokens.space.lg,
     width: tokens.MIN_TOUCH_TARGET,
     height: tokens.MIN_TOUCH_TARGET,
@@ -131,10 +142,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#000",
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 6,
   },
-  accountGlyph: { fontSize: 20, color: theme.textStrong },
+
 });

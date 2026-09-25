@@ -11,6 +11,7 @@ import {
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 import {
   listMyDocuments,
@@ -136,6 +137,36 @@ export default function Documents() {
             disabled={busy}
             accessibilityRole="button"
           >
+            {/* The state of each document is carried by the mark as well as the
+                words, so a rider can see at a glance which one is holding them
+                up without reading four lines of status text. */}
+            <View
+              style={[
+                styles.well,
+                d.status === "approved" && styles.wellGood,
+                d.status === "rejected" && styles.wellBad,
+              ]}
+            >
+              <Ionicons
+                name={
+                  d.status === "approved"
+                    ? "checkmark-circle"
+                    : d.status === "rejected"
+                      ? "alert-circle"
+                      : d.uploaded
+                        ? "hourglass-outline"
+                        : "cloud-upload-outline"
+                }
+                size={20}
+                color={
+                  d.status === "approved"
+                    ? theme.success
+                    : d.status === "rejected"
+                      ? theme.danger
+                      : theme.textMuted
+                }
+              />
+            </View>
             <View style={styles.flex}>
               <Text style={styles.rowLabel}>{DOCUMENT_LABELS[d.kind]}</Text>
               {d.uploaded ? (
@@ -159,7 +190,9 @@ export default function Documents() {
             {busy ? (
               <ActivityIndicator color={theme.accent} />
             ) : (
-              <Text style={styles.action}>{d.uploaded ? "Replace" : "Upload"}</Text>
+              <View style={styles.actionPill}>
+                <Text style={styles.action}>{d.uploaded ? "Replace" : "Upload"}</Text>
+              </View>
             )}
           </Pressable>
         );
@@ -205,12 +238,29 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     alignItems: "center",
+    gap: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET + 12,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
     marginBottom: tokens.space.sm,
     borderRadius: tokens.radius.md,
     backgroundColor: theme.surfaceRaised,
+  },
+  well: {
+    width: 36,
+    height: 36,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wellGood: { backgroundColor: theme.successSoft },
+  wellBad: { backgroundColor: theme.dangerSoft },
+  actionPill: {
+    paddingHorizontal: tokens.space.md,
+    paddingVertical: tokens.space.xs + 2,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.accentSoft,
   },
   rowLabel: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.textStrong },
   rowStatus: { fontSize: tokens.type.label.size, color: theme.textMuted },
@@ -225,7 +275,7 @@ const styles = StyleSheet.create({
   },
   cta: {
     marginTop: tokens.space.lg,
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
     backgroundColor: theme.accent,
     borderRadius: tokens.radius.pill,
     alignItems: "center",

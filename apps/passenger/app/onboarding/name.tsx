@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
@@ -16,6 +17,7 @@ function normalisePhone(raw: string | undefined): string | null {
 
 export default function NameScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +55,12 @@ export default function NameScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: insets.top + tokens.space.lg, paddingBottom: insets.bottom + tokens.space.lg },
+      ]}
+    >
       <Text style={styles.title}>What should we call you?</Text>
 
       <TextInput
@@ -79,7 +86,8 @@ export default function NameScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface, padding: tokens.space.lg },
+  // Vertical padding comes from the safe-area insets at the call site.
+  root: { flex: 1, backgroundColor: theme.surface, paddingHorizontal: tokens.space.lg },
   title: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
@@ -88,19 +96,20 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: tokens.space.xl,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceRaised,
     fontSize: tokens.type.title.size,
     color: theme.textStrong,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.accent,
-    paddingVertical: tokens.space.sm,
   },
   error: { color: theme.danger, marginTop: tokens.space.md },
   cta: {
     marginTop: "auto",
     marginBottom: tokens.space.xl,
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
     backgroundColor: theme.accent,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },

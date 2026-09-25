@@ -50,12 +50,14 @@ function buildHtml(center: LatLng, markers: readonly MapMarker[]): string {
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 <style>
   html,body,#m{height:100%;margin:0;background:${theme.surface}}
-  /* Carto's dark basemap started returning an "API KEY REQUIRED" watermark on
+  /* Carto's styled basemap started returning an "API KEY REQUIRED" watermark on
      every tile, so the map is plain OpenStreetMap - which needs no key and is
-     not going to start needing one - inverted to dark in the browser instead.
-     hue-rotate puts the colours back the right way round after the invert, so
-     water reads blue rather than orange. */
-  .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75)}
+     not going to start needing one - toned down in the browser instead.
+     Raw OSM is loud: every road class, park and building gets its own colour,
+     and against them a blue route line is just one more coloured thing. Pulling
+     the saturation down leaves the map legible as geography while making the
+     route and the pins the only saturated things on screen. */
+  .leaflet-tile-pane{filter:saturate(.45) brightness(1.03) contrast(.92)}
   .leaflet-container{background:${theme.surface}}
 </style>
 </head><body><div id="m"></div>

@@ -65,4 +65,51 @@ describe("the shipped theme", () => {
     const levels = new Set([theme.surface, theme.surfaceRaised, theme.surfaceHigh]);
     expect(levels.size).toBe(3);
   });
+
+  // A status chip is a colour on its own tint. Both halves have to be legible,
+  // and the tint is exactly where a palette quietly stops passing - it is light
+  // enough to look decorative and dark enough to eat the text on it.
+  it("every chip reads against its own tint", () => {
+    const chips: [string, string][] = [
+      [theme.accent, theme.accentSoft],
+      [theme.success, theme.successSoft],
+      [theme.danger, theme.dangerSoft],
+      [theme.warning, theme.warningSoft],
+    ];
+    for (const [ink, tint] of chips) {
+      expect(contrastRatio(ink, tint)).toBeGreaterThanOrEqual(AA);
+    }
+  });
+
+  it("no tint is so pale it disappears into the card behind it", () => {
+    for (const tint of [theme.accentSoft, theme.successSoft, theme.dangerSoft, theme.warningSoft]) {
+      expect(contrastRatio(tint, theme.surfaceRaised)).toBeGreaterThan(1.02);
+    }
+  });
+});
+
+/**
+ * The dark theme is not shipped, but a half-maintained one is worse than none:
+ * the day somebody flips `theme` to it, every one of these has to already hold.
+ */
+describe("the dark theme, kept honest", () => {
+  const cases: [keyof Theme, number][] = [
+    ["text", AA],
+    ["textStrong", AAA],
+    ["textMuted", AA],
+    ["accent", AA],
+    ["success", AA],
+    ["danger", AA],
+    ["warning", AA],
+  ];
+
+  for (const [key, floor] of cases) {
+    it(`${key} is legible on the dark surface`, () => {
+      expect(contrastRatio(darkTheme[key], darkTheme.surface)).toBeGreaterThanOrEqual(floor);
+    });
+  }
+
+  it("text on its accent is readable", () => {
+    expect(contrastRatio(darkTheme.onAccent, darkTheme.accent)).toBeGreaterThanOrEqual(AA);
+  });
 });

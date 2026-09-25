@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Redirect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 import {
   setPresence,
@@ -46,6 +47,7 @@ import { supabase } from "../src/lib/supabase";
 import { registerForPush } from "../src/lib/push";
 import * as loc from "../src/lib/location";
 import { EmptyState } from "../src/components/EmptyState";
+import { Card, Chip, PrimaryButton, Row, Stat } from "../src/components/Card";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
 
@@ -468,157 +470,169 @@ export default function Console() {
         styles.content,
         { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
       ]}
+      showsVerticalScrollIndicator={false}
     >
-      <View style={styles.statusRow}>
+      <View style={styles.header}>
         <View style={styles.flex}>
-          <Text style={styles.statusLabel}>{online ? "You're online" : "You're offline"}</Text>
-          <Text style={styles.statusSub}>
-            {online ? "Waiting for trips nearby" : "Go online to get trips"}
-          </Text>
+          <Text style={styles.eyebrow}>Gera rider</Text>
+          <Text style={styles.headline}>{online ? "You're online" : "You're offline"}</Text>
         </View>
+        <Chip
+          label={online ? "Live" : "Off"}
+          tone={online ? "good" : "neutral"}
+        />
+      </View>
+
+      <Card style={styles.toggleCard}>
+        <Row
+          icon={online ? "radio-outline" : "power-outline"}
+          tone={online ? "good" : "accent"}
+          label={online ? "Taking trips" : "Go online"}
+          style={styles.flex}
+        />
         <Switch
           value={online}
           onValueChange={toggleOnline}
           disabled={busy || Boolean(blocked)}
-          trackColor={{ true: theme.accent, false: theme.textMuted }}
+          trackColor={{ true: theme.accent, false: theme.border }}
+          thumbColor={theme.surfaceRaised}
         />
-      </View>
+      </Card>
 
       {/* Two numbers, never one. The cash is the company's and has to be
           handed in; the owed is the rider's and gets paid out. A single
           "balance" would net them and tell the rider neither fact. */}
-      <View style={styles.walletRow}>
-        <View style={styles.flex}>
-          <Text style={styles.walletLabel}>Cash to hand in</Text>
-          <Text style={styles.walletValue}>
-            {cashHeld === null ? "—" : `${money(cashHeld)} RWF`}
-          </Text>
+      <Card style={styles.gap}>
+        <View style={styles.statRow}>
+          <Stat
+            label="Cash to hand in"
+            value={cashHeld === null ? "—" : money(cashHeld)}
+            unit="RWF"
+            tone={cashHeld !== null && cashHeld > 0 ? "bad" : "default"}
+          />
+          <View style={styles.statDivider} />
+          <Stat
+            label="You're owed"
+            value={netOwed === null ? "—" : money(netOwed)}
+            unit="RWF"
+            tone="good"
+          />
         </View>
-        <View style={styles.flex}>
-          <Text style={styles.walletLabel}>You're owed</Text>
-          <Text style={[styles.walletValue, styles.owedValue]}>
-            {netOwed === null ? "—" : `${money(netOwed)} RWF`}
-          </Text>
-        </View>
-      </View>
+      </Card>
 
       {/* Gross, commission and net together. Showing gross alone is the number
           that makes a rider feel cheated when the wallet moves. */}
-      <View style={styles.earnings}>
-        <Text style={styles.earningsTitle}>Today</Text>
-        <View style={styles.earningsRow}>
-          <View style={styles.earningsCell}>
-            <Text style={styles.earningsValue}>{earnings?.trips ?? 0}</Text>
-            <Text style={styles.earningsLabel}>trips</Text>
-          </View>
-          <View style={styles.earningsCell}>
-            <Text style={styles.earningsValue}>{money(earnings?.collectedRwf ?? 0)}</Text>
-            <Text style={styles.earningsLabel}>collected</Text>
-          </View>
-          <View style={styles.earningsCell}>
-            <Text style={[styles.earningsValue, styles.earningsNet]}>
-              {money(earnings?.earnedRwf ?? 0)}
-            </Text>
-            <Text style={styles.earningsLabel}>you earned</Text>
-          </View>
+      <Card style={styles.gap}>
+        <Text style={styles.cardTitle}>Today</Text>
+        <View style={styles.statRow}>
+          <Stat label="Trips" value={String(earnings?.trips ?? 0)} />
+          <View style={styles.statDivider} />
+          <Stat label="Collected" value={money(earnings?.collectedRwf ?? 0)} unit="RWF" />
+          <View style={styles.statDivider} />
+          <Stat
+            label="You earned"
+            value={money(earnings?.earnedRwf ?? 0)}
+            unit="RWF"
+            tone="good"
+          />
         </View>
-      </View>
+      </Card>
 
-      {blocked ? <Text style={styles.warn}>{blocked}</Text> : null}
+      {blocked ? <Banner icon="wallet-outline" tone="warn" text={blocked} /> : null}
       {gpsDenied ? (
-        <Text style={styles.warn}>
-          Location is off. Dispatch cannot find you without it.
-        </Text>
+        <Banner
+          icon="location-outline"
+          tone="warn"
+          text="Location is off. Dispatch cannot find you without it."
+        />
       ) : null}
-      {error ? <Text style={styles.error}>{error}</Text> : null}
+      {error ? <Banner icon="alert-circle-outline" tone="bad" text={error} /> : null}
 
       {/* An offer beats everything else on screen: it has fifteen seconds. */}
       {offer && !trip ? (
-        <View style={styles.offer}>
-          <Text style={styles.offerCountdown}>{left}s</Text>
-          <Text style={styles.offerFare}>
-            {offer.fareRwf === null ? "—" : `${money(offer.fareRwf)} RWF`}
-          </Text>
-          <Text style={styles.offerLeg}>Pick up · {offer.pickupLabel}</Text>
-          {offer.pickupNote ? (
-            <Text style={styles.offerNote}>“{offer.pickupNote}”</Text>
-          ) : null}
-          <Text style={styles.offerLeg}>Drop off · {offer.dropoffLabel}</Text>
+        <Card style={styles.offer}>
+          <View style={styles.offerHead}>
+            <View style={styles.flex}>
+              <Text style={styles.statLabelUp}>New trip</Text>
+              <View style={styles.fareRow}>
+                <Text style={styles.fare}>
+                  {offer.fareRwf === null ? "—" : money(offer.fareRwf)}
+                </Text>
+                <Text style={styles.fareUnit}>RWF</Text>
+              </View>
+            </View>
+            {/* The countdown sits inside a ring rather than as loose text: the
+                shape is what makes it read as time running out at a glance. */}
+            <View style={styles.ring}>
+              <Text style={styles.ringValue}>{left}</Text>
+              <Text style={styles.ringUnit}>sec</Text>
+            </View>
+          </View>
 
-          <Pressable
-            style={[styles.cta, busy && styles.ctaDisabled]}
-            onPress={onAccept}
-            disabled={busy}
-            accessibilityRole="button"
-          >
-            <Text style={styles.ctaText}>Accept</Text>
-          </Pressable>
+          <Leg
+            pickup={offer.pickupLabel}
+            note={offer.pickupNote}
+            dropoff={offer.dropoffLabel}
+          />
+
+          <PrimaryButton label="Accept" badge={String(left)} onPress={onAccept} disabled={busy} />
           <Pressable style={styles.ghost} onPress={onDecline} disabled={busy}>
             <Text style={styles.ghostText}>Pass</Text>
           </Pressable>
-        </View>
+        </Card>
       ) : null}
 
       {trip ? (
-        <View style={styles.trip}>
-          <Text style={styles.tripState}>
-            {trip.state === "accepted"
-              ? "Head to the pickup"
-              : trip.state === "arrived"
-                ? "Waiting for your passenger"
-                : "Trip in progress"}
-          </Text>
-          <Text style={styles.offerFare}>
-            {trip.fareRwf === null ? "—" : `${money(trip.fareRwf)} RWF`}
-          </Text>
-          <Text style={styles.offerLeg}>Pick up · {trip.pickupLabel}</Text>
-          {trip.pickupNote ? <Text style={styles.offerNote}>“{trip.pickupNote}”</Text> : null}
-          <Text style={styles.offerLeg}>Drop off · {trip.dropoffLabel}</Text>
+        <Card style={styles.gap}>
+          <View style={styles.offerHead}>
+            <View style={styles.flex}>
+              <Chip
+                label={
+                  trip.state === "accepted"
+                    ? "Head to pickup"
+                    : trip.state === "arrived"
+                      ? "Waiting"
+                      : "In progress"
+                }
+                tone={trip.state === "in_progress" ? "good" : "warn"}
+              />
+              <View style={styles.fareRow}>
+                <Text style={styles.fare}>
+                  {trip.fareRwf === null ? "—" : money(trip.fareRwf)}
+                </Text>
+                <Text style={styles.fareUnit}>RWF</Text>
+              </View>
+            </View>
+          </View>
 
-          {trip.state === "accepted" ? (
-            <Pressable
-              style={[styles.cta, busy && styles.ctaDisabled]}
-              onPress={() => onAdvance("arrived")}
-              disabled={busy}
-            >
-              <Text style={styles.ctaText}>I've arrived</Text>
-            </Pressable>
-          ) : trip.state === "arrived" ? (
-            <Pressable
-              style={[styles.cta, busy && styles.ctaDisabled]}
-              onPress={() => onAdvance("in_progress")}
-              disabled={busy}
-            >
-              <Text style={styles.ctaText}>Start trip</Text>
-            </Pressable>
-          ) : (
-            <Pressable
-              style={[styles.cta, busy && styles.ctaDisabled]}
-              onPress={onComplete}
-              disabled={busy}
-            >
-              <Text style={styles.ctaText}>Finish · take cash</Text>
-            </Pressable>
-          )}
+          <Leg pickup={trip.pickupLabel} note={trip.pickupNote} dropoff={trip.dropoffLabel} />
 
-          <View style={styles.tripActions}>
-            <Pressable style={styles.call} onPress={onCallPassenger} accessibilityRole="button">
-              <Text style={styles.callText}>Call passenger</Text>
-            </Pressable>
+          <View style={styles.rowList}>
+            <Row icon="call-outline" label="Call passenger" onPress={onCallPassenger} />
             {/* Hands the coordinates to whatever maps app the rider already
                 uses and trusts, rather than pretending to do navigation. */}
-            <Pressable
-              style={styles.call}
+            <Row
+              icon="navigate-outline"
+              label="Navigate"
               onPress={() => {
                 const at = hereRef.current;
                 if (!at) return;
                 void Linking.openURL(`geo:0,0?q=${at.lat},${at.lng}(Pickup)`);
               }}
-              accessibilityRole="button"
-            >
-              <Text style={styles.callText}>Navigate</Text>
-            </Pressable>
+            />
           </View>
+
+          {trip.state === "accepted" ? (
+            <PrimaryButton label="I've arrived" onPress={() => onAdvance("arrived")} disabled={busy} />
+          ) : trip.state === "arrived" ? (
+            <PrimaryButton
+              label="Start trip"
+              onPress={() => onAdvance("in_progress")}
+              disabled={busy}
+            />
+          ) : (
+            <PrimaryButton label="Finish · take cash" onPress={onComplete} disabled={busy} />
+          )}
 
           {/* Cancelling is allowed from accepted and arrived, and nowhere else -
               the same window trip_transition_rules defines. */}
@@ -627,150 +641,219 @@ export default function Console() {
               <Text style={styles.cancelText}>Cancel trip</Text>
             </Pressable>
           ) : null}
-        </View>
+        </Card>
       ) : null}
 
       {online && !offer && !trip ? (
-        <View style={styles.waiting}>
+        <Card style={styles.waiting}>
           <ActivityIndicator color={theme.accent} />
           <Text style={styles.waitingText}>Looking for trips near you…</Text>
-        </View>
+        </Card>
       ) : null}
-
-      <Pressable style={styles.sos} onPress={onSos} accessibilityRole="button">
-        <Text style={styles.sosText}>Emergency</Text>
-      </Pressable>
 
       {/* Offline with nothing running: the screen would otherwise be a toggle
           and a lot of empty space. */}
       {!online && !trip ? (
-        <View style={styles.offlineArt}>
+        <View style={styles.gap}>
           <EmptyState
-            title="You're offline"
+            icon="moon-outline"
+            title="Nothing running"
             body="Go online and trips near you will come straight to this screen."
           />
         </View>
       ) : null}
+
+      <Pressable style={styles.sos} onPress={onSos} accessibilityRole="button">
+        <Ionicons name="warning-outline" size={18} color={theme.danger} />
+        <Text style={styles.sosText}>Emergency</Text>
+      </Pressable>
     </ScrollView>
+  );
+}
+
+/**
+ * Pickup and drop-off joined by a line, because a rider reads a trip as one
+ * movement rather than as two addresses. The dots carry the meaning: the route
+ * colours are the only place in the product where two hues appear together.
+ */
+function Leg({
+  pickup,
+  note,
+  dropoff,
+}: {
+  readonly pickup: string;
+  readonly note?: string | null;
+  readonly dropoff: string;
+}) {
+  return (
+    <View style={styles.leg}>
+      <View style={styles.legRail}>
+        <View style={[styles.legDot, { backgroundColor: theme.origin }]} />
+        <View style={styles.legLine} />
+        <View style={[styles.legDot, { backgroundColor: theme.destination }]} />
+      </View>
+      <View style={styles.flex}>
+        <Text style={styles.legLabel} numberOfLines={1}>
+          {pickup}
+        </Text>
+        {note ? (
+          <Text style={styles.legNote} numberOfLines={2}>
+            “{note}”
+          </Text>
+        ) : null}
+        <Text style={[styles.legLabel, styles.legDrop]} numberOfLines={1}>
+          {dropoff}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+/** A warning that stays legible: tinted ground, matching ink, an icon to find it by. */
+function Banner({
+  icon,
+  tone,
+  text,
+}: {
+  readonly icon: keyof typeof Ionicons.glyphMap;
+  readonly tone: "warn" | "bad";
+  readonly text: string;
+}) {
+  const ink = tone === "bad" ? theme.danger : theme.warning;
+  return (
+    <View
+      style={[
+        styles.banner,
+        { backgroundColor: tone === "bad" ? theme.dangerSoft : theme.warningSoft },
+      ]}
+    >
+      <Ionicons name={icon} size={18} color={ink} />
+      <Text style={[styles.bannerText, { color: ink }]}>{text}</Text>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
-  content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
+  content: { paddingHorizontal: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
+  gap: { marginTop: tokens.space.md },
   centre: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: theme.surface,
   },
-  statusRow: {
+  header: {
     flexDirection: "row",
     alignItems: "center",
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: theme.surfaceRaised,
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    marginBottom: tokens.space.md,
   },
-  statusLabel: {
+  eyebrow: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "600",
+    color: theme.textMuted,
+  },
+  headline: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
     color: theme.textStrong,
   },
-  statusSub: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  walletRow: {
+  toggleCard: { flexDirection: "row", alignItems: "center", gap: tokens.space.sm },
+  cardTitle: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "700",
+    color: theme.textMuted,
+    marginBottom: tokens.space.sm,
+  },
+  statRow: { flexDirection: "row", alignItems: "flex-start" },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: "stretch",
+    backgroundColor: theme.border,
+    marginHorizontal: tokens.space.sm,
+  },
+  statLabelUp: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "600",
+    color: theme.textMuted,
+  },
+  banner: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: tokens.space.sm,
     marginTop: tokens.space.md,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
   },
-  walletLabel: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  owedValue: { color: theme.success },
-  walletValue: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  warn: {
-    marginTop: tokens.space.md,
-    fontSize: tokens.type.body.size,
-    color: theme.textStrong,
-    backgroundColor: theme.surfaceRaised,
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.accent,
-  },
-  error: {
-    marginTop: tokens.space.md,
-    fontSize: tokens.type.body.size,
-    color: theme.danger,
-  },
+  bannerText: { flex: 1, fontSize: tokens.type.body.size, fontWeight: "600" },
+  // The one card that is allowed a border: an offer has fifteen seconds and has
+  // to be findable without reading anything.
   offer: {
-    marginTop: tokens.space.lg,
-    padding: tokens.space.lg,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: 3,
+    marginTop: tokens.space.md,
+    borderWidth: 2,
     borderColor: theme.accent,
   },
-  // The countdown is the most urgent thing on the screen, so it is the largest.
-  offerCountdown: {
+  offerHead: { flexDirection: "row", alignItems: "flex-start" },
+  fareRow: { flexDirection: "row", alignItems: "baseline", marginTop: 2 },
+  fare: {
     fontSize: tokens.type.display.size,
+    fontWeight: "700",
+    color: theme.textStrong,
+    letterSpacing: -1,
+  },
+  fareUnit: {
+    marginLeft: tokens.space.xs,
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: theme.textMuted,
+  },
+  ring: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    borderWidth: 3,
+    borderColor: theme.accent,
+    backgroundColor: theme.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  ringValue: {
+    fontSize: tokens.type.title.size,
     fontWeight: "700",
     color: theme.accent,
+    lineHeight: tokens.type.title.size + 2,
   },
-  offerFare: {
-    fontSize: tokens.type.display.size,
-    fontWeight: "700",
+  ringUnit: { fontSize: 10, fontWeight: "700", color: theme.accent },
+  leg: {
+    flexDirection: "row",
+    gap: tokens.space.sm,
+    marginVertical: tokens.space.md,
+  },
+  legRail: { alignItems: "center", paddingTop: 6 },
+  legDot: { width: 10, height: 10, borderRadius: 5 },
+  legLine: { flex: 1, width: 2, minHeight: 22, backgroundColor: theme.border },
+  legLabel: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "600",
     color: theme.textStrong,
   },
-  offerLeg: {
-    marginTop: tokens.space.sm,
-    fontSize: tokens.type.body.size,
-    color: theme.textStrong,
-  },
-  offerNote: {
-    fontSize: tokens.type.body.size,
+  legNote: {
+    fontSize: tokens.type.label.size,
     color: theme.textMuted,
     fontStyle: "italic",
   },
-  trip: {
-    marginTop: tokens.space.lg,
-    padding: tokens.space.lg,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: theme.surfaceRaised,
+  legDrop: { marginTop: "auto", paddingTop: tokens.space.md },
+  rowList: { gap: tokens.space.xs, marginBottom: tokens.space.sm },
+  waiting: {
+    marginTop: tokens.space.md,
+    alignItems: "center",
+    paddingVertical: tokens.space.lg,
   },
-  tripState: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-    marginBottom: tokens.space.sm,
-  },
-  waiting: { marginTop: tokens.space.xxl, alignItems: "center" },
-  offlineArt: { marginTop: tokens.space.lg },
   waitingText: {
     marginTop: tokens.space.md,
     fontSize: tokens.type.body.size,
     color: theme.textMuted,
-  },
-  cta: {
-    marginTop: tokens.space.lg,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaDisabled: { opacity: 0.5 },
-  ctaText: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.onAccent,
   },
   ghost: {
     marginTop: tokens.space.sm,
@@ -779,54 +862,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ghostText: { fontSize: tokens.type.body.size, color: theme.textMuted },
-  call: {
-    flex: 1,
-    marginTop: tokens.space.sm,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: theme.textStrong,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  callText: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
   cancelText: { fontSize: tokens.type.body.size, color: theme.danger },
-  tripActions: { flexDirection: "row", gap: tokens.space.sm },
   sos: {
+    flexDirection: "row",
+    gap: tokens.space.sm,
     marginTop: tokens.space.lg,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: theme.danger,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.dangerSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   sosText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.danger },
-  earnings: {
-    marginTop: tokens.space.md,
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
-  },
-  earningsTitle: {
-    fontSize: tokens.type.label.size,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: theme.textMuted,
-    marginBottom: tokens.space.sm,
-  },
-  earningsRow: { flexDirection: "row", justifyContent: "space-between" },
-  earningsCell: { flex: 1 },
-  earningsValue: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  earningsNet: { color: theme.success },
-  earningsLabel: { fontSize: tokens.type.label.size, color: theme.textMuted },
 });

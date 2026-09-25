@@ -43,9 +43,9 @@ const PICKUP_LABEL = "Kimironko Market";
 // Moto first and default: it is the dominant mode in Kigali. Ordering it second
 // would import a Western assumption about what a ride normally is.
 const CLASSES = [
-  { id: "moto", label: "Moto", blurb: "Fastest through traffic" },
-  { id: "cab", label: "Cab", blurb: "Covered, up to 3 people" },
-  { id: "cab_xl", label: "Cab XL", blurb: "More room and luggage" },
+  { id: "moto", label: "Moto", blurb: "Fastest through traffic", icon: "bicycle" },
+  { id: "cab", label: "Cab", blurb: "Covered, up to 3 people", icon: "car" },
+  { id: "cab_xl", label: "Cab XL", blurb: "More room and luggage", icon: "car-sport" },
 ] as const;
 
 type VehicleClass = (typeof CLASSES)[number]["id"];
@@ -382,7 +382,10 @@ export default function Ride() {
               </View>
             </View>
             {trip.quotedAmountRwf !== null ? (
-              <Text style={styles.fare}>{money(trip.quotedAmountRwf)} RWF</Text>
+              <View style={styles.fareRow}>
+                <Text style={styles.fare}>{money(trip.quotedAmountRwf)}</Text>
+                <Text style={styles.fareUnit}>RWF</Text>
+              </View>
             ) : null}
             {riderAt && trip.state !== "completed" ? (
               <Text style={styles.eta}>
@@ -402,6 +405,11 @@ export default function Ride() {
                 vehicle is theirs. Nothing here identifies the rider further. */}
             {rider ? (
               <View style={styles.riderCard}>
+                <View style={styles.riderAvatar}>
+                  <Text style={styles.riderInitial}>
+                    {rider.firstName.trim().charAt(0).toUpperCase()}
+                  </Text>
+                </View>
                 <View style={styles.flex}>
                   <Text style={styles.riderName}>{rider.firstName}</Text>
                   <Text style={styles.riderMeta}>
@@ -413,7 +421,11 @@ export default function Ride() {
                     {rider.vestNumber ? ` · vest ${rider.vestNumber}` : ""}
                   </Text>
                 </View>
-                {rider.plate ? <Text style={styles.plate}>{rider.plate}</Text> : null}
+                {rider.plate ? (
+                  <View style={styles.plateChip}>
+                    <Text style={styles.plate}>{rider.plate}</Text>
+                  </View>
+                ) : null}
               </View>
             ) : null}
 
@@ -472,7 +484,14 @@ export default function Ride() {
                       accessibilityRole="button"
                       accessibilityLabel={`${n} star${n > 1 ? "s" : ""}`}
                     >
-                      <Text style={[styles.starGlyph, n <= rating && styles.starOn]}>★</Text>
+                      {/* Drawn rather than typed: the star character falls back
+                          to a different font on some Android builds and rendered
+                          at a visibly different size from its neighbours. */}
+                      <Ionicons
+                        name={n <= rating ? "star" : "star-outline"}
+                        size={32}
+                        color={n <= rating ? theme.warning : theme.textMuted}
+                      />
                     </Pressable>
                   ))}
                 </View>
@@ -523,6 +542,13 @@ export default function Ride() {
                   accessibilityRole="radio"
                   accessibilityState={{ selected }}
                 >
+                  <View style={[styles.classWell, selected && styles.classWellOn]}>
+                    <Ionicons
+                      name={c.icon}
+                      size={20}
+                      color={selected ? theme.onAccent : theme.textMuted}
+                    />
+                  </View>
                   <View style={styles.flex}>
                     <Text style={styles.cardLabel}>{c.label}</Text>
                     <Text style={styles.cardBlurb}>{c.blurb}</Text>
@@ -563,15 +589,28 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    gap: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
     borderRadius: tokens.radius.md,
     borderWidth: 2,
     borderColor: "transparent",
+    backgroundColor: theme.surfaceHigh,
     marginBottom: tokens.space.sm,
   },
-  cardActive: { borderColor: theme.accent, backgroundColor: theme.surface },
+  // Selection is carried by a tint as well as a border. A border alone is a
+  // 2pt difference to find on a phone in sunlight.
+  cardActive: { borderColor: theme.accent, backgroundColor: theme.accentSoft },
+  classWell: {
+    width: 38,
+    height: 38,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  classWellOn: { backgroundColor: theme.accent },
   cardLabel: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
@@ -583,12 +622,22 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: theme.textStrong,
   },
-  route: { fontSize: tokens.type.body.size, color: theme.textMuted },
+  fareRow: {
+    flexDirection: "row",
+    alignItems: "baseline",
+    marginTop: tokens.space.sm,
+  },
   fare: {
     fontSize: tokens.type.display.size,
     fontWeight: "700",
     color: theme.textStrong,
-    marginTop: tokens.space.sm,
+    letterSpacing: -1,
+  },
+  fareUnit: {
+    marginLeft: tokens.space.xs,
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: theme.textMuted,
   },
   payNote: {
     fontSize: tokens.type.label.size,
@@ -598,12 +647,24 @@ const styles = StyleSheet.create({
   riderCard: {
     flexDirection: "row",
     alignItems: "center",
+    gap: tokens.space.md,
     marginTop: tokens.space.md,
     padding: tokens.space.md,
     borderRadius: tokens.radius.md,
-    backgroundColor: theme.surface,
-    borderWidth: 2,
-    borderColor: theme.accent,
+    backgroundColor: theme.surfaceHigh,
+  },
+  riderAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: theme.accent,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  riderInitial: {
+    fontSize: tokens.type.body.size + 2,
+    fontWeight: "700",
+    color: theme.onAccent,
   },
   riderName: {
     fontSize: tokens.type.title.size,
@@ -611,11 +672,20 @@ const styles = StyleSheet.create({
     color: theme.textStrong,
   },
   riderMeta: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  // The plate is what the passenger scans the kerb for, so it is set like a plate.
+  // The plate is what the passenger scans the kerb for, so it is set like a
+  // plate: boxed, spaced, and the only monospaced-looking thing on the sheet.
+  plateChip: {
+    paddingHorizontal: tokens.space.sm,
+    paddingVertical: tokens.space.xs,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.surfaceRaised,
+    borderWidth: 1,
+    borderColor: theme.border,
+  },
   plate: {
-    fontSize: tokens.type.title.size,
+    fontSize: tokens.type.body.size + 1,
     fontWeight: "700",
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     color: theme.textStrong,
   },
   sorry: {
@@ -654,7 +724,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  actionDanger: { borderWidth: 2, borderColor: theme.danger },
+  actionDanger: { backgroundColor: theme.dangerSoft },
   eta: {
     marginTop: tokens.space.xs,
     fontSize: tokens.type.body.size,
@@ -682,8 +752,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  starGlyph: { fontSize: 34, color: theme.textMuted, opacity: 0.35 },
-  starOn: { color: theme.accent, opacity: 1 },
   spin: { marginTop: tokens.space.lg },
   error: {
     color: theme.danger,

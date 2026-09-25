@@ -1,5 +1,6 @@
 import { Platform } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
+import { theme } from "@gera/ui";
 
 /**
  * expo-notifications is loaded LAZILY, and that is not a style choice.
@@ -71,7 +72,9 @@ export async function registerForPush(): Promise<PushResult> {
         name: "Trip offers",
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
-        lightColor: "#F5A524",
+        // From the theme, not a literal: this is the notification LED and
+        // accent colour, and a stale hex here is invisible in every test.
+        lightColor: theme.accent,
         sound: "default",
       });
     }

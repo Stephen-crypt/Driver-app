@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens, sheetHeightFor, sheetTitleFor } from "@gera/ui";
 
 interface Props {
@@ -14,8 +15,19 @@ interface Props {
  */
 export function Sheet({ state, children }: Props) {
   const { height } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   return (
-    <View style={[styles.sheet, { height: height * sheetHeightFor(state) }]}>
+    <View
+      style={[
+        styles.sheet,
+        {
+          height: height * sheetHeightFor(state) + insets.bottom,
+          // The gesture bar sat over the last row of the sheet otherwise, and
+          // on the accepted sheet that row is the actions.
+          paddingBottom: insets.bottom + tokens.space.lg,
+        },
+      ]}
+    >
       <View style={styles.grabber} />
       <Text style={styles.title}>{sheetTitleFor(state)}</Text>
       {/* Scrolls: the accepted sheet carries a route, a fare, a rider card and
@@ -40,13 +52,14 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
     backgroundColor: theme.surfaceRaised,
-    borderTopLeftRadius: tokens.radius.lg,
-    borderTopRightRadius: tokens.radius.lg,
+    borderTopLeftRadius: tokens.radius.xl,
+    borderTopRightRadius: tokens.radius.xl,
     paddingHorizontal: tokens.space.lg,
     paddingTop: tokens.space.sm,
-    paddingBottom: tokens.space.xl,
     shadowColor: "#000",
-    shadowOpacity: 0.15,
+    // Lighter than it was: on a light ground a heavy shadow reads as grime
+    // rather than as elevation.
+    shadowOpacity: 0.08,
     shadowRadius: 16,
     shadowOffset: { width: 0, height: -4 },
     elevation: 12,
@@ -56,8 +69,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 5,
     borderRadius: tokens.radius.pill,
-    backgroundColor: theme.textMuted,
-    opacity: 0.35,
+    backgroundColor: theme.border,
     marginBottom: tokens.space.md,
   },
   title: {

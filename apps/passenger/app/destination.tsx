@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 import {
   searchLandmarks,
@@ -104,15 +105,18 @@ export default function Destination() {
   return (
     <View style={styles.root}>
       <View style={[styles.searchBar, { paddingTop: insets.top + tokens.space.sm }]}>
-        <TextInput
-          style={styles.input}
-          value={query}
-          onChangeText={setQuery}
-          placeholder="Kimironko, Simba, airport…"
-          placeholderTextColor={theme.textMuted}
-          autoFocus
-          returnKeyType="search"
-        />
+        <View style={styles.inputWrap}>
+          <Ionicons name="search" size={18} color={theme.textMuted} />
+          <TextInput
+            style={styles.input}
+            value={query}
+            onChangeText={setQuery}
+            placeholder="Kimironko, Simba, airport…"
+            placeholderTextColor={theme.textMuted}
+            autoFocus
+            returnKeyType="search"
+          />
+        </View>
       </View>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -138,8 +142,14 @@ export default function Destination() {
               onPress={() => choose(item.lng, item.lat, item.name)}
               accessibilityRole="button"
             >
-              <Text style={styles.rowName}>{item.name}</Text>
-              {item.sector ? <Text style={styles.rowSector}>{item.sector}</Text> : null}
+              <View style={styles.rowWell}>
+                <Ionicons name="location-outline" size={18} color={theme.accent} />
+              </View>
+              <View style={styles.flex}>
+                <Text style={styles.rowName}>{item.name}</Text>
+                {item.sector ? <Text style={styles.rowSector}>{item.sector}</Text> : null}
+              </View>
+              <Ionicons name="arrow-forward" size={16} color={theme.textMuted} />
             </Pressable>
           )}
         />
@@ -154,6 +164,7 @@ export default function Destination() {
                   onPress={() => choose(pl.lng, pl.lat, pl.label, pl.note ?? undefined)}
                   accessibilityRole="button"
                 >
+                  <Ionicons name="bookmark" size={14} color={theme.accent} />
                   <Text style={styles.savedChipText} numberOfLines={1}>
                     {pl.label}
                   </Text>
@@ -232,23 +243,39 @@ export default function Destination() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
   searchBar: { padding: tokens.space.lg, paddingBottom: tokens.space.sm },
+  inputWrap: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.space.sm,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.surfaceRaised,
+  },
   input: {
+    flex: 1,
     minHeight: tokens.MIN_TOUCH_TARGET,
     fontSize: tokens.type.body.size,
     color: theme.textStrong,
-    borderWidth: 2,
-    borderColor: theme.accent,
-    borderRadius: tokens.radius.md,
-    paddingHorizontal: tokens.space.md,
   },
+  flex: { flex: 1 },
   list: { flex: 1 },
   row: {
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET + 6,
     paddingHorizontal: tokens.space.lg,
     paddingVertical: tokens.space.sm,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: theme.textMuted,
+    borderBottomColor: theme.border,
+  },
+  rowWell: {
+    width: 34,
+    height: 34,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
   rowName: {
     fontSize: tokens.type.body.size,
@@ -266,6 +293,7 @@ const styles = StyleSheet.create({
     top: tokens.space.md,
     alignSelf: "center",
     backgroundColor: theme.surfaceRaised,
+    elevation: 4,
     color: theme.textStrong,
     paddingHorizontal: tokens.space.md,
     paddingVertical: tokens.space.sm,
@@ -291,13 +319,21 @@ const styles = StyleSheet.create({
   },
   savedChip: {
     flex: 1,
+    flexDirection: "row",
+    gap: tokens.space.xs,
     minHeight: tokens.MIN_TOUCH_TARGET,
     paddingHorizontal: tokens.space.md,
     borderRadius: tokens.radius.pill,
     backgroundColor: theme.surfaceRaised,
     alignItems: "center",
     justifyContent: "center",
+    // elevation is Android only - without the shadow props these chips had no
+    // separation from the map on iOS at all.
     elevation: 4,
+    shadowColor: "#000",
+    shadowOpacity: 0.12,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 2 },
   },
   savedChipText: {
     fontSize: tokens.type.label.size,
@@ -322,9 +358,8 @@ const styles = StyleSheet.create({
   saveButton: {
     minHeight: tokens.MIN_TOUCH_TARGET,
     paddingHorizontal: tokens.space.lg,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: theme.accent,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: theme.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -341,8 +376,13 @@ const styles = StyleSheet.create({
     bottom: 0,
     backgroundColor: theme.surfaceRaised,
     padding: tokens.space.lg,
-    borderTopLeftRadius: tokens.radius.lg,
-    borderTopRightRadius: tokens.radius.lg,
+    borderTopLeftRadius: tokens.radius.xl,
+    borderTopRightRadius: tokens.radius.xl,
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: -4 },
+    elevation: 12,
   },
   pinTitle: {
     fontSize: tokens.type.title.size,
@@ -352,16 +392,17 @@ const styles = StyleSheet.create({
   noteInput: {
     marginTop: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceHigh,
     fontSize: tokens.type.body.size,
     color: theme.textStrong,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.accent,
   },
   cta: {
     marginTop: tokens.space.lg,
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET + 6,
     backgroundColor: theme.accent,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },

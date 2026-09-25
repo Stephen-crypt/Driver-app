@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens, ROUTE_DOT, railGeometry, statusFor } from "@gera/ui";
 import {
   listTrips,
@@ -12,6 +13,7 @@ import {
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { EmptyState } from "../src/components/EmptyState";
+import { Card, Chip, Row } from "../src/components/Card";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
 
@@ -63,6 +65,9 @@ export default function Account() {
     };
   }, []);
 
+  const completed = trips.filter((t) => t.state === "completed");
+  const spent = completed.reduce((sum, t) => sum + (t.fareRwf ?? 0), 0);
+
   return (
     <ScrollView
       style={styles.root}
@@ -70,6 +75,7 @@ export default function Account() {
         styles.content,
         { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
       ]}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
         <View style={styles.avatar}>
@@ -83,53 +89,85 @@ export default function Account() {
         </View>
       </View>
 
-      <Pressable style={styles.link} onPress={() => router.push("/payment")}>
-        <Text style={styles.linkLabel}>How you pay</Text>
-        <Text style={styles.linkChevron}>›</Text>
-      </Pressable>
+      {/* Two figures rather than a list of trips to count. Both are the
+          passenger's own money, which is the only thing this screen is for. */}
+      <Card style={styles.gap}>
+        <View style={styles.statRow}>
+          <View style={styles.flex}>
+            <Text style={styles.statLabel}>Trips taken</Text>
+            <Text style={styles.statValue}>{loading ? "—" : completed.length}</Text>
+          </View>
+          <View style={styles.statDivider} />
+          <View style={styles.flex}>
+            <Text style={styles.statLabel}>Spent</Text>
+            <View style={styles.statValueRow}>
+              <Text style={styles.statValue}>{loading ? "—" : money(spent)}</Text>
+              <Text style={styles.statUnit}>RWF</Text>
+            </View>
+          </View>
+        </View>
+      </Card>
 
-      <Pressable style={styles.link} onPress={() => router.push("/help")}>
-        <Text style={styles.linkLabel}>Help and safety</Text>
-        <Text style={styles.linkChevron}>›</Text>
-      </Pressable>
+      <Card style={[styles.gap, styles.rowList]}>
+        <Row
+          icon="card-outline"
+          label="How you pay"
+          onPress={() => router.push("/payment")}
+        />
+        <View style={styles.hairline} />
+        <Row
+          icon="shield-checkmark-outline"
+          tone="good"
+          label="Help and safety"
+          onPress={() => router.push("/help")}
+        />
+      </Card>
 
       {places.length > 0 ? (
         <>
           <Text style={styles.section}>Saved places</Text>
-          {places.map((pl) => (
-            <View key={pl.id} style={styles.place}>
-              <View style={styles.flex}>
-                <Text style={styles.placeLabel}>{pl.label}</Text>
-                {pl.note ? <Text style={styles.placeNote}>{pl.note}</Text> : null}
+          <Card style={styles.rowList}>
+            {places.map((pl, i) => (
+              <View key={pl.id}>
+                {i > 0 ? <View style={styles.hairline} /> : null}
+                <View style={styles.place}>
+                  <View style={styles.well}>
+                    <Ionicons name="bookmark-outline" size={17} color={theme.accent} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Text style={styles.placeLabel}>{pl.label}</Text>
+                    {pl.note ? <Text style={styles.placeNote}>{pl.note}</Text> : null}
+                  </View>
+                  {/* Without this a mis-named place was permanent - the first cut
+                      saved everything as "Saved place" and there was no way back. */}
+                  <Pressable
+                    style={styles.remove}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Remove ${pl.label}`}
+                    onPress={() =>
+                      Alert.alert("Remove this place?", pl.label, [
+                        { text: "Keep", style: "cancel" },
+                        {
+                          text: "Remove",
+                          style: "destructive",
+                          onPress: async () => {
+                            try {
+                              await deleteSavedPlace(supabase, pl.id);
+                              setPlaces((ps) => ps.filter((x) => x.id !== pl.id));
+                            } catch {
+                              Alert.alert("Could not remove that.");
+                            }
+                          },
+                        },
+                      ])
+                    }
+                  >
+                    <Ionicons name="close" size={18} color={theme.textMuted} />
+                  </Pressable>
+                </View>
               </View>
-              {/* Without this a mis-named place was permanent - the first cut
-                  saved everything as "Saved place" and there was no way back. */}
-              <Pressable
-                style={styles.remove}
-                accessibilityRole="button"
-                accessibilityLabel={`Remove ${pl.label}`}
-                onPress={() =>
-                  Alert.alert("Remove this place?", pl.label, [
-                    { text: "Keep", style: "cancel" },
-                    {
-                      text: "Remove",
-                      style: "destructive",
-                      onPress: async () => {
-                        try {
-                          await deleteSavedPlace(supabase, pl.id);
-                          setPlaces((ps) => ps.filter((x) => x.id !== pl.id));
-                        } catch {
-                          Alert.alert("Could not remove that.");
-                        }
-                      },
-                    },
-                  ])
-                }
-              >
-                <Text style={styles.removeText}>Remove</Text>
-              </Pressable>
-            </View>
-          ))}
+            ))}
+          </Card>
         </>
       ) : null}
 
@@ -139,6 +177,7 @@ export default function Account() {
         <ActivityIndicator style={styles.spin} color={theme.accent} />
       ) : trips.length === 0 ? (
         <EmptyState
+          icon="map-outline"
           title="No trips yet"
           body="Your first ride will show up here, with what you paid and who drove you."
         />
@@ -146,7 +185,7 @@ export default function Account() {
         trips.map((t) => {
           const status = statusFor(t.state);
           return (
-            <View key={t.id} style={styles.trip}>
+            <Card key={t.id} style={styles.trip}>
               <View style={styles.tripTop}>
                 {/* Origin and destination as a joined pair, so the row reads as
                     one journey rather than two lines of text. */}
@@ -170,17 +209,14 @@ export default function Account() {
 
               <View style={styles.tripFoot}>
                 <Text style={styles.tripMeta}>{when(t.createdAt)}</Text>
-                <Text
-                  style={[
-                    styles.tripStatus,
-                    status.tone === "success" && styles.statusSuccess,
-                    status.tone === "danger" && styles.statusDanger,
-                  ]}
-                >
-                  {status.label}
-                </Text>
+                <Chip
+                  label={status.label}
+                  tone={
+                    status.tone === "success" ? "good" : status.tone === "danger" ? "bad" : "neutral"
+                  }
+                />
               </View>
-            </View>
+            </Card>
           );
         })
       )}
@@ -201,21 +237,22 @@ export default function Account() {
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
-  content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
+  content: { paddingHorizontal: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
+  gap: { marginTop: tokens.space.md },
   header: { flexDirection: "row", alignItems: "center", gap: tokens.space.md },
   avatar: {
     width: 56,
     height: 56,
     borderRadius: tokens.radius.pill,
-    backgroundColor: theme.accent,
+    backgroundColor: theme.accentSoft,
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
-    color: theme.onAccent,
+    color: theme.accent,
   },
   name: {
     fontSize: tokens.type.title.size,
@@ -223,22 +260,38 @@ const styles = StyleSheet.create({
     color: theme.textStrong,
   },
   phone: { fontSize: tokens.type.body.size, color: theme.textMuted },
-  link: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    marginTop: tokens.space.lg,
-    paddingHorizontal: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
+  statRow: { flexDirection: "row", alignItems: "flex-start" },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: "stretch",
+    backgroundColor: theme.border,
+    marginHorizontal: tokens.space.sm,
   },
-  linkLabel: {
-    flex: 1,
+  statLabel: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "600",
+    color: theme.textMuted,
+  },
+  statValueRow: { flexDirection: "row", alignItems: "baseline" },
+  statValue: {
+    marginTop: 2,
+    fontSize: tokens.type.stat.size,
+    fontWeight: "700",
+    color: theme.textStrong,
+    letterSpacing: -0.5,
+  },
+  statUnit: {
+    marginLeft: 4,
     fontSize: tokens.type.body.size,
     fontWeight: "600",
-    color: theme.textStrong,
+    color: theme.textMuted,
   },
-  linkChevron: { fontSize: tokens.type.title.size, color: theme.textMuted },
+  rowList: { paddingVertical: tokens.space.xs },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.border,
+    marginLeft: 30 + tokens.space.sm,
+  },
   section: {
     marginTop: tokens.space.xl,
     marginBottom: tokens.space.sm,
@@ -251,27 +304,27 @@ const styles = StyleSheet.create({
   place: {
     flexDirection: "row",
     alignItems: "center",
-    padding: tokens.space.md,
-    marginBottom: tokens.space.sm,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceRaised,
-  },
-  placeLabel: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.textStrong },
-  placeNote: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  remove: {
+    gap: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET,
-    paddingHorizontal: tokens.space.md,
+  },
+  well: {
+    width: 30,
+    height: 30,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.accentSoft,
+    alignItems: "center",
     justifyContent: "center",
   },
-  removeText: { fontSize: tokens.type.label.size, fontWeight: "700", color: theme.danger },
-  spin: { marginTop: tokens.space.lg },
-  empty: { fontSize: tokens.type.body.size, color: theme.textMuted },
-  trip: {
-    padding: tokens.space.md,
-    marginBottom: tokens.space.sm,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: theme.surfaceRaised,
+  placeLabel: { fontSize: tokens.type.body.size, fontWeight: "600", color: theme.textStrong },
+  placeNote: { fontSize: tokens.type.label.size, color: theme.textMuted },
+  remove: {
+    width: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
   },
+  spin: { marginTop: tokens.space.lg },
+  trip: { marginBottom: tokens.space.sm },
   tripTop: { flexDirection: "row", alignItems: "center" },
   rail: { width: ROUTE_DOT.size, alignItems: "center", marginRight: tokens.space.md },
   dot: {
@@ -295,6 +348,7 @@ const styles = StyleSheet.create({
   legLast: { height: undefined },
   tripFoot: {
     flexDirection: "row",
+    alignItems: "center",
     justifyContent: "space-between",
     marginTop: tokens.space.sm,
     paddingTop: tokens.space.sm,
@@ -302,9 +356,6 @@ const styles = StyleSheet.create({
     borderTopColor: theme.border,
   },
   tripMeta: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  tripStatus: { fontSize: tokens.type.label.size, fontWeight: "700", color: theme.textMuted },
-  statusSuccess: { color: theme.success },
-  statusDanger: { color: theme.danger },
   tripFare: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",

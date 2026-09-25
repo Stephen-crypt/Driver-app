@@ -1,12 +1,14 @@
 import { useState } from "react";
 import { View, Text, TextInput, Pressable, StyleSheet } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import { requestOtp } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 
 export default function PhoneScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [phone, setPhone] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -25,7 +27,12 @@ export default function PhoneScreen() {
   }
 
   return (
-    <View style={styles.root}>
+    <View
+      style={[
+        styles.root,
+        { paddingTop: insets.top + tokens.space.lg, paddingBottom: insets.bottom + tokens.space.lg },
+      ]}
+    >
       <Text style={styles.title}>What's your number?</Text>
       <Text style={styles.sub}>We'll text you a code to sign in.</Text>
 
@@ -53,7 +60,8 @@ export default function PhoneScreen() {
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface, padding: tokens.space.lg },
+  // Vertical padding comes from the safe-area insets at the call site.
+  root: { flex: 1, backgroundColor: theme.surface, paddingHorizontal: tokens.space.lg },
   title: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",
@@ -67,20 +75,21 @@ const styles = StyleSheet.create({
   },
   input: {
     marginTop: tokens.space.xl,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceRaised,
     fontSize: tokens.type.title.size,
     color: theme.textStrong,
-    borderBottomWidth: 2,
-    borderBottomColor: theme.accent,
-    paddingVertical: tokens.space.sm,
   },
   error: { color: theme.danger, marginTop: tokens.space.md },
   // The primary action lives in the bottom third, within one-thumb reach.
   cta: {
     marginTop: "auto",
     marginBottom: tokens.space.xl,
-    minHeight: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET + 8,
     backgroundColor: theme.accent,
-    borderRadius: tokens.radius.lg,
+    borderRadius: tokens.radius.pill,
     alignItems: "center",
     justifyContent: "center",
   },

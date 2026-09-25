@@ -1,75 +1,93 @@
 import { palette } from "./tokens";
 
 export interface Theme {
-  /** The page ground. */
+  /** The page ground. Slightly off white, so a white card has an edge. */
   readonly surface: string;
   /** A card sitting on the ground. */
   readonly surfaceRaised: string;
-  /** A card nested inside another card - a vehicle row inside the sheet. */
+  /** A card nested inside another card. */
   readonly surfaceHigh: string;
-  /** Hairlines and card outlines. Never load-bearing on its own. */
+  /** Hairlines between rows. Never load-bearing on its own. */
   readonly border: string;
   readonly text: string;
   readonly textStrong: string;
   readonly textMuted: string;
   readonly accent: string;
+  /** A tint of the accent, for chips and icon wells. */
+  readonly accentSoft: string;
   readonly onAccent: string;
   readonly success: string;
+  readonly successSoft: string;
   readonly danger: string;
+  readonly dangerSoft: string;
+  readonly warning: string;
+  readonly warningSoft: string;
   /** The pickup end of a route. */
   readonly origin: string;
   /** The drop-off end of a route. */
   readonly destination: string;
 }
 
+/**
+ * The shipped look: light, quiet, one blue.
+ *
+ * The indigo-and-amber pair it replaces asked the eye to treat two colours as
+ * brand at once, which made every screen louder than the task on it. Booking a
+ * moto is errand software - the money and the map should carry the only weight,
+ * and everything else should get out of the way.
+ *
+ * Accent colours survive as small signals only: a green status chip, a red
+ * cancel, an amber warning. None of them is ever a background.
+ */
 export const lightTheme: Theme = {
-  surface: palette.paper,
-  surfaceRaised: palette.white,
-  surfaceHigh: palette.paper,
-  border: palette.indigo300,
-  text: palette.slate600,
-  textStrong: palette.indigo900,
-  textMuted: palette.slate600,
-  accent: palette.amber500,
-  onAccent: palette.indigo900,
-  success: palette.success,
-  danger: palette.danger,
-  origin: palette.amber500,
-  destination: palette.success,
+  surface: palette.ground,
+  surfaceRaised: palette.card,
+  surfaceHigh: palette.sunken,
+  border: palette.hairline,
+  text: palette.inkSoft,
+  textStrong: palette.ink,
+  textMuted: palette.inkMuted,
+  accent: palette.blue,
+  accentSoft: palette.blueSoft,
+  onAccent: palette.white,
+  success: palette.green,
+  successSoft: palette.greenSoft,
+  danger: palette.red,
+  dangerSoft: palette.redSoft,
+  warning: palette.amber,
+  warningSoft: palette.amberSoft,
+  origin: palette.blue,
+  destination: palette.green,
 };
 
 /**
- * The shipped look.
- *
- * Dark, because the two moments this product is used are a passenger on a street at
- * night and a rider with the app open for a twelve-hour shift - a white screen
- * is hostile in the first and burns battery through the second. The three
- * surface levels are what let a card sit inside a card without a border doing
- * all the work.
- *
- * The accent stays amber rather than the neon green the reference design uses.
- * Amber is the moto vest: in Kigali it already means "this is a ride", and it
- * is the one colour on the street the product is named after. Green on black is
- * what every fintech looks like.
+ * Kept working, and kept honest by the same contrast test - a rider on a night
+ * shift may want it, and a half-maintained dark theme is worse than none.
+ * Not shipped: `theme` below is what the apps import.
  */
 export const darkTheme: Theme = {
-  surface: palette.indigo900,
-  surfaceRaised: palette.indigo800,
-  surfaceHigh: palette.indigo700,
-  border: palette.indigo500,
-  text: palette.indigo300,
+  surface: palette.night,
+  surfaceRaised: palette.nightRaised,
+  surfaceHigh: palette.nightSunken,
+  border: palette.nightHairline,
+  text: "#C3C9D4",
   textStrong: palette.white,
-  textMuted: palette.indigo300,
-  accent: palette.amber500,
-  onAccent: palette.indigo900,
-  success: palette.successBright,
-  danger: palette.dangerBright,
-  origin: palette.amber500,
-  destination: palette.successBright,
+  textMuted: "#9AA2B1",
+  accent: palette.blueBright,
+  accentSoft: "#17233A",
+  onAccent: palette.night,
+  success: palette.greenBright,
+  successSoft: "#12281F",
+  danger: palette.redBright,
+  dangerSoft: "#2B1614",
+  warning: "#FBBF24",
+  warningSoft: "#2A2010",
+  origin: palette.blueBright,
+  destination: palette.greenBright,
 };
 
 /**
  * What the apps import. Switching the product's look is this one line - every
  * screen reads colour from here and nothing hard-codes a hex.
  */
-export const theme: Theme = darkTheme;
+export const theme: Theme = lightTheme;

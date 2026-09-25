@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens } from "@gera/ui";
 import {
   PAYMENT_KINDS,
@@ -10,6 +11,15 @@ import {
   type PaymentKind,
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
+import { Card, Chip, PrimaryButton } from "../src/components/Card";
+
+/** Each method gets a recognisable mark, so the list scans without reading. */
+const ICONS: Record<PaymentKind, keyof typeof Ionicons.glyphMap> = {
+  cash: "cash-outline",
+  mtn_momo: "phone-portrait-outline",
+  airtel_money: "phone-portrait-outline",
+  card: "card-outline",
+};
 
 export default function Payment() {
   const router = useRouter();
@@ -81,6 +91,7 @@ export default function Payment() {
         styles.content,
         { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
       ]}
+      showsVerticalScrollIndicator={false}
     >
       <Text style={styles.title}>How you pay</Text>
       <Text style={styles.sub}>
@@ -88,39 +99,56 @@ export default function Payment() {
         show you what's coming than pretend it's here.
       </Text>
 
-      {PAYMENT_KINDS.map((p) => {
-        const active = selected === p.kind;
-        return (
-          <Pressable
-            key={p.kind}
-            style={[styles.row, active && styles.rowActive, !p.live && styles.rowDim]}
-            onPress={() => choose(p.kind)}
-            disabled={!p.live || busy}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: active, disabled: !p.live }}
-          >
-            <View style={styles.flex}>
-              <Text style={styles.rowLabel}>{p.label}</Text>
-              <Text style={styles.rowBlurb}>{p.blurb}</Text>
+      <Card style={styles.list}>
+        {PAYMENT_KINDS.map((p, i) => {
+          const active = selected === p.kind;
+          return (
+            <View key={p.kind}>
+              {i > 0 ? <View style={styles.hairline} /> : null}
+              <Pressable
+                style={[styles.row, !p.live && styles.rowDim]}
+                onPress={() => choose(p.kind)}
+                disabled={!p.live || busy}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active, disabled: !p.live }}
+              >
+                <View style={[styles.well, active && styles.wellActive]}>
+                  <Ionicons
+                    name={ICONS[p.kind]}
+                    size={18}
+                    color={active ? theme.onAccent : theme.textMuted}
+                  />
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.rowLabel}>{p.label}</Text>
+                  <Text style={styles.rowBlurb}>{p.blurb}</Text>
+                </View>
+                {/* A tick drawn as a glyph rather than typed as text: the
+                    literal character rendered at a different weight to
+                    everything around it and read as a typo. */}
+                {active ? (
+                  <Ionicons name="checkmark-circle" size={22} color={theme.accent} />
+                ) : !p.live ? (
+                  <Chip label="Soon" />
+                ) : null}
+              </Pressable>
             </View>
-            {active ? <Text style={styles.check}>✓</Text> : null}
-            {!p.live ? <Text style={styles.soon}>Soon</Text> : null}
-          </Pressable>
-        );
-      })}
+          );
+        })}
+      </Card>
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <Pressable style={styles.cta} onPress={() => router.back()} accessibilityRole="button">
-        <Text style={styles.ctaText}>Done</Text>
-      </Pressable>
+      <View style={styles.footer}>
+        <PrimaryButton label="Done" onPress={() => router.back()} />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
-  content: { padding: tokens.space.lg, paddingBottom: tokens.space.xxl },
+  content: { paddingHorizontal: tokens.space.lg, paddingBottom: tokens.space.xxl },
   flex: { flex: 1 },
   centre: {
     flex: 1,
@@ -140,44 +168,38 @@ const styles = StyleSheet.create({
     lineHeight: tokens.type.body.leading,
     color: theme.textMuted,
   },
+  list: { paddingVertical: tokens.space.xs },
+  hairline: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: theme.border,
+    marginLeft: 36 + tokens.space.sm,
+  },
   row: {
     flexDirection: "row",
     alignItems: "center",
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm,
-    marginBottom: tokens.space.sm,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: "transparent",
-    backgroundColor: theme.surfaceRaised,
+    gap: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET + 4,
   },
-  rowActive: { borderColor: theme.accent },
   rowDim: { opacity: 0.55 },
+  well: {
+    width: 36,
+    height: 36,
+    borderRadius: tokens.radius.sm,
+    backgroundColor: theme.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  wellActive: { backgroundColor: theme.accent },
   rowLabel: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
     color: theme.textStrong,
   },
   rowBlurb: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  check: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.accent,
-  },
-  soon: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  error: { color: theme.danger, fontSize: tokens.type.body.size },
-  cta: {
-    marginTop: tokens.space.lg,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.lg,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaText: {
+  error: {
+    marginTop: tokens.space.md,
+    color: theme.danger,
     fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.onAccent,
   },
+  footer: { marginTop: tokens.space.lg },
 });
