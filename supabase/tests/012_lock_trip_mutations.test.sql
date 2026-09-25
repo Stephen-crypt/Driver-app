@@ -3,19 +3,19 @@ select plan(12);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','b1111111-0000-4000-8000-000000000001',
-   'authenticated','authenticated','rider.j@test.local'),
+   'authenticated','authenticated','passenger.j@test.local'),
   ('00000000-0000-0000-0000-000000000000','b1111111-0000-4000-8000-000000000002',
-   'authenticated','authenticated','driver.j@test.local');
+   'authenticated','authenticated','rider.j@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('b1111111-0000-4000-8000-000000000001','rider','Aline','+250788000501'),
-  ('b1111111-0000-4000-8000-000000000002','driver','Eric','+250788000502');
+  ('b1111111-0000-4000-8000-000000000001','passenger','Aline','+250788000501'),
+  ('b1111111-0000-4000-8000-000000000002','rider','Eric','+250788000502');
 
-insert into public.drivers (id, verification)
+insert into public.riders (id, verification)
 values ('b1111111-0000-4000-8000-000000000002','verified');
 
 insert into public.fare_quotes
-  (id, rider_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
+  (id, passenger_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
 values
   ('b2222222-0000-4000-8000-000000000001','b1111111-0000-4000-8000-000000000001',
    (select id from public.fare_policies where vehicle_class='moto' limit 1),
@@ -24,7 +24,7 @@ values
 -- ---------------------------------------------------------------------------
 -- The write verbs are gone, not merely unreachable.
 -- ---------------------------------------------------------------------------
--- 0014 revoked INSERT once a rider had authored their own fare through it.
+-- 0014 revoked INSERT once a passenger had authored their own fare through it.
 -- UPDATE, DELETE and TRUNCATE were left behind, blocked only by the ABSENCE of
 -- a policy - the same configuration C1 had before it bit us.
 select ok(
@@ -67,7 +67,7 @@ select lives_ok(
        'b2222222-0000-4000-8000-000000000001',
        st_point(30.0619,-1.9441)::geography, 'Kimironko Market', null,
        st_point(30.0588,-1.9536)::geography, 'Kigali Heights') $$,
-  'the rider books a trip at the quoted price'
+  'the passenger books a trip at the quoted price'
 );
 
 -- The price columns are what completion prices against, and trips_guard_state_trg
@@ -75,14 +75,14 @@ select lives_ok(
 -- stopped this write.
 select throws_ok(
   $$ update public.trips set quoted_amount_rwf = 100
-      where rider_id = 'b1111111-0000-4000-8000-000000000001' $$,
+      where passenger_id = 'b1111111-0000-4000-8000-000000000001' $$,
   '42501', null,
-  'a rider cannot rewrite the locked price on their own trip'
+  'a passenger cannot rewrite the locked price on their own trip'
 );
 
 select is(
   (select quoted_amount_rwf from public.trips
-    where rider_id='b1111111-0000-4000-8000-000000000001'),
+    where passenger_id='b1111111-0000-4000-8000-000000000001'),
   1700,
   'and the locked price is untouched'
 );
@@ -92,10 +92,10 @@ select is(
 -- ---------------------------------------------------------------------------
 set local role postgres;
 select lives_ok(
-  $$ select public.assign_driver_to_trip(
-       (select id from public.trips where rider_id='b1111111-0000-4000-8000-000000000001'),
+  $$ select public.assign_rider_to_trip(
+       (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        'b1111111-0000-4000-8000-000000000002', 'offer-j1') $$,
-  'dispatch still assigns a driver'
+  'dispatch still assigns a rider'
 );
 
 set local role authenticated;
@@ -104,23 +104,23 @@ set local request.jwt.claims to
 
 select lives_ok(
   $$ select public.trip_transition(
-       (select id from public.trips where rider_id='b1111111-0000-4000-8000-000000000001'),
+       (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        'accepted','j-a1');
      select public.trip_transition(
-       (select id from public.trips where rider_id='b1111111-0000-4000-8000-000000000001'),
+       (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        'arrived','j-a2');
      select public.trip_transition(
-       (select id from public.trips where rider_id='b1111111-0000-4000-8000-000000000001'),
+       (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        'in_progress','j-a3');
      select public.complete_trip(
-       (select id from public.trips where rider_id='b1111111-0000-4000-8000-000000000001'),
+       (select id from public.trips where passenger_id='b1111111-0000-4000-8000-000000000001'),
        4100,'j-done') $$,
-  'the driver still drives the trip all the way to completed'
+  'the rider still drives the trip all the way to completed'
 );
 
 select is(
   (select amount_rwf from public.ledger_entries
-    where driver_id='b1111111-0000-4000-8000-000000000002' and kind='commission_debit'),
+    where rider_id='b1111111-0000-4000-8000-000000000002' and kind='commission_debit'),
   255,
   'and the commission is still debited by the database'
 );

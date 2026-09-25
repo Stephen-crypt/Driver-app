@@ -1,6 +1,6 @@
 import type { VehicleClass } from "../fare/policy";
 
-/** A driver holds an exclusive offer for this long before it passes on. */
+/** A rider holds an exclusive offer for this long before it passes on. */
 export const OFFER_TTL_SECONDS = 15;
 
 /** The search widens only when a stage finds nobody (spec 3.3). */
@@ -41,7 +41,7 @@ export const straightLineEta: EtaProvider = {
   },
 };
 
-export async function rankByEta<T extends { driverId: string; distanceM: number }>(
+export async function rankByEta<T extends { riderId: string; distanceM: number }>(
   candidates: readonly T[],
   vehicleClass: VehicleClass,
   provider: EtaProvider,

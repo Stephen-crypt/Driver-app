@@ -40,17 +40,17 @@ describe("cancelTrip", () => {
   it("routes through trip_transition rather than a second cancellation path", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
     const client = { rpc } as unknown as GeraClient;
-    await cancelTrip(client, "t1", "rider");
+    await cancelTrip(client, "t1", "passenger");
     expect(rpc).toHaveBeenCalledWith("trip_transition", expect.objectContaining({
-      p_to: "cancelled_by_rider",
+      p_to: "cancelled_by_passenger",
     }));
   });
 
   it("uses a stable idempotency key so a retry cannot double-cancel", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: null, error: null });
     const client = { rpc } as unknown as GeraClient;
-    await cancelTrip(client, "t1", "driver");
-    await cancelTrip(client, "t1", "driver");
+    await cancelTrip(client, "t1", "rider");
+    await cancelTrip(client, "t1", "rider");
     expect(rpc.mock.calls[0]?.[1]).toEqual(rpc.mock.calls[1]?.[1]);
   });
 });
@@ -64,12 +64,12 @@ describe("getTripContact", () => {
 
   it("flattens the single row the server returns", async () => {
     const rpc = vi.fn().mockResolvedValue({
-      data: [{ counterparty: "driver", display_name: "Eric", phone: "+250788000000" }],
+      data: [{ counterparty: "rider", display_name: "Eric", phone: "+250788000000" }],
       error: null,
     });
     const client = { rpc } as unknown as GeraClient;
     const c = await getTripContact(client, "t1");
-    expect(c?.counterparty).toBe("driver");
+    expect(c?.counterparty).toBe("rider");
     expect(c?.displayName).toBe("Eric");
   });
 });

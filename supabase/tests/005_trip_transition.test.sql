@@ -11,26 +11,26 @@ select plan(20);
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000',
    '11111111-1111-1111-1111-111111111111',
-   'authenticated', 'authenticated', 'rider.a@test.local'),
+   'authenticated', 'authenticated', 'passenger.a@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '22222222-2222-2222-2222-222222222222',
    'authenticated', 'authenticated', 'stranger.b@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '33333333-3333-3333-3333-333333333333',
-   'authenticated', 'authenticated', 'driver.c@test.local');
+   'authenticated', 'authenticated', 'rider.c@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('11111111-1111-1111-1111-111111111111', 'rider',  'Aline', '+250700000001'),
-  ('22222222-2222-2222-2222-222222222222', 'rider',  'Bosco', '+250700000002'),
-  ('33333333-3333-3333-3333-333333333333', 'driver', 'Eric',  '+250700000003');
+  ('11111111-1111-1111-1111-111111111111', 'passenger',  'Aline', '+250700000001'),
+  ('22222222-2222-2222-2222-222222222222', 'passenger',  'Bosco', '+250700000002'),
+  ('33333333-3333-3333-3333-333333333333', 'rider', 'Eric',  '+250700000003');
 
-insert into public.drivers (id, verification) values
+insert into public.riders (id, verification) values
   ('33333333-3333-3333-3333-333333333333', 'verified');
 
--- An offered trip with the driver already attached: the edge under test is
--- offered -> accepted by the driver.
+-- An offered trip with the rider already attached: the edge under test is
+-- offered -> accepted by the rider.
 insert into public.trips
-  (id, rider_id, driver_id, vehicle_class, state,
+  (id, passenger_id, rider_id, vehicle_class, state,
    pickup, pickup_label, pickup_note, dropoff, dropoff_label)
 values (
   'aaaaaaaa-0000-0000-0000-000000000001',
@@ -46,7 +46,7 @@ values (
 -- A second trip, still unassigned, for the system edges. requested -> offered
 -- is dispatch's first move and has no human actor at all.
 insert into public.trips
-  (id, rider_id, vehicle_class, state,
+  (id, passenger_id, vehicle_class, state,
    pickup, pickup_label, dropoff, dropoff_label)
 values (
   'aaaaaaaa-0000-0000-0000-000000000002',
@@ -61,7 +61,7 @@ values (
 -- timestamps are seeded stale on purpose: now() is frozen for the whole
 -- transaction, so a freshly inserted row could not show updated_at advancing.
 insert into public.trips
-  (id, rider_id, vehicle_class, state,
+  (id, passenger_id, vehicle_class, state,
    pickup, pickup_label, dropoff, dropoff_label, created_at, updated_at)
 values (
   'aaaaaaaa-0000-0000-0000-000000000003',
@@ -74,7 +74,7 @@ values (
   timestamptz '2000-01-01 00:00:00+00'
 );
 
--- Act as the driver who was offered the trip.
+-- Act as the rider who was offered the trip.
 set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
@@ -84,7 +84,7 @@ select is(
   (select state::text from public.trip_transition(
      'aaaaaaaa-0000-0000-0000-000000000001', 'accepted', 'key-accept-1')),
   'accepted',
-  'the driver accepts the offered trip'
+  'the rider accepts the offered trip'
 );
 
 -- 2. The projection on trips actually moved.
@@ -127,14 +127,14 @@ select throws_ok(
   'a fresh key cannot buy an illegal edge'
 );
 
--- Act as a user who is neither the rider nor the driver on this trip.
+-- Act as a user who is neither the passenger nor the rider on this trip.
 set local request.jwt.claims to
   '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 
 -- 6. The actor guard must run BEFORE the idempotent early return. Using a key
 --    that already exists on the trip is the regression guard: if the replay
---    check came first, this would RETURN the whole trips row - rider_id,
---    driver_id, pickup/dropoff geography and the pickup_note - to a stranger.
+--    check came first, this would RETURN the whole trips row - passenger_id,
+--    rider_id, pickup/dropoff geography and the pickup_note - to a stranger.
 select throws_ok(
   $$ select public.trip_transition(
        'aaaaaaaa-0000-0000-0000-000000000001', 'arrived', 'key-accept-1') $$,
@@ -142,7 +142,7 @@ select throws_ok(
   'a non-participant is refused even on a replayed key, and gets no trip data'
 );
 
--- Back to the driver to read the journal under a policy that permits it.
+-- Back to the rider to read the journal under a policy that permits it.
 set local request.jwt.claims to
   '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
 
@@ -162,7 +162,7 @@ reset role;
 
 -- 9. A system edge is reachable at all. Before trip_transition_system() the
 --    four dispatch edges had no sanctioned caller, because trip_transition()
---    derives its actor from auth.uid() and can only ever produce rider/driver.
+--    derives its actor from auth.uid() and can only ever produce passenger/rider.
 select is(
   (select state::text from public.trip_transition_system(
      'aaaaaaaa-0000-0000-0000-000000000002', 'offered', 'key-dispatch-1')),

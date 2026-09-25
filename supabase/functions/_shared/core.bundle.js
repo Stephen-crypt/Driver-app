@@ -9,22 +9,22 @@ var TRIP_STATES = [
   "arrived",
   "in_progress",
   "completed",
+  "cancelled_by_passenger",
   "cancelled_by_rider",
-  "cancelled_by_driver",
   "expired",
-  "no_drivers"
+  "no_riders"
 ];
 var ACTORS = [
+  "passenger",
   "rider",
-  "driver",
   "system"
 ];
 var TERMINAL_STATES = [
   "completed",
+  "cancelled_by_passenger",
   "cancelled_by_rider",
-  "cancelled_by_driver",
   "expired",
-  "no_drivers"
+  "no_riders"
 ];
 function isTerminal(state) {
   return TERMINAL_STATES.includes(state);
@@ -41,16 +41,16 @@ var TRANSITIONS = [
   },
   {
     from: "requested",
-    to: "no_drivers",
+    to: "no_riders",
     actors: [
       "system"
     ]
   },
   {
     from: "requested",
-    to: "cancelled_by_rider",
+    to: "cancelled_by_passenger",
     actors: [
-      "rider"
+      "passenger"
     ]
   },
   // A declined or timed-out offer re-enters `offered` for the next candidate.
@@ -65,7 +65,7 @@ var TRANSITIONS = [
     from: "offered",
     to: "accepted",
     actors: [
-      "driver"
+      "rider"
     ]
   },
   {
@@ -77,23 +77,30 @@ var TRANSITIONS = [
   },
   {
     from: "offered",
-    to: "no_drivers",
+    to: "no_riders",
     actors: [
       "system"
     ]
   },
   {
     from: "offered",
-    to: "cancelled_by_rider",
+    to: "cancelled_by_passenger",
     actors: [
-      "rider"
+      "passenger"
     ]
   },
   {
     from: "accepted",
     to: "arrived",
     actors: [
-      "driver"
+      "rider"
+    ]
+  },
+  {
+    from: "accepted",
+    to: "cancelled_by_passenger",
+    actors: [
+      "passenger"
     ]
   },
   {
@@ -101,13 +108,6 @@ var TRANSITIONS = [
     to: "cancelled_by_rider",
     actors: [
       "rider"
-    ]
-  },
-  {
-    from: "accepted",
-    to: "cancelled_by_driver",
-    actors: [
-      "driver"
     ]
   },
   // Heartbeat loss re-dispatches a trip that never reached pickup.
@@ -122,7 +122,14 @@ var TRANSITIONS = [
     from: "arrived",
     to: "in_progress",
     actors: [
-      "driver"
+      "rider"
+    ]
+  },
+  {
+    from: "arrived",
+    to: "cancelled_by_passenger",
+    actors: [
+      "passenger"
     ]
   },
   {
@@ -133,17 +140,10 @@ var TRANSITIONS = [
     ]
   },
   {
-    from: "arrived",
-    to: "cancelled_by_driver",
-    actors: [
-      "driver"
-    ]
-  },
-  {
     from: "in_progress",
     to: "completed",
     actors: [
-      "driver"
+      "rider"
     ]
   }
 ];

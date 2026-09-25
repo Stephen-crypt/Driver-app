@@ -21,9 +21,9 @@ describe("isTripLive", () => {
   it("does not count terminal states as live", () => {
     for (const s of [
       "completed",
+      "cancelled_by_passenger",
       "cancelled_by_rider",
-      "cancelled_by_driver",
-      "no_drivers",
+      "no_riders",
       "expired",
     ]) {
       expect(isTripLive(s)).toBe(false);
@@ -46,28 +46,28 @@ describe("getTrip", () => {
     const c = client({
       id: "t1",
       state: "offered",
-      driver_id: "d1",
+      rider_id: "d1",
       quoted_amount_rwf: 1700,
       pickup_label: "Kimironko",
       dropoff_label: "Heights",
     });
     const t = await getTrip(c, "t1");
     expect(t.state).toBe("offered");
-    expect(t.driverId).toBe("d1");
+    expect(t.riderId).toBe("d1");
     expect(t.quotedAmountRwf).toBe(1700);
     expect(t.pickupLabel).toBe("Kimironko");
   });
 
-  it("keeps a null driver null rather than inventing one", async () => {
+  it("keeps a null rider null rather than inventing one", async () => {
     const c = client({
       id: "t1",
       state: "requested",
-      driver_id: null,
+      rider_id: null,
       quoted_amount_rwf: 1700,
       pickup_label: "a",
       dropoff_label: "b",
     });
-    expect((await getTrip(c, "t1")).driverId).toBeNull();
+    expect((await getTrip(c, "t1")).riderId).toBeNull();
   });
 
   it("throws when the trip cannot be read", async () => {

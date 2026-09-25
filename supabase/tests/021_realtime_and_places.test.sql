@@ -16,7 +16,7 @@ select is(
 
 -- REPLICA IDENTITY FULL ('f') is what lets Realtime evaluate RLS against the
 -- OLD row. On the default ('d'), Supabase drops updates it cannot prove are
--- safe - which would silently mean the rider never sees a state change.
+-- safe - which would silently mean the passenger never sees a state change.
 select is(
   (select relreplident::text from pg_class where relname = 'trips'),
   'f',
@@ -46,10 +46,10 @@ select ok(
 
 select ok(
   has_function_privilege('authenticated', 'public.list_saved_places()', 'EXECUTE'),
-  'a signed-in rider may read them');
+  'a signed-in passenger may read them');
 
 -- security invoker is load-bearing: a definer would bypass the owner policy and
--- return every rider's saved places to whoever asked.
+-- return every passenger's saved places to whoever asked.
 select ok(
   not (select prosecdef from pg_proc p
          join pg_namespace n on n.oid = p.pronamespace

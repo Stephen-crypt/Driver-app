@@ -1,36 +1,31 @@
-import { useState } from "react";
-import {
-  Image,
-  Modal,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 
-const PROMISES = [
+/**
+ * What a rider actually wants to know before they sign up, in the order they
+ * ask it: what do I earn, when do I get it, and what does it cost me. Anything
+ * about the app itself comes after.
+ */
+const TERMS = [
   {
-    title: "The price before you go",
-    body: "You agree the fare before you book. No meter, no argument at the end.",
+    title: "You keep the cash",
+    body: "Passengers pay you directly at the end of every trip. Nothing waits for a payout.",
   },
   {
-    title: "Moto first",
-    body: "The fastest way through Kigali traffic, and the one most people take.",
+    title: "Commission comes from your wallet",
+    body: "Top the wallet up, and our share is taken from it after each trip — never out of the fare in your hand.",
   },
   {
-    title: "Pay in cash",
-    body: "Hand it to your driver when you arrive. Mobile money is coming.",
+    title: "You see the fare before you accept",
+    body: "Pickup, drop-off and the exact amount, before you commit to the trip.",
   },
 ];
 
-export default function Welcome() {
+export default function RiderWelcome() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [driverInfo, setDriverInfo] = useState(false);
 
   return (
     <View style={styles.root}>
@@ -38,82 +33,47 @@ export default function Welcome() {
         contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* contain, not cover: the illustration is 16:9 and cover was cropping
-            it to its left third, hiding the moto and the hill entirely. */}
         <Image
           source={require("../assets/welcome-hero.jpg")}
           style={styles.hero}
           resizeMode="contain"
           accessible
-          accessibilityLabel="A moto climbing a winding road through the Kigali hills at night"
+          accessibilityLabel="A moto passenger in a numbered safety vest looking down a road through the hills at sunrise"
         />
 
         <View style={styles.brandBlock}>
-          <Text style={styles.wordmark}>Gera</Text>
-          {/* kugera: to arrive, to reach. The name is the promise. */}
-          <Text style={styles.tagline}>Gera. Get there.</Text>
+          <Text style={styles.wordmark}>Gera Rider</Text>
+          <Text style={styles.tagline}>Your road, your earnings.</Text>
         </View>
 
-        <View style={styles.promises}>
-          {PROMISES.map((p) => (
-            <View key={p.title} style={styles.promise}>
+        <View style={styles.terms}>
+          {TERMS.map((t) => (
+            <View key={t.title} style={styles.term}>
               <View style={styles.bullet} />
               <View style={styles.flex}>
-                <Text style={styles.promiseTitle}>{p.title}</Text>
-                <Text style={styles.promiseBody}>{p.body}</Text>
+                <Text style={styles.termTitle}>{t.title}</Text>
+                <Text style={styles.termBody}>{t.body}</Text>
               </View>
             </View>
           ))}
         </View>
+
+        {/* Said plainly here rather than discovered at the end of onboarding. */}
+        <Text style={styles.requirements}>
+          You'll need a valid licence, your vehicle's papers and a national ID. We check
+          them before your first trip.
+        </Text>
       </ScrollView>
 
-      {/* Primary action in the bottom third, within one-handed reach. */}
       <View style={[styles.footer, { paddingBottom: insets.bottom + tokens.space.lg }]}>
         <Pressable
           style={styles.cta}
           onPress={() => router.push("/onboarding/phone")}
           accessibilityRole="button"
         >
-          <Text style={styles.ctaText}>Get started</Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.ghost}
-          onPress={() => setDriverInfo(true)}
-          accessibilityRole="button"
-        >
-          <Text style={styles.ghostText}>I want to drive with Gera</Text>
+          <Text style={styles.ctaText}>Start driving</Text>
         </Pressable>
       </View>
-
-      <Modal
-        visible={driverInfo}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setDriverInfo(false)}
-      >
-        <View style={styles.backdrop}>
-          <View style={styles.sheet}>
-            <View style={styles.grabber} />
-            <Text style={styles.sheetTitle}>Drive with Gera</Text>
-            <Text style={styles.sheetBody}>
-              Driving uses a separate app, Gera Driver, so your map and your earnings
-              never get in the way of each other.
-            </Text>
-            <Text style={styles.sheetBody}>
-              You'll need a valid licence, your vehicle's papers, and a national ID. We
-              check them before you can take your first trip.
-            </Text>
-            <Text style={styles.sheetBody}>
-              You keep the cash you collect. Our commission comes out of a wallet you
-              top up, so you're never short at the end of a trip.
-            </Text>
-            <Pressable style={styles.cta} onPress={() => setDriverInfo(false)}>
-              <Text style={styles.ctaText}>Got it</Text>
-            </Pressable>
-          </View>
-        </View>
-      </Modal>
     </View>
   );
 }
@@ -122,22 +82,16 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
   flex: { flex: 1 },
   content: { paddingBottom: tokens.space.lg },
-  hero: {
-    width: "100%",
-    aspectRatio: 16 / 9,
-    // Capped so it cannot eat a tall screen and push the wordmark and the
-    // promises below the fold, which is what it was doing.
-    maxHeight: 220,
-  },
+  hero: { width: "100%", aspectRatio: 16 / 9, maxHeight: 220 },
   brandBlock: {
     paddingHorizontal: tokens.space.xl,
-    marginTop: tokens.space.md,
-    marginBottom: tokens.space.lg,
+    marginTop: tokens.space.lg,
+    marginBottom: tokens.space.xl,
   },
   wordmark: {
-    fontSize: 48,
+    fontSize: 42,
     fontWeight: "700",
-    letterSpacing: -2,
+    letterSpacing: -1.5,
     color: theme.textStrong,
   },
   tagline: {
@@ -146,8 +100,8 @@ const styles = StyleSheet.create({
     color: theme.accent,
     fontWeight: "600",
   },
-  promises: { paddingHorizontal: tokens.space.xl, gap: tokens.space.lg },
-  promise: { flexDirection: "row", gap: tokens.space.md },
+  terms: { paddingHorizontal: tokens.space.xl, gap: tokens.space.lg },
+  term: { flexDirection: "row", gap: tokens.space.md },
   bullet: {
     width: 10,
     height: 10,
@@ -155,22 +109,28 @@ const styles = StyleSheet.create({
     backgroundColor: theme.accent,
     marginTop: 7,
   },
-  promiseTitle: {
+  termTitle: {
     fontSize: tokens.type.body.size,
     fontWeight: "700",
     color: theme.textStrong,
   },
-  promiseBody: {
+  termBody: {
     marginTop: 2,
     fontSize: tokens.type.body.size,
     lineHeight: tokens.type.body.leading,
     color: theme.textMuted,
   },
-  footer: {
-    paddingHorizontal: tokens.space.xl,
-    paddingTop: tokens.space.md,
-    gap: tokens.space.sm,
+  requirements: {
+    marginTop: tokens.space.xl,
+    marginHorizontal: tokens.space.xl,
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceRaised,
+    fontSize: tokens.type.body.size,
+    lineHeight: tokens.type.body.leading,
+    color: theme.textMuted,
   },
+  footer: { paddingHorizontal: tokens.space.xl, paddingTop: tokens.space.md },
   cta: {
     minHeight: tokens.MIN_TOUCH_TARGET + 8,
     backgroundColor: theme.accent,
@@ -182,39 +142,5 @@ const styles = StyleSheet.create({
     fontSize: tokens.type.title.size,
     fontWeight: "700",
     color: theme.onAccent,
-  },
-  ghost: {
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ghostText: { fontSize: tokens.type.body.size, color: theme.textMuted },
-  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.65)", justifyContent: "flex-end" },
-  sheet: {
-    backgroundColor: theme.surfaceRaised,
-    borderTopLeftRadius: tokens.radius.lg,
-    borderTopRightRadius: tokens.radius.lg,
-    padding: tokens.space.xl,
-    paddingTop: tokens.space.md,
-    gap: tokens.space.md,
-  },
-  grabber: {
-    alignSelf: "center",
-    width: 44,
-    height: 5,
-    borderRadius: tokens.radius.pill,
-    backgroundColor: theme.textMuted,
-    opacity: 0.35,
-    marginBottom: tokens.space.sm,
-  },
-  sheetTitle: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  sheetBody: {
-    fontSize: tokens.type.body.size,
-    lineHeight: tokens.type.body.leading,
-    color: theme.textMuted,
   },
 });

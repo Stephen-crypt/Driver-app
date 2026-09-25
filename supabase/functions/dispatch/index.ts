@@ -10,28 +10,28 @@ import { isDispatchable, rankCandidates } from "./logic.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface Candidate {
-  driver_id: string;
+  rider_id: string;
   distance_m: number;
 }
 
 interface OfferRow {
   id: string;
-  driver_id: string;
+  rider_id: string;
   rank: number;
   eta_seconds: number;
 }
 
 const POSTGRES_UNIQUE_VIOLATION = "23505";
-// create_trip_offer raises 42501 for `driver_already_offered` and
-// `driver_already_committed`. Both are statements about the CANDIDATE, not
-// about this trip: the driver the dispatcher picked took something else in the
+// create_trip_offer raises 42501 for `rider_already_offered` and
+// `rider_already_committed`. Both are statements about the CANDIDATE, not
+// about this trip: the rider the dispatcher picked took something else in the
 // window between find_candidates_for_trip's snapshot and the insert. That is a
 // routine race on a busy evening, and it used to fall through to a generic 500.
 const POSTGRES_COMMITMENT_REFUSED = "42501";
 
 interface OfferArgs {
   p_trip_id: string;
-  p_driver_id: string;
+  p_rider_id: string;
   p_rank: number;
   p_eta_seconds: number;
   p_ttl_seconds: number;
@@ -60,11 +60,11 @@ type OfferOutcome =
  *     hands back the real offer - which is what the caller must be told about,
  *     not a database error string.
  *
- *   * 42501 is a race on THIS DRIVER. Retrying the same arguments would raise
+ *   * 42501 is a race on THIS RIDER. Retrying the same arguments would raise
  *     the same error forever; the only way forward is a different candidate.
  *
  * The retry after 23505 can itself land on 42501: the unique violation may have
- * been on `trip_offers_one_live_per_driver` rather than `_per_trip`, and by the
+ * been on `trip_offers_one_live_per_rider` rather than `_per_trip`, and by the
  * retry the committed row is visible to the named check. So that answer routes
  * to the next candidate too. */
 async function createOfferOrJoinExisting(
@@ -75,7 +75,7 @@ async function createOfferOrJoinExisting(
   if (!first.error) return { offer: first.data as OfferRow };
 
   if (first.error.code === POSTGRES_COMMITMENT_REFUSED) {
-    console.warn("dispatch: candidate no longer available", args.p_driver_id, first.error.message);
+    console.warn("dispatch: candidate no longer available", args.p_rider_id, first.error.message);
     return { candidateUnavailable: true };
   }
 
@@ -83,7 +83,7 @@ async function createOfferOrJoinExisting(
     const retry = await svc.rpc("create_trip_offer", args).single();
     if (!retry.error) return { offer: retry.data as OfferRow };
     if (retry.error.code === POSTGRES_COMMITMENT_REFUSED) {
-      console.warn("dispatch: candidate taken by the race winner", args.p_driver_id);
+      console.warn("dispatch: candidate taken by the race winner", args.p_rider_id);
       return { candidateUnavailable: true };
     }
     console.error("dispatch: retry after offer race failed", retry.error);
@@ -153,11 +153,11 @@ Deno.serve(async (req: Request) => {
     for (const candidate of ranked) {
       const result = await createOfferOrJoinExisting(svc, {
         p_trip_id: tripId,
-        p_driver_id: candidate.driverId,
+        p_rider_id: candidate.riderId,
         p_rank: 1,
         p_eta_seconds: candidate.etaSeconds,
         p_ttl_seconds: OFFER_TTL_SECONDS,
-        p_idempotency_key: `offer-${tripId}-${candidate.driverId}-${Date.now()}`,
+        p_idempotency_key: `offer-${tripId}-${candidate.riderId}-${Date.now()}`,
       });
 
       if ("errorBody" in result) return json(result.errorBody, result.status);
@@ -168,7 +168,7 @@ Deno.serve(async (req: Request) => {
       }
 
       // The offer row the RPC actually returned is the only true outcome - it
-      // may belong to a different driver than `candidate` when
+      // may belong to a different rider than `candidate` when
       // create_trip_offer rejoined an existing live offer instead of creating a
       // fresh one.
       const { offer } = result;
@@ -176,20 +176,20 @@ Deno.serve(async (req: Request) => {
         tripId,
         offered: true,
         offerId: offer.id,
-        driverId: offer.driver_id,
+        riderId: offer.rider_id,
         rank: offer.rank,
         etaSeconds: offer.eta_seconds,
         radiusM,
-        alreadyOffered: offer.driver_id !== candidate.driverId,
+        alreadyOffered: offer.rider_id !== candidate.riderId,
       });
     }
   }
 
   // Candidates existed at every radius and every one of them was already
-  // committed by the time the insert ran. Saying `no_drivers_available` here
+  // committed by the time the insert ran. Saying `no_riders_available` here
   // would be a lie the caller cannot act on; a 409 says "transient, ask again",
   // which is true.
   if (anyCandidateRefused) return json({ error: "offer_conflict" }, 409);
 
-  return json({ tripId, offered: false, reason: "no_drivers_available" });
+  return json({ tripId, offered: false, reason: "no_riders_available" });
 });

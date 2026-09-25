@@ -1,38 +1,38 @@
 begin;
 select plan(17);
 
--- Two riders and one driver, created directly so we control the ids.
+-- Two passengers and one rider, created directly so we control the ids.
 -- instance_id/aud/role are supplied explicitly: auth.users has no defaults for
 -- them, and omitting them fails with a confusing not-null error.
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000',
    '11111111-1111-1111-1111-111111111111',
-   'authenticated', 'authenticated', 'rider.a@test.local'),
+   'authenticated', 'authenticated', 'passenger.a@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '22222222-2222-2222-2222-222222222222',
-   'authenticated', 'authenticated', 'rider.b@test.local'),
+   'authenticated', 'authenticated', 'passenger.b@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '33333333-3333-3333-3333-333333333333',
-   'authenticated', 'authenticated', 'driver.c@test.local'),
+   'authenticated', 'authenticated', 'rider.c@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '44444444-4444-4444-4444-444444444444',
    'authenticated', 'authenticated', 'newcomer.d@test.local'),
   ('00000000-0000-0000-0000-000000000000',
    '55555555-5555-5555-5555-555555555555',
-   'authenticated', 'authenticated', 'driver.e@test.local');
+   'authenticated', 'authenticated', 'rider.e@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('11111111-1111-1111-1111-111111111111', 'rider',  'Aline', '+250700000001'),
-  ('22222222-2222-2222-2222-222222222222', 'rider',  'Bosco', '+250700000002'),
-  ('33333333-3333-3333-3333-333333333333', 'driver', 'Eric',  '+250700000003'),
-  ('55555555-5555-5555-5555-555555555555', 'driver', 'Fidele','+250700000005');
+  ('11111111-1111-1111-1111-111111111111', 'passenger',  'Aline', '+250700000001'),
+  ('22222222-2222-2222-2222-222222222222', 'passenger',  'Bosco', '+250700000002'),
+  ('33333333-3333-3333-3333-333333333333', 'rider', 'Eric',  '+250700000003'),
+  ('55555555-5555-5555-5555-555555555555', 'rider', 'Fidele','+250700000005');
 
-insert into public.drivers (id, verification) values
+insert into public.riders (id, verification) values
   ('33333333-3333-3333-3333-333333333333', 'verified'),
   ('55555555-5555-5555-5555-555555555555', 'submitted');
 
 insert into public.trips
-  (id, rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+  (id, passenger_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
 values (
   'aaaaaaaa-0000-0000-0000-000000000001',
   '11111111-1111-1111-1111-111111111111',
@@ -42,10 +42,10 @@ values (
   st_point(30.0588, -1.9536)::geography, 'Kigali Heights'
 );
 
-insert into public.ledger_entries (driver_id, kind, amount_rwf)
+insert into public.ledger_entries (rider_id, kind, amount_rwf)
 values ('33333333-3333-3333-3333-333333333333', 'topup_credit', 5000);
 
--- Act as rider A.
+-- Act as passenger A.
 set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"11111111-1111-1111-1111-111111111111","role":"authenticated"}';
@@ -53,21 +53,21 @@ set local request.jwt.claims to
 select is(
   (select count(*)::int from public.trips),
   1,
-  'rider A sees their own trip'
+  'passenger A sees their own trip'
 );
 
 select is(
   (select count(*)::int from public.profiles
     where id = '22222222-2222-2222-2222-222222222222'),
   0,
-  'rider A cannot read rider B profile'
+  'passenger A cannot read passenger B profile'
 );
 
 select is(
   (select count(*)::int from public.profiles
     where id = '33333333-3333-3333-3333-333333333333'),
   0,
-  'rider A cannot read the driver profile before a trip is accepted'
+  'passenger A cannot read the rider profile before a trip is accepted'
 );
 
 -- This asserted a lives_ok until 0015: RLS denies an UPDATE by making the row
@@ -92,7 +92,7 @@ select is(
 );
 
 select throws_ok(
-  $$ insert into public.ledger_entries (driver_id, kind, amount_rwf)
+  $$ insert into public.ledger_entries (rider_id, kind, amount_rwf)
      values ('33333333-3333-3333-3333-333333333333', 'topup_credit', 999999) $$,
   '42501',
   null,
@@ -107,94 +107,94 @@ select throws_ok(
 -- the table is protected.
 select throws_ok(
   $$ insert into public.trips
-       (rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+       (passenger_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
      values ('11111111-1111-1111-1111-111111111111', 'moto', 'completed',
              st_point(30.0619, -1.9441)::geography, 'A',
              st_point(30.0588, -1.9536)::geography, 'B') $$,
   '42501', null,
-  'a rider cannot insert a trip that is already completed'
+  'a passenger cannot insert a trip that is already completed'
 );
 
 select throws_ok(
   $$ insert into public.trips
-       (rider_id, driver_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+       (passenger_id, rider_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
      values ('11111111-1111-1111-1111-111111111111',
              '33333333-3333-3333-3333-333333333333', 'moto', 'requested',
              st_point(30.0619, -1.9441)::geography, 'A',
              st_point(30.0588, -1.9536)::geography, 'B') $$,
   '42501', null,
-  'a rider cannot self-assign a driver, bypassing dispatch'
+  'a passenger cannot self-assign a rider, bypassing dispatch'
 );
 
 select throws_ok(
   $$ insert into public.trip_transition_rules (from_state, to_state, actor)
-     values ('requested', 'completed', 'rider') $$,
+     values ('requested', 'completed', 'passenger') $$,
   '42501', null,
   'a client cannot rewrite the trip state machine rules'
 );
 
--- Act as rider B.
+-- Act as passenger B.
 set local request.jwt.claims to
   '{"sub":"22222222-2222-2222-2222-222222222222","role":"authenticated"}';
 
 select is(
   (select count(*)::int from public.trips),
   0,
-  'rider B cannot see rider A trips'
+  'passenger B cannot see passenger A trips'
 );
 
--- Privilege escalation: ownership alone is not enough on the drivers table.
+-- Privilege escalation: ownership alone is not enough on the riders table.
 select throws_ok(
-  $$ insert into public.drivers (id, verification)
+  $$ insert into public.riders (id, verification)
      values ('22222222-2222-2222-2222-222222222222', 'verified') $$,
   '42501',
   null,
-  'a user cannot register themselves as an already-verified driver'
+  'a user cannot register themselves as an already-verified rider'
 );
 
--- Act as the driver, who has not been offered this trip.
+-- Act as the rider, who has not been offered this trip.
 set local request.jwt.claims to
   '{"sub":"33333333-3333-3333-3333-333333333333","role":"authenticated"}';
 
 select is(
   (select count(*)::int from public.trips),
   0,
-  'a driver cannot see a trip they were never offered'
+  'a rider cannot see a trip they were never offered'
 );
 
 select is(
   (select count(*)::int from public.ledger_entries),
   1,
-  'a driver reads their own ledger'
+  'a rider reads their own ledger'
 );
 
 select is(
   (select count(*)::int from public.profiles
     where id = '11111111-1111-1111-1111-111111111111'),
   0,
-  'a driver cannot read rider contact details before accepting'
+  'a rider cannot read passenger contact details before accepting'
 );
 
--- A verified driver may go online: this is the control for the denial below.
+-- A verified rider may go online: this is the control for the denial below.
 select lives_ok(
-  $$ insert into public.driver_presence (driver_id, status, vehicle_class, position)
+  $$ insert into public.rider_presence (rider_id, status, vehicle_class, position)
      values ('33333333-3333-3333-3333-333333333333', 'online', 'moto',
              st_point(30.0619, -1.9441)::geography) $$,
-  'a verified driver may enter the dispatch index'
+  'a verified rider may enter the dispatch index'
 );
 
--- Act as a driver whose paperwork is only submitted.
+-- Act as a rider whose paperwork is only submitted.
 set local request.jwt.claims to
   '{"sub":"55555555-5555-5555-5555-555555555555","role":"authenticated"}';
 
--- Ownership alone would let an unvetted driver into
--- driver_presence_dispatchable_idx, which is exactly what dispatch matches on.
+-- Ownership alone would let an unvetted rider into
+-- rider_presence_dispatchable_idx, which is exactly what dispatch matches on.
 select throws_ok(
-  $$ insert into public.driver_presence (driver_id, status, vehicle_class, position)
+  $$ insert into public.rider_presence (rider_id, status, vehicle_class, position)
      values ('55555555-5555-5555-5555-555555555555', 'online', 'moto',
              st_point(30.0619, -1.9441)::geography) $$,
   '42501', null,
-  'an unverified driver cannot enter the dispatch index'
+  'an unverified rider cannot enter the dispatch index'
 );
 
 -- Act as a brand-new user with no profile row yet.

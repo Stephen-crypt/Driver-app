@@ -69,7 +69,7 @@ describe("finalizeFare", () => {
 
   // Observed, not endorsed. One metre past the band costs a whole 100 RWF,
   // because the overage is priced and THEN rounded up to the next hundred, and
-  // rider-facing fares are always whole hundreds. It is a real cliff at the band
+  // passenger-facing fares are always whole hundreds. It is a real cliff at the band
   // edge: 4600m is free, 4601m is 100 RWF. Pinned here so that if the pricing
   // rule is ever softened (say, by rounding the overage to the nearest hundred
   // instead of up) it is a deliberate change with a failing test, not a drift.

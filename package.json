@@ -10,13 +10,13 @@
     "bundle:core": "node scripts/bundle-core.mjs",
     "e2e": "node scripts/e2e-trip-loop.mjs",
     "e2e:dispatch": "node scripts/e2e-dispatch.mjs",
-    "simulate": "node scripts/simulate-drivers.mjs",
-    "e2e:booking": "node scripts/e2e-rider-booking.mjs",
+    "simulate": "node scripts/simulate-riders.mjs",
+    "e2e:booking": "node scripts/e2e-passenger-booking.mjs",
     "e2e:handsoff": "node scripts/e2e-hands-off.mjs",
-    "dev:approve-driver": "node scripts/dev-approve-driver.mjs",
     "check:expo-go": "node scripts/check-expo-go-safety.mjs",
     "e2e:tracking": "node scripts/e2e-tracking.mjs",
-    "review": "node scripts/review.mjs"
+    "review": "node scripts/review.mjs",
+    "dev:approve-rider": "node scripts/dev-approve-rider.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

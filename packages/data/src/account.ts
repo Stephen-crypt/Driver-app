@@ -12,7 +12,7 @@ export interface PaymentMethod {
 /**
  * What each method is, and whether it actually settles yet.
  *
- * `live: false` is shown to the rider as "coming soon" rather than hidden.
+ * `live: false` is shown to the passenger as "coming soon" rather than hidden.
  * Hiding them makes the product look thinner than it is; pretending they work
  * makes the first real trip a dispute at the kerb.
  */
@@ -22,7 +22,7 @@ export const PAYMENT_KINDS: readonly {
   blurb: string;
   live: boolean;
 }[] = [
-  { kind: "cash", label: "Cash", blurb: "Pay your driver directly", live: true },
+  { kind: "cash", label: "Cash", blurb: "Pay your rider directly", live: true },
   { kind: "mtn_momo", label: "MTN MoMo", blurb: "Coming soon", live: false },
   { kind: "airtel_money", label: "Airtel Money", blurb: "Coming soon", live: false },
   { kind: "card", label: "Card", blurb: "Coming soon", live: false },
@@ -106,18 +106,18 @@ export async function rateTrip(
 export async function cancelTrip(
   client: GeraClient,
   tripId: string,
-  as: "rider" | "driver",
+  as: "passenger" | "rider",
 ): Promise<void> {
   const { error } = await client.rpc("trip_transition", {
     p_trip_id: tripId,
-    p_to: as === "rider" ? "cancelled_by_rider" : "cancelled_by_driver",
+    p_to: as === "passenger" ? "cancelled_by_passenger" : "cancelled_by_rider",
     p_idempotency_key: `cancel-${as}-${tripId}`,
   });
   if (error) throw new Error(error.message);
 }
 
 export interface Contact {
-  readonly counterparty: "rider" | "driver";
+  readonly counterparty: "passenger" | "rider";
   readonly displayName: string | null;
   readonly phone: string | null;
 }
@@ -135,7 +135,7 @@ export async function getTripContact(
   if (error) throw new Error(error.message);
 
   const rows = (data ?? []) as {
-    counterparty: "rider" | "driver";
+    counterparty: "passenger" | "rider";
     display_name: string | null;
     phone: string | null;
   }[];
@@ -155,7 +155,7 @@ export interface TripHistoryItem {
 
 export async function listTrips(
   client: GeraClient,
-  column: "rider_id" | "driver_id",
+  column: "passenger_id" | "rider_id",
   userId: string,
   limit = 30,
 ): Promise<TripHistoryItem[]> {

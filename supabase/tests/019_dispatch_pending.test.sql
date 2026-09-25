@@ -16,7 +16,7 @@ select is(
 select is(
   (select schedule from cron.job where jobname = 'gera-dispatch-pending-trips'),
   '5 seconds',
-  'on the five-second tick a waiting rider actually feels');
+  'on the five-second tick a waiting passenger actually feels');
 
 select ok(
   not has_function_privilege('anon', 'public.dispatch_pending_trips()', 'EXECUTE'),
@@ -24,7 +24,7 @@ select ok(
 
 select ok(
   not has_function_privilege('authenticated', 'public.dispatch_pending_trips()', 'EXECUTE'),
-  'nor can a signed-in rider');
+  'nor can a signed-in passenger');
 
 -- The original sweeper must stay scheduled: this migration adds a second job,
 -- it does not replace the first, and dropping either one strands trips.
@@ -33,21 +33,21 @@ select is(
   1,
   'the offer sweeper is still scheduled alongside it');
 
-select has_function('public', 'trip_driver_card', array['uuid'],
-  'the driver card exists');
+select has_function('public', 'trip_rider_card', array['uuid'],
+  'the rider card exists');
 
 select ok(
-  not has_function_privilege('anon', 'public.trip_driver_card(uuid)', 'EXECUTE'),
-  'the driver card is not readable anonymously');
+  not has_function_privilege('anon', 'public.trip_rider_card(uuid)', 'EXECUTE'),
+  'the rider card is not readable anonymously');
 
 select ok(
-  has_function_privilege('authenticated', 'public.trip_driver_card(uuid)', 'EXECUTE'),
-  'a signed-in rider may ask for it');
+  has_function_privilege('authenticated', 'public.trip_rider_card(uuid)', 'EXECUTE'),
+  'a signed-in passenger may ask for it');
 
 -- A trip that does not exist must answer exactly as someone else's trip does:
 -- an empty result, never an error that distinguishes the two.
 select is(
-  (select count(*)::int from public.trip_driver_card(
+  (select count(*)::int from public.trip_rider_card(
      '11111111-1111-1111-1111-111111111111'::uuid)),
   0,
   'an unknown trip yields nothing rather than an error');

@@ -14,7 +14,7 @@ select ok(
   'a signed-in user cannot send themselves - or anyone else - a push');
 
 -- Payments
-select has_column('public', 'trips', 'payment_kind', 'trips record how the rider pays');
+select has_column('public', 'trips', 'payment_kind', 'trips record how the passenger pays');
 select is(
   (select column_default from information_schema.columns
     where table_name = 'trips' and column_name = 'payment_kind'),
@@ -29,7 +29,7 @@ select has_function('public', 'rate_trip', array['uuid', 'smallint', 'text'],
   'ratings have an RPC');
 select ok(
   has_function_privilege('authenticated', 'public.rate_trip(uuid,smallint,text)', 'EXECUTE'),
-  'a signed-in rider may rate');
+  'a signed-in passenger may rate');
 select ok(
   not has_function_privilege('anon', 'public.rate_trip(uuid,smallint,text)', 'EXECUTE'),
   'an anonymous caller may not');
@@ -37,7 +37,7 @@ select ok(
 -- A rating outside 1-5 is refused by the column, not only by the function, so
 -- no future writer can sneak one in.
 select throws_ok(
-  $$insert into public.trip_ratings (trip_id, rider_id, driver_id, rating)
+  $$insert into public.trip_ratings (trip_id, passenger_id, rider_id, rating)
     values (gen_random_uuid(), gen_random_uuid(), gen_random_uuid(), 9)$$,
   null,
   null,

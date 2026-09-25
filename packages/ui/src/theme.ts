@@ -41,8 +41,8 @@ export const lightTheme: Theme = {
 /**
  * The shipped look.
  *
- * Dark, because the two moments this product is used are a rider on a street at
- * night and a driver with the app open for a twelve-hour shift - a white screen
+ * Dark, because the two moments this product is used are a passenger on a street at
+ * night and a rider with the app open for a twelve-hour shift - a white screen
  * is hostile in the first and burns battery through the second. The three
  * surface levels are what let a card sit inside a card without a border doing
  * all the work.

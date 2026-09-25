@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { shareTripText, etaLabel, raiseSos, getDriverPosition } from "../src/safety";
+import { shareTripText, etaLabel, raiseSos, getRiderPosition } from "../src/safety";
 import type { GeraClient } from "../src/client";
 
 describe("etaLabel", () => {
@@ -7,7 +7,7 @@ describe("etaLabel", () => {
     expect(etaLabel(240)).toBe("4 min");
   });
 
-  it("never reads zero, because a driver is never zero minutes away", () => {
+  it("never reads zero, because a rider is never zero minutes away", () => {
     expect(etaLabel(10)).toBe("1 min");
     expect(etaLabel(0)).toBe("1 min");
   });
@@ -28,15 +28,15 @@ describe("shareTripText", () => {
 
   it("includes the plate, which is what someone would actually look for", () => {
     const t = shareTripText({
-      pickupLabel: "a", dropoffLabel: "b", driverName: "Eric", plate: "RAB 123C",
+      pickupLabel: "a", dropoffLabel: "b", riderName: "Eric", plate: "RAB 123C",
     });
     expect(t).toContain("Eric");
     expect(t).toContain("RAB 123C");
   });
 
-  it("omits the driver line entirely before one is assigned", () => {
+  it("omits the rider line entirely before one is assigned", () => {
     const t = shareTripText({ pickupLabel: "a", dropoffLabel: "b" });
-    expect(t).not.toContain("driver is");
+    expect(t).not.toContain("rider is");
   });
 
   it("does not invent a link to a page that does not exist", () => {
@@ -66,11 +66,11 @@ describe("raiseSos", () => {
   });
 });
 
-describe("getDriverPosition", () => {
+describe("getRiderPosition", () => {
   it("returns null before the first fix, rather than throwing", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
     const client = { rpc } as unknown as GeraClient;
-    expect(await getDriverPosition(client, "t1")).toBeNull();
+    expect(await getRiderPosition(client, "t1")).toBeNull();
   });
 
   it("maps the row the server returns", async () => {
@@ -79,7 +79,7 @@ describe("getDriverPosition", () => {
       error: null,
     });
     const client = { rpc } as unknown as GeraClient;
-    const p = await getDriverPosition(client, "t1");
+    const p = await getRiderPosition(client, "t1");
     expect(p?.metresAway).toBe(900);
     expect(p?.etaSeconds).toBe(120);
   });

@@ -35,26 +35,26 @@ export function watchTrip(
 }
 
 /**
- * Calls back when an offer is made to this driver, or one of theirs changes.
+ * Calls back when an offer is made to this rider, or one of theirs changes.
  *
  * This is the subscription that earns its keep: an offer lives fifteen seconds,
- * and a three-second poll spends up to a fifth of that before the driver even
+ * and a three-second poll spends up to a fifth of that before the rider even
  * sees it.
  */
 export function watchOffers(
   client: GeraClient,
-  driverId: string,
+  riderId: string,
   onChange: () => void,
 ): Subscription {
   const channel = client
-    .channel(`offers:${driverId}`)
+    .channel(`offers:${riderId}`)
     .on(
       "postgres_changes",
       {
         event: "*",
         schema: "public",
         table: "trip_offers",
-        filter: `driver_id=eq.${driverId}`,
+        filter: `rider_id=eq.${riderId}`,
       },
       () => onChange(),
     )
@@ -67,21 +67,21 @@ export function watchOffers(
   };
 }
 
-/** Trips assigned to this driver, so the console follows its own trip live. */
-export function watchDriverTrips(
+/** Trips assigned to this rider, so the console follows its own trip live. */
+export function watchRiderTrips(
   client: GeraClient,
-  driverId: string,
+  riderId: string,
   onChange: () => void,
 ): Subscription {
   const channel = client
-    .channel(`driver-trips:${driverId}`)
+    .channel(`rider-trips:${riderId}`)
     .on(
       "postgres_changes",
       {
         event: "UPDATE",
         schema: "public",
         table: "trips",
-        filter: `driver_id=eq.${driverId}`,
+        filter: `rider_id=eq.${riderId}`,
       },
       () => onChange(),
     )

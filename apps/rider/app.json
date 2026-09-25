@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Gera",
+    "name": "Gera Rider",
     "slug": "gera-rider",
-    "scheme": "gera",
+    "scheme": "gerarider",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -17,7 +17,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "rw.gera.rider",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Gera uses your location to find drivers near you and set your pickup point."
+        "NSLocationWhenInUseUsageDescription": "Gera Rider uses your location to send you trips nearby and guide you to your passenger.",
+        "UIBackgroundModes": ["location"]
       }
     },
     "android": {
@@ -30,7 +31,8 @@
       },
       "permissions": [
         "ACCESS_COARSE_LOCATION",
-        "ACCESS_FINE_LOCATION"
+        "ACCESS_FINE_LOCATION",
+        "FOREGROUND_SERVICE"
       ],
       "predictiveBackGestureEnabled": false
     },
@@ -39,6 +41,12 @@
     },
     "plugins": [
       "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "Gera Rider uses your location to send you trips nearby."
+        }
+      ],
       [
         "expo-notifications",
         {

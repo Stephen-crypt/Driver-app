@@ -48,18 +48,18 @@ describe("rankByEta", () => {
   it("orders by ETA, not by the order it was given", async () => {
     const ranked = await rankByEta(
       [
-        { driverId: "far", distanceM: 3000 },
-        { driverId: "near", distanceM: 500 },
-        { driverId: "mid", distanceM: 1500 },
+        { riderId: "far", distanceM: 3000 },
+        { riderId: "near", distanceM: 500 },
+        { riderId: "mid", distanceM: 1500 },
       ],
       "moto",
       straightLineEta,
     );
-    expect(ranked.map((r) => r.driverId)).toEqual(["near", "mid", "far"]);
+    expect(ranked.map((r) => r.riderId)).toEqual(["near", "mid", "far"]);
   });
 
   it("attaches the eta it ranked on", async () => {
-    const ranked = await rankByEta([{ driverId: "a", distanceM: 1000 }], "moto", straightLineEta);
+    const ranked = await rankByEta([{ riderId: "a", distanceM: 1000 }], "moto", straightLineEta);
     expect(ranked[0]?.etaSeconds).toBeGreaterThan(0);
   });
 

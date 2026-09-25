@@ -3,11 +3,11 @@ select plan(7);
 
 select has_table('public', 'trips', 'trips table exists');
 select has_table('public', 'trip_events', 'trip_events table exists');
-select has_table('public', 'driver_presence', 'driver_presence table exists');
+select has_table('public', 'rider_presence', 'rider_presence table exists');
 select has_table('public', 'ledger_entries', 'ledger_entries table exists');
 
 select has_index(
-  'public', 'driver_presence', 'driver_presence_dispatchable_idx',
+  'public', 'rider_presence', 'rider_presence_dispatchable_idx',
   'the dispatch GiST index exists'
 );
 

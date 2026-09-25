@@ -13,25 +13,25 @@ export interface TransitionRule {
  */
 export const TRANSITIONS: readonly TransitionRule[] = [
   { from: "requested", to: "offered", actors: ["system"] },
-  { from: "requested", to: "no_drivers", actors: ["system"] },
-  { from: "requested", to: "cancelled_by_rider", actors: ["rider"] },
+  { from: "requested", to: "no_riders", actors: ["system"] },
+  { from: "requested", to: "cancelled_by_passenger", actors: ["passenger"] },
 
   // A declined or timed-out offer re-enters `offered` for the next candidate.
   { from: "offered", to: "offered", actors: ["system"] },
-  { from: "offered", to: "accepted", actors: ["driver"] },
+  { from: "offered", to: "accepted", actors: ["rider"] },
   { from: "offered", to: "expired", actors: ["system"] },
-  { from: "offered", to: "no_drivers", actors: ["system"] },
-  { from: "offered", to: "cancelled_by_rider", actors: ["rider"] },
+  { from: "offered", to: "no_riders", actors: ["system"] },
+  { from: "offered", to: "cancelled_by_passenger", actors: ["passenger"] },
 
-  { from: "accepted", to: "arrived", actors: ["driver"] },
+  { from: "accepted", to: "arrived", actors: ["rider"] },
+  { from: "accepted", to: "cancelled_by_passenger", actors: ["passenger"] },
   { from: "accepted", to: "cancelled_by_rider", actors: ["rider"] },
-  { from: "accepted", to: "cancelled_by_driver", actors: ["driver"] },
   // Heartbeat loss re-dispatches a trip that never reached pickup.
   { from: "accepted", to: "offered", actors: ["system"] },
 
-  { from: "arrived", to: "in_progress", actors: ["driver"] },
+  { from: "arrived", to: "in_progress", actors: ["rider"] },
+  { from: "arrived", to: "cancelled_by_passenger", actors: ["passenger"] },
   { from: "arrived", to: "cancelled_by_rider", actors: ["rider"] },
-  { from: "arrived", to: "cancelled_by_driver", actors: ["driver"] },
 
-  { from: "in_progress", to: "completed", actors: ["driver"] },
+  { from: "in_progress", to: "completed", actors: ["rider"] },
 ] as const;

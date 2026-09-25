@@ -1,7 +1,7 @@
 // Live tracking and safety, end to end on a real trip.
 //
-// Books a trip, waits for a driver to accept it, then exercises the tracking
-// surface as each party: the driver publishes a position, the rider reads it
+// Books a trip, waits for a rider to accept it, then exercises the tracking
+// surface as each party: the rider publishes a position, the passenger reads it
 // back with an ETA, and a stranger gets nothing from either direction.
 //
 // Requires the local stack AND `pnpm simulate` running.
@@ -18,7 +18,7 @@ if (!ANON) {
 }
 
 const STRANGER = "11111111-1111-1111-1111-111111111111";
-const RIDER = crypto.randomUUID();
+const PASSENGER = crypto.randomUUID();
 const suffix = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
 
 const psql = (sql) =>
@@ -60,64 +60,64 @@ const wkt = (p) => `POINT(${p.lng} ${p.lat})`;
 
 async function main() {
   const online = Number(psql(
-    `select count(*) from public.driver_presence
+    `select count(*) from public.rider_presence
       where status='online' and vehicle_class='moto'
         and heartbeat_at > now() - interval '30 seconds';`));
   if (online === 0) {
-    console.error("No moto drivers online. Start `pnpm simulate` first.");
+    console.error("No moto riders online. Start `pnpm simulate` first.");
     process.exit(1);
   }
 
   psql(`insert into auth.users (instance_id,id,aud,role,email,confirmation_token,recovery_token,email_change_token_new,email_change,created_at,updated_at)
-        values ('00000000-0000-0000-0000-000000000000','${RIDER}','authenticated','authenticated','t.rider.${suffix}@test.local','','','','',now(),now());`);
+        values ('00000000-0000-0000-0000-000000000000','${PASSENGER}','authenticated','authenticated','t.passenger.${suffix}@test.local','','','','',now(),now());`);
   psql(`insert into public.profiles (id,role,first_name,phone)
-        values ('${RIDER}','rider','Aline','+2507886${suffix}');`);
+        values ('${PASSENGER}','passenger','Aline','+2507886${suffix}');`);
 
-  const riderJwt = mint(RIDER);
+  const passengerJwt = mint(PASSENGER);
 
-  const quote = await call("/functions/v1/quote", riderJwt, {
+  const quote = await call("/functions/v1/quote", passengerJwt, {
     vehicleClass: "moto", distanceM: 4000, durationS: 720,
   });
-  const created = await call("/rest/v1/rpc/create_trip_from_quote", riderJwt, {
+  const created = await call("/rest/v1/rpc/create_trip_from_quote", passengerJwt, {
     p_quote_id: quote.body.quoteId,
     p_pickup: wkt(PICKUP), p_pickup_label: "Kimironko Market", p_pickup_note: null,
     p_dropoff: wkt(DROPOFF), p_dropoff_label: "Kigali Heights",
   });
   const tripId = created.body?.id;
-  console.log(`\ntrip ${tripId}\nwaiting for a driver to accept…`);
+  console.log(`\ntrip ${tripId}\nwaiting for a rider to accept…`);
 
-  let driverId = null;
-  for (let i = 0; i < 40 && !driverId; i++) {
+  let riderId = null;
+  for (let i = 0; i < 40 && !riderId; i++) {
     await sleep(2000);
     const row = psql(
-      `select coalesce(driver_id::text,'') || '|' || state from public.trips where id='${tripId}';`);
+      `select coalesce(rider_id::text,'') || '|' || state from public.trips where id='${tripId}';`);
     const [d, state] = row.split("|");
-    if (d && (state === "accepted" || state === "arrived" || state === "in_progress")) driverId = d;
-    if (["no_drivers", "expired"].includes(state)) break;
+    if (d && (state === "accepted" || state === "arrived" || state === "in_progress")) riderId = d;
+    if (["no_riders", "expired"].includes(state)) break;
   }
 
-  if (!driverId) {
-    console.error("No driver accepted in time; cannot test tracking.");
+  if (!riderId) {
+    console.error("No rider accepted in time; cannot test tracking.");
     process.exit(1);
   }
-  console.log(`accepted by ${driverId}\n`);
+  console.log(`accepted by ${riderId}\n`);
 
-  const driverJwt = mint(driverId);
+  const riderJwt = mint(riderId);
   const strangerJwt = mint(STRANGER);
 
   console.log("Tracking");
   {
-    const r = await call("/rest/v1/rpc/publish_track_point", driverJwt, {
+    const r = await call("/rest/v1/rpc/publish_track_point", riderJwt, {
       p_trip_id: tripId, p_lng: 30.1100, p_lat: -1.9380, p_accuracy_m: 12,
     });
     // void-returning RPCs answer 204 No Content, not 200.
-    check("the driver can publish their position", r.status === 200 || r.status === 204,
+    check("the rider can publish their position", r.status === 200 || r.status === 204,
       `got ${r.status}`);
   }
   {
-    const r = await call("/rest/v1/rpc/trip_driver_position", riderJwt, { p_trip_id: tripId });
+    const r = await call("/rest/v1/rpc/trip_rider_position", passengerJwt, { p_trip_id: tripId });
     const row = r.body?.[0];
-    check("the rider reads it back", Boolean(row), JSON.stringify(r.body));
+    check("the passenger reads it back", Boolean(row), JSON.stringify(r.body));
     check("with real coordinates",
       Math.abs(Number(row?.lng) - 30.11) < 0.001 && Math.abs(Number(row?.lat) + 1.938) < 0.001,
       JSON.stringify(row));
@@ -126,8 +126,8 @@ async function main() {
       String(row?.eta_seconds));
   }
   {
-    const r = await call("/rest/v1/rpc/trip_driver_position", strangerJwt, { p_trip_id: tripId });
-    check("a stranger cannot follow the driver",
+    const r = await call("/rest/v1/rpc/trip_rider_position", strangerJwt, { p_trip_id: tripId });
+    check("a stranger cannot follow the rider",
       Array.isArray(r.body) && r.body.length === 0, JSON.stringify(r.body));
   }
   {
@@ -142,23 +142,23 @@ async function main() {
 
   console.log("\nSafety");
   {
-    const r = await call("/rest/v1/rpc/raise_sos", riderJwt, {
+    const r = await call("/rest/v1/rpc/raise_sos", passengerJwt, {
       p_trip_id: tripId, p_lng: 30.11, p_lat: -1.94, p_note: "e2e",
     });
-    check("a rider can raise an alert", r.status === 200 && Boolean(r.body), `got ${r.status}`);
-    check("recorded against the trip and the rider",
+    check("a passenger can raise an alert", r.status === 200 && Boolean(r.body), `got ${r.status}`);
+    check("recorded against the trip and the passenger",
       psql(`select count(*) from public.sos_alerts
-             where trip_id='${tripId}' and raised_by='${RIDER}' and source='rider';`) === "1");
+             where trip_id='${tripId}' and raised_by='${PASSENGER}' and source='passenger';`) === "1");
   }
   {
-    const r = await call("/rest/v1/rpc/raise_sos", driverJwt, { p_trip_id: tripId });
-    check("a driver can raise one too", r.status === 200);
-    check("and it is attributed to the driver",
+    const r = await call("/rest/v1/rpc/raise_sos", riderJwt, { p_trip_id: tripId });
+    check("a rider can raise one too", r.status === 200);
+    check("and it is attributed to the rider",
       psql(`select count(*) from public.sos_alerts
-             where trip_id='${tripId}' and source='driver';`) === "1");
+             where trip_id='${tripId}' and source='rider';`) === "1");
   }
   {
-    const r = await call("/rest/v1/rpc/raise_sos", riderJwt, {});
+    const r = await call("/rest/v1/rpc/raise_sos", passengerJwt, {});
     check("an alert with no details at all still records", r.status === 200 && Boolean(r.body));
   }
   {

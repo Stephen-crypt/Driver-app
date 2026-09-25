@@ -1,22 +1,22 @@
-// The driver desk.
+// The rider desk.
 //
-// Onboarding put documents in a bucket and left drivers at `submitted`. Nothing
-// in the product could move them past it, so no driver could ever go online
+// Onboarding put documents in a bucket and left riders at `submitted`. Nothing
+// in the product could move them past it, so no rider could ever go online
 // without someone hand-writing SQL. This is that job, made ordinary.
 //
 // Everything here runs as service_role through the database functions, which
-// hold the rules - notably "a driver is not verified until every document is
-// approved", which lives in verify_driver so a reviewer in a hurry cannot skip
+// hold the rules - notably "a rider is not verified until every document is
+// approved", which lives in verify_rider so a reviewer in a hurry cannot skip
 // it.
 //
 //   node scripts/review.mjs queue
-//   node scripts/review.mjs show <driver-id>
-//   node scripts/review.mjs doc <driver-id> <kind> approve
-//   node scripts/review.mjs doc <driver-id> <kind> reject "Photo is blurred"
-//   node scripts/review.mjs verify <driver-id>
-//   node scripts/review.mjs suspend <driver-id> "Reason"
-//   node scripts/review.mjs credit <driver-id> 5000 "MoMo ref 884213"
-//   node scripts/review.mjs balance <driver-id>
+//   node scripts/review.mjs show <rider-id>
+//   node scripts/review.mjs doc <rider-id> <kind> approve
+//   node scripts/review.mjs doc <rider-id> <kind> reject "Photo is blurred"
+//   node scripts/review.mjs verify <rider-id>
+//   node scripts/review.mjs suspend <rider-id> "Reason"
+//   node scripts/review.mjs credit <rider-id> 5000 "MoMo ref 884213"
+//   node scripts/review.mjs balance <rider-id>
 //
 // Against the cloud project instead of the local stack:
 //   GERA_DB_URL="postgresql://..." node scripts/review.mjs queue
@@ -40,16 +40,16 @@ const [, , command, ...rest] = process.argv;
 
 function usage() {
   console.log(`
-The Gera driver desk.
+The Gera rider desk.
 
   queue                                  everyone waiting on a decision
-  show <driver-id>                       one driver in full
-  doc <driver-id> <kind> approve         approve a document
-  doc <driver-id> <kind> reject "<why>"  reject it, with a reason the driver sees
-  verify <driver-id>                     verify - refused unless all documents pass
-  suspend <driver-id> "<reason>"         stop them driving, immediately
-  credit <driver-id> <rwf> "<reference>" top up their wallet
-  balance <driver-id>                    what they have left
+  show <rider-id>                       one rider in full
+  doc <rider-id> <kind> approve         approve a document
+  doc <rider-id> <kind> reject "<why>"  reject it, with a reason the rider sees
+  verify <rider-id>                     verify - refused unless all documents pass
+  suspend <rider-id> "<reason>"         stop them driving, immediately
+  credit <rider-id> <rwf> "<reference>" top up their wallet
+  balance <rider-id>                    what they have left
 
   kinds: ${KINDS.join(", ")}
 `);
@@ -57,7 +57,7 @@ The Gera driver desk.
 
 function queue() {
   const rows = psql(`
-    select driver_id || '|' || coalesce(first_name,'?') || '|' || coalesce(phone,'?')
+    select rider_id || '|' || coalesce(first_name,'?') || '|' || coalesce(phone,'?')
            || '|' || verification || '|' || coalesce(vehicle_class,'-')
            || '|' || coalesce(plate,'-') || '|' || balance_rwf
            || '|' || (select count(*) from jsonb_each(documents) where value->>'status' = 'approved')
@@ -86,13 +86,13 @@ function show(id) {
     select coalesce(first_name,'?') || '|' || coalesce(phone,'?') || '|' || verification
            || '|' || coalesce(vehicle_class,'-') || '|' || coalesce(plate,'-')
            || '|' || balance_rwf || '|' || documents::text
-      from public.review_queue() where driver_id = ${lit(id)};`);
+      from public.review_queue() where rider_id = ${lit(id)};`);
 
   if (!row) {
-    // Not in the queue means either no such driver, or already verified.
+    // Not in the queue means either no such rider, or already verified.
     const verified = psql(
-      `select verification from public.drivers where id = ${lit(id)};`);
-    console.log(verified ? `\nDriver is ${verified}.\n` : "\nNo such driver.\n");
+      `select verification from public.riders where id = ${lit(id)};`);
+    console.log(verified ? `\nRider is ${verified}.\n` : "\nNo such rider.\n");
     return;
   }
 
@@ -108,7 +108,7 @@ function show(id) {
   }
   console.log("");
   console.log("  Download a document to look at it:");
-  console.log(`    supabase storage download ss:///driver-documents/${id}/<file> ./<file>`);
+  console.log(`    supabase storage download ss:///rider-documents/${id}/<file> ./<file>`);
   console.log("");
 }
 
@@ -123,9 +123,9 @@ function doc(id, kind, decision, note) {
     process.exit(1);
   }
   if (!approve && !note) {
-    // A rejection without a reason makes the driver guess, and they will
+    // A rejection without a reason makes the rider guess, and they will
     // re-upload the same photo.
-    console.error("A rejection needs a reason - the driver is shown it.");
+    console.error("A rejection needs a reason - the rider is shown it.");
     process.exit(1);
   }
 
@@ -136,8 +136,8 @@ function doc(id, kind, decision, note) {
   if (approve) {
     const left = psql(`
       select count(*) from unnest(enum_range(null::document_kind)) k(kind)
-       where not exists (select 1 from public.driver_documents d
-                          where d.driver_id = ${lit(id)} and d.kind = k.kind
+       where not exists (select 1 from public.rider_documents d
+                          where d.rider_id = ${lit(id)} and d.kind = k.kind
                             and d.status = 'approved');`);
     console.log(
       Number(left) === 0
@@ -148,10 +148,10 @@ function doc(id, kind, decision, note) {
 }
 
 function verify(id) {
-  const result = psql(`select public.verify_driver(${lit(id)});`);
+  const result = psql(`select public.verify_rider(${lit(id)});`);
   console.log(result);
   if (result === "verified") {
-    const balance = Number(psql(`select public.driver_balance(${lit(id)});`));
+    const balance = Number(psql(`select public.rider_balance(${lit(id)});`));
     const canGo = psql(`select public.can_go_online(${lit(id)});`);
     console.log(`wallet ${balance.toLocaleString()} RWF · can go online: ${canGo}`);
     if (canGo !== "t") {
@@ -176,18 +176,18 @@ function main() {
       return verify(rest[0]);
     case "suspend":
       if (rest.length < 2) return usage();
-      psql(`select public.suspend_driver(${lit(rest[0])}, ${lit(rest[1])});`);
+      psql(`select public.suspend_rider(${lit(rest[0])}, ${lit(rest[1])});`);
       return console.log("Suspended and taken offline.");
     case "credit": {
       if (rest.length < 3) return usage();
       const balance = psql(
-        `select public.credit_driver_wallet(${lit(rest[0])}, ${Number(rest[1])}, ${lit(rest[2])});`);
+        `select public.credit_rider_wallet(${lit(rest[0])}, ${Number(rest[1])}, ${lit(rest[2])});`);
       return console.log(`wallet is now ${Number(balance).toLocaleString()} RWF`);
     }
     case "balance":
       if (!rest[0]) return usage();
       return console.log(
-        `${Number(psql(`select public.driver_balance(${lit(rest[0])});`)).toLocaleString()} RWF`);
+        `${Number(psql(`select public.rider_balance(${lit(rest[0])});`)).toLocaleString()} RWF`);
     default:
       return usage();
   }

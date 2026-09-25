@@ -25,7 +25,7 @@ Deno.test("a real policy row becomes a policy, with numeric commission", () => {
 
 // The whole point. current_fare_policy() returns a composite, so "no effective
 // policy" arrives as one row of nulls rather than as no rows at all. Treated as
-// a policy, its null rates coerce to 0 and the rider is quoted 0 RWF.
+// a policy, its null rates coerce to 0 and the passenger is quoted 0 RWF.
 Deno.test("an all-null composite row is no policy, not a free ride", () => {
   const nullRow = {
     id: null,

@@ -14,7 +14,7 @@ export interface Receipt {
 }
 
 /**
- * Spec 3.4: an overage is always its own line. A rider who paid more than the
+ * Spec 3.4: an overage is always its own line. A passenger who paid more than the
  * quote must be able to see exactly why, so the fare line keeps the quoted
  * figure and the excess is stated separately.
  */

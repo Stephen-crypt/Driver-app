@@ -6,12 +6,12 @@ describe("trip states", () => {
     expect([...TRIP_STATES].sort()).toEqual([
       "accepted",
       "arrived",
-      "cancelled_by_driver",
+      "cancelled_by_passenger",
       "cancelled_by_rider",
       "completed",
       "expired",
       "in_progress",
-      "no_drivers",
+      "no_riders",
       "offered",
       "requested",
     ]);
@@ -27,11 +27,11 @@ describe("trip states", () => {
 
   it("marks every cancellation and dead-end as terminal", () => {
     expect([...TERMINAL_STATES].sort()).toEqual([
-      "cancelled_by_driver",
+      "cancelled_by_passenger",
       "cancelled_by_rider",
       "completed",
       "expired",
-      "no_drivers",
+      "no_riders",
     ]);
   });
 });

@@ -1,13 +1,13 @@
 // Real road distance and duration between two points, for quoting.
 //
-// The rider screen used a straight-line haversine, which under-reads badly in
+// The passenger screen used a straight-line haversine, which under-reads badly in
 // Kigali: the city is built on ridges, and two points 2km apart across a valley
-// can be a 5km drive. Quoting the straight line means the driver is paid for a
+// can be a 5km drive. Quoting the straight line means the rider is paid for a
 // trip nobody made.
 //
 // The Directions key lives here, not in the app. A key shipped in a bundle can
 // be pulled out of the APK and spent by anyone; this endpoint requires a signed
-// -in caller, so the quota is spent by riders and nobody else.
+// -in caller, so the quota is spent by passengers and nobody else.
 import { callerClient, json } from "../_shared/supabase.ts";
 
 interface Point {

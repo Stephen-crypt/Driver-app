@@ -19,7 +19,7 @@ describe("route geometry", () => {
 describe("statusFor", () => {
   it("never shows a raw state name", () => {
     const states = [
-      "completed", "cancelled_by_rider", "cancelled_by_driver", "no_drivers",
+      "completed", "cancelled_by_passenger", "cancelled_by_rider", "no_riders",
       "expired", "requested", "offered", "accepted", "arrived", "in_progress",
     ];
     for (const s of states) {
@@ -29,8 +29,8 @@ describe("statusFor", () => {
 
   it("marks a completed trip as success and a cancelled one as danger", () => {
     expect(statusFor("completed").tone).toBe("success");
+    expect(statusFor("cancelled_by_passenger").tone).toBe("danger");
     expect(statusFor("cancelled_by_rider").tone).toBe("danger");
-    expect(statusFor("cancelled_by_driver").tone).toBe("danger");
   });
 
   it("does not colour a trip still running as either", () => {
@@ -44,7 +44,7 @@ describe("statusFor", () => {
   });
 
   it("every tone it can return is legible on a card", () => {
-    // The status is the one word that says whether the rider was charged.
+    // The status is the one word that says whether the passenger was charged.
     const tones = { success: theme.success, danger: theme.danger, muted: theme.textMuted };
     for (const colour of Object.values(tones)) {
       expect(contrastRatio(colour, theme.surfaceRaised)).toBeGreaterThanOrEqual(4.5);

@@ -3,24 +3,24 @@ select plan(15);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000001',
-   'authenticated','authenticated','rider.f@test.local'),
+   'authenticated','authenticated','passenger.f@test.local'),
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000002',
-   'authenticated','authenticated','driver.f@test.local'),
+   'authenticated','authenticated','rider.f@test.local'),
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000003',
    'authenticated','authenticated','mallory.f@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('ffffffff-0000-0000-0000-000000000001','rider','Aline','+250788000301'),
-  ('ffffffff-0000-0000-0000-000000000002','driver','Eric','+250788000302'),
-  ('ffffffff-0000-0000-0000-000000000003','rider','Mallory','+250788000303');
+  ('ffffffff-0000-0000-0000-000000000001','passenger','Aline','+250788000301'),
+  ('ffffffff-0000-0000-0000-000000000002','rider','Eric','+250788000302'),
+  ('ffffffff-0000-0000-0000-000000000003','passenger','Mallory','+250788000303');
 
-insert into public.drivers (id, verification)
+insert into public.riders (id, verification)
 values ('ffffffff-0000-0000-0000-000000000002','verified');
 
 -- Completion prices the trip from its own quote, so the quote - and the policy
 -- that priced it - are now part of the fixture rather than incidental.
 insert into public.fare_quotes
-  (id, rider_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
+  (id, passenger_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
 values
   ('dddddddd-0000-0000-0000-000000000001','ffffffff-0000-0000-0000-000000000001',
    (select id from public.fare_policies where vehicle_class='moto' limit 1),
@@ -30,7 +30,7 @@ values
    'moto', 4000, 720, 1700, now() + interval '2 minutes');
 
 insert into public.trips
-  (id, rider_id, driver_id, vehicle_class, state, pickup, pickup_label,
+  (id, passenger_id, rider_id, vehicle_class, state, pickup, pickup_label,
    dropoff, dropoff_label, quoted_distance_m, quoted_duration_s,
    quote_id, quoted_amount_rwf)
 values
@@ -66,7 +66,7 @@ set local request.jwt.claims to
 select lives_ok(
   $$ select public.complete_trip('bbbbbbbb-0000-0000-0000-000000000001',
                                  4100, 'complete-1') $$,
-  'the driver completes the trip'
+  'the rider completes the trip'
 );
 
 select is(
@@ -125,7 +125,7 @@ select is(
   'a replayed completion does NOT debit commission twice'
 );
 
--- Neither the rider nor the driver: a non-participant replaying an already-used
+-- Neither the passenger nor the rider: a non-participant replaying an already-used
 -- idempotency key must be refused before the idempotent early return can hand
 -- back the trip row.
 set local request.jwt.claims to
@@ -141,8 +141,8 @@ select throws_ok(
 set local request.jwt.claims to
   '{"sub":"ffffffff-0000-0000-0000-000000000002","role":"authenticated"}';
 
--- The signature that let the driver author their own commission is GONE, not
--- merely discouraged: a driver completed a 1,700 RWF trip with a commission of 0
+-- The signature that let the rider author their own commission is GONE, not
+-- merely discouraged: a rider completed a 1,700 RWF trip with a commission of 0
 -- by calling it straight through PostgREST.
 select throws_ok(
   $$ select public.complete_trip('bbbbbbbb-0000-0000-0000-000000000002',
@@ -183,8 +183,8 @@ select throws_ok(
   'a trip with no quote is refused rather than priced from thin air'
 );
 
--- A participant, but the wrong one: the rider is on this trip, but only the
--- driver may complete it.
+-- A participant, but the wrong one: the passenger is on this trip, but only the
+-- rider may complete it.
 set local request.jwt.claims to
   '{"sub":"ffffffff-0000-0000-0000-000000000001","role":"authenticated"}';
 
@@ -192,7 +192,7 @@ select throws_ok(
   $$ select public.complete_trip('bbbbbbbb-0000-0000-0000-000000000003',
                                  4100, 'complete-4') $$,
   '42501', null,
-  'the rider cannot complete their own trip - only the driver can'
+  'the passenger cannot complete their own trip - only the rider can'
 );
 
 select * from finish();

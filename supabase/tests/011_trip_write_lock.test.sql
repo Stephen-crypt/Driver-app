@@ -1,38 +1,38 @@
 begin;
 select plan(13);
 
--- Two riders, three drivers: two verified (so an offer can be replayed with a
--- DIFFERENT driver) and one only submitted.
+-- Two passengers, three riders: two verified (so an offer can be replayed with a
+-- DIFFERENT rider) and one only submitted.
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','a1111111-0000-4000-8000-000000000001',
-   'authenticated','authenticated','rider.g@test.local'),
+   'authenticated','authenticated','passenger.g@test.local'),
   ('00000000-0000-0000-0000-000000000000','a1111111-0000-4000-8000-000000000002',
-   'authenticated','authenticated','driver.g@test.local'),
+   'authenticated','authenticated','rider.g@test.local'),
   ('00000000-0000-0000-0000-000000000000','a1111111-0000-4000-8000-000000000003',
-   'authenticated','authenticated','driver.h@test.local'),
+   'authenticated','authenticated','rider.h@test.local'),
   ('00000000-0000-0000-0000-000000000000','a1111111-0000-4000-8000-000000000004',
-   'authenticated','authenticated','driver.i@test.local');
+   'authenticated','authenticated','rider.i@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('a1111111-0000-4000-8000-000000000001','rider','Aline','+250788000401'),
-  ('a1111111-0000-4000-8000-000000000002','driver','Eric','+250788000402'),
-  ('a1111111-0000-4000-8000-000000000003','driver','Fidele','+250788000403'),
-  ('a1111111-0000-4000-8000-000000000004','driver','Gilbert','+250788000404');
+  ('a1111111-0000-4000-8000-000000000001','passenger','Aline','+250788000401'),
+  ('a1111111-0000-4000-8000-000000000002','rider','Eric','+250788000402'),
+  ('a1111111-0000-4000-8000-000000000003','rider','Fidele','+250788000403'),
+  ('a1111111-0000-4000-8000-000000000004','rider','Gilbert','+250788000404');
 
-insert into public.drivers (id, verification) values
+insert into public.riders (id, verification) values
   ('a1111111-0000-4000-8000-000000000002','verified'),
   ('a1111111-0000-4000-8000-000000000003','verified'),
   ('a1111111-0000-4000-8000-000000000004','submitted');
 
 insert into public.fare_quotes
-  (id, rider_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
+  (id, passenger_id, policy_id, vehicle_class, distance_m, duration_s, amount_rwf, expires_at)
 values
   ('a2222222-0000-4000-8000-000000000001','a1111111-0000-4000-8000-000000000001',
    (select id from public.fare_policies where vehicle_class='moto' limit 1),
    'moto', 4000, 720, 1700, now() + interval '2 minutes');
 
 -- ---------------------------------------------------------------------------
--- C1: a rider cannot author their own fare.
+-- C1: a passenger cannot author their own fare.
 -- ---------------------------------------------------------------------------
 -- The privilege is gone, so this is checked at the grant layer rather than by
 -- enumerating which columns a policy would have had to constrain.
@@ -49,39 +49,39 @@ select ok(
 -- A policy nothing can reach is a lie about how the table is protected.
 select is(
   (select count(*)::int from pg_policies
-    where schemaname='public' and tablename='trips' and policyname='trips_insert_rider'),
+    where schemaname='public' and tablename='trips' and policyname='trips_insert_passenger'),
   0,
-  'the unreachable trips_insert_rider policy is dropped, not left as decoration'
+  'the unreachable trips_insert_passenger policy is dropped, not left as decoration'
 );
 
 set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"a1111111-0000-4000-8000-000000000001","role":"authenticated"}';
 
--- The live exploit, verbatim: a rider JWT writing its own price, with no quote.
+-- The live exploit, verbatim: a passenger JWT writing its own price, with no quote.
 select throws_ok(
   $$ insert into public.trips
-       (rider_id, vehicle_class, state, pickup, pickup_label, dropoff,
+       (passenger_id, vehicle_class, state, pickup, pickup_label, dropoff,
         dropoff_label, quoted_distance_m, quoted_amount_rwf)
      values ('a1111111-0000-4000-8000-000000000001','moto','requested',
              st_point(30.06,-1.94)::geography,'A',
              st_point(30.05,-1.95)::geography,'B', 4000, 100) $$,
   '42501', null,
-  'a rider cannot insert a trip priced at a number they chose'
+  'a passenger cannot insert a trip priced at a number they chose'
 );
 
--- The sanctioned door still opens for that same rider.
+-- The sanctioned door still opens for that same passenger.
 select lives_ok(
   $$ select public.create_trip_from_quote(
        'a2222222-0000-4000-8000-000000000001',
        st_point(30.0619,-1.9441)::geography, 'Kimironko Market', 'blue gate',
        st_point(30.0588,-1.9536)::geography, 'Kigali Heights') $$,
-  'create_trip_from_quote still works for that same rider'
+  'create_trip_from_quote still works for that same passenger'
 );
 
 select is(
   (select quoted_amount_rwf from public.trips
-    where rider_id='a1111111-0000-4000-8000-000000000001'),
+    where passenger_id='a1111111-0000-4000-8000-000000000001'),
   1700,
   'and the price on the trip is the quoted one'
 );
@@ -89,7 +89,7 @@ select is(
 -- ---------------------------------------------------------------------------
 -- I3: one quote prices exactly one trip.
 -- ---------------------------------------------------------------------------
--- Without the unique index a rider spends the same quote N times inside its
+-- Without the unique index a passenger spends the same quote N times inside its
 -- 120s TTL, and the price lock stops being a lock.
 select throws_ok(
   $$ select public.create_trip_from_quote(
@@ -101,20 +101,20 @@ select throws_ok(
 );
 
 -- ---------------------------------------------------------------------------
--- I4: assigning a driver is idempotent, and says who was assigned.
+-- I4: assigning a rider is idempotent, and says who was assigned.
 -- ---------------------------------------------------------------------------
 set local role postgres;
 
 select lives_ok(
-  $$ select public.assign_driver_to_trip(
-       (select id from public.trips where rider_id='a1111111-0000-4000-8000-000000000001'),
+  $$ select public.assign_rider_to_trip(
+       (select id from public.trips where passenger_id='a1111111-0000-4000-8000-000000000001'),
        'a1111111-0000-4000-8000-000000000002', 'offer-1') $$,
-  'dispatch assigns a verified driver'
+  'dispatch assigns a verified rider'
 );
 
 select is(
   (select state::text from public.trips
-    where rider_id='a1111111-0000-4000-8000-000000000001'),
+    where passenger_id='a1111111-0000-4000-8000-000000000001'),
   'offered',
   'the trip moves to offered'
 );
@@ -124,38 +124,38 @@ select is(
 -- Scoped to THIS trip: idempotency keys are unique per trip, not globally, and
 -- `pnpm e2e` leaves its own 'offer-1' rows behind in the same local database.
 select is(
-  (select meta->>'driver_id' from public.trip_events
+  (select meta->>'rider_id' from public.trip_events
     where trip_id = (select id from public.trips
-                      where rider_id='a1111111-0000-4000-8000-000000000001')
+                      where passenger_id='a1111111-0000-4000-8000-000000000001')
       and idempotency_key='offer-1' and to_state='offered'),
   'a1111111-0000-4000-8000-000000000002',
-  'the event records which driver was offered the trip'
+  'the event records which rider was offered the trip'
 );
 
 -- The dispatcher retries. A retry must be a no-op, not a silent reassignment:
--- 0012 wrote driver_id before delegating to trip_transition_system(), whose own
+-- 0012 wrote rider_id before delegating to trip_transition_system(), whose own
 -- replay check then returned early, so the second call handed the trip to a
--- different driver and logged nothing.
+-- different rider and logged nothing.
 select lives_ok(
-  $$ select public.assign_driver_to_trip(
-       (select id from public.trips where rider_id='a1111111-0000-4000-8000-000000000001'),
+  $$ select public.assign_rider_to_trip(
+       (select id from public.trips where passenger_id='a1111111-0000-4000-8000-000000000001'),
        'a1111111-0000-4000-8000-000000000003', 'offer-1') $$,
   'a replayed offer key is accepted as a no-op'
 );
 
 select is(
-  (select driver_id::text from public.trips
-    where rider_id='a1111111-0000-4000-8000-000000000001'),
+  (select rider_id::text from public.trips
+    where passenger_id='a1111111-0000-4000-8000-000000000001'),
   'a1111111-0000-4000-8000-000000000002',
-  'a replayed key does NOT hand the trip to the second driver'
+  'a replayed key does NOT hand the trip to the second rider'
 );
 
 select throws_ok(
-  $$ select public.assign_driver_to_trip(
-       (select id from public.trips where rider_id='a1111111-0000-4000-8000-000000000001'),
+  $$ select public.assign_rider_to_trip(
+       (select id from public.trips where passenger_id='a1111111-0000-4000-8000-000000000001'),
        'a1111111-0000-4000-8000-000000000004', 'offer-2') $$,
   '42501', null,
-  'an unverified driver is refused an offer'
+  'an unverified rider is refused an offer'
 );
 
 select * from finish();

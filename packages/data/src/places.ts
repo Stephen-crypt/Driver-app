@@ -86,13 +86,13 @@ export interface SavedPlace {
 }
 
 /**
- * The places a rider goes back to. Spec 3.7 puts these above the gazetteer in
- * the destination picker: for most riders most days the answer is home or work,
+ * The places a passenger goes back to. Spec 3.7 puts these above the gazetteer in
+ * the destination picker: for most passengers most days the answer is home or work,
  * and making them type it is the difference between four taps and one.
  */
 export async function listSavedPlaces(
   client: GeraClient,
-  _riderId: string,
+  _passengerId: string,
 ): Promise<SavedPlace[]> {
   // Via RPC, not a table select. PostgREST serialises a geography column as hex
   // EWKB ("0101000020E6100000...") rather than GeoJSON, so selecting `position`
@@ -100,7 +100,7 @@ export async function listSavedPlaces(
   // coordinates out of it produces NaN, which looks exactly like "no saved
   // places", forever. list_saved_places projects st_x/st_y the way
   // search_landmarks already does, and runs security invoker so RLS still
-  // filters to this rider.
+  // filters to this passenger.
   const { data, error } = await client.rpc("list_saved_places");
   if (error) throw new Error(error.message);
 
@@ -121,11 +121,11 @@ export async function listSavedPlaces(
 
 export async function savePlace(
   client: GeraClient,
-  riderId: string,
+  passengerId: string,
   place: { label: string; lng: number; lat: number; note?: string },
 ): Promise<void> {
   const { error } = await client.from("saved_places").insert({
-    rider_id: riderId,
+    passenger_id: passengerId,
     label: place.label,
     note: place.note ?? null,
     position: `POINT(${place.lng} ${place.lat})`,

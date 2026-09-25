@@ -9,7 +9,7 @@ import { commissionFor } from "../../src/ledger/commission";
  *
  * Phase 2a was built on "the arithmetic is authored once, in packages/core, and
  * never duplicated in SQL". That was wrong: complete_trip is granted to
- * `authenticated`, so any driver can call it straight through PostgREST and
+ * `authenticated`, so any rider can call it straight through PostgREST and
  * hand it whatever amounts they like. A rule the database must enforce has to
  * live in the database, so 0014_lock_trip_writes.sql derives the money in SQL -
  * and this file is what stops the two copies drifting.
@@ -63,7 +63,7 @@ interface Case {
  * because a single rate cannot tell a percentage apart from a constant.
  */
 const CASES: readonly Case[] = [
-  // The ordinary trip: actual distance equals the quote, so the rider pays the
+  // The ordinary trip: actual distance equals the quote, so the passenger pays the
   // number they were shown.
   { name: "exact-quote moto trip", quotedRwf: 1700, quotedDistanceM: 4000, actualDistanceM: 4000, perKmRwf: 250, commissionPct: 15 },
   // Shorter than quoted: the quote is a lock, not a meter - no refund either.

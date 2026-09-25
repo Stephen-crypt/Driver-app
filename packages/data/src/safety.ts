@@ -1,6 +1,6 @@
 import type { GeraClient } from "./client";
 
-export interface DriverPosition {
+export interface RiderPosition {
   readonly lng: number;
   readonly lat: number;
   readonly recordedAt: string;
@@ -9,15 +9,15 @@ export interface DriverPosition {
 }
 
 /**
- * Where the driver is now, and roughly how long until they reach whichever end
+ * Where the rider is now, and roughly how long until they reach whichever end
  * of the trip they are heading for. Null before the first fix arrives, which is
  * an ordinary state and not an error.
  */
-export async function getDriverPosition(
+export async function getRiderPosition(
   client: GeraClient,
   tripId: string,
-): Promise<DriverPosition | null> {
-  const { data, error } = await client.rpc("trip_driver_position", { p_trip_id: tripId });
+): Promise<RiderPosition | null> {
+  const { data, error } = await client.rpc("trip_rider_position", { p_trip_id: tripId });
   if (error) throw new Error(error.message);
 
   const rows = (data ?? []) as {
@@ -39,7 +39,7 @@ export async function getDriverPosition(
   };
 }
 
-/** The driver's own position, published while a trip is live. */
+/** The rider's own position, published while a trip is live. */
 export async function publishTrackPoint(
   client: GeraClient,
   tripId: string,
@@ -84,25 +84,25 @@ export async function raiseSos(
 export const EMERGENCY_NUMBER = "112";
 
 /**
- * A plain-text message a rider can send to someone who should know where they
+ * A plain-text message a passenger can send to someone who should know where they
  * are. Not a link: there is no public trip-status page to link to, and a URL
  * that 404s is worse than the facts written out.
  */
 export function shareTripText(args: {
   readonly pickupLabel: string;
   readonly dropoffLabel: string;
-  readonly driverName?: string | null;
+  readonly riderName?: string | null;
   readonly plate?: string | null;
   readonly etaSeconds?: number | null;
 }): string {
   const lines = [
     `I'm taking a Gera ride from ${args.pickupLabel} to ${args.dropoffLabel}.`,
   ];
-  if (args.driverName) {
+  if (args.riderName) {
     lines.push(
       args.plate
-        ? `My driver is ${args.driverName}, plate ${args.plate}.`
-        : `My driver is ${args.driverName}.`,
+        ? `My rider is ${args.riderName}, plate ${args.plate}.`
+        : `My rider is ${args.riderName}.`,
     );
   }
   if (typeof args.etaSeconds === "number" && args.etaSeconds > 0) {

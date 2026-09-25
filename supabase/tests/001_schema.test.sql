@@ -2,7 +2,7 @@ begin;
 select plan(6);
 
 select has_table('public', 'profiles', 'profiles table exists');
-select has_table('public', 'drivers', 'drivers table exists');
+select has_table('public', 'riders', 'riders table exists');
 select has_table('public', 'vehicles', 'vehicles table exists');
 
 select has_extension('postgis', 'postgis is installed');

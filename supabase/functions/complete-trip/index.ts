@@ -32,7 +32,7 @@ Deno.serve(async (req: Request) => {
   // one, and since the wave the ledger derives its own figures from what the
   // RPC was given: a trip quoted 1700 over 3478m with an actual of 4000.4
   // receipted at 1800 (commission 270) while the ledger debited 255. One value,
-  // one price - the rider is shown what the driver is charged against.
+  // one price - the passenger is shown what the rider is charged against.
   const distanceM = Math.round(actualDistanceM);
 
   // Read the trip as the CALLER so RLS decides whether they may see it.
@@ -45,8 +45,8 @@ Deno.serve(async (req: Request) => {
   if (tripError || !trip) return json({ error: "trip_not_found" }, 404);
 
   // The locked price comes off the trip itself, set at creation from the quote.
-  // Never re-derive it or look up "the latest quote" - that is how one rider
-  // gets charged another rider's fare.
+  // Never re-derive it or look up "the latest quote" - that is how one passenger
+  // gets charged another passenger's fare.
   if (trip.quoted_amount_rwf === null || trip.quoted_amount_rwf === undefined) {
     return json({ error: "trip_has_no_quote" }, 409);
   }
@@ -55,7 +55,7 @@ Deno.serve(async (req: Request) => {
   // The policy the trip was QUOTED under, not the one in force now. An ops rate
   // change between quote and completion must never reach a trip already priced
   // (spec 3.4). complete_trip() does the same lookup for the figures that reach
-  // the ledger; this one is only for the receipt shown to the rider.
+  // the ledger; this one is only for the receipt shown to the passenger.
   const svc = serviceClient();
   const { data: row, error: policyError } = await svc
     .rpc("fare_policy_for_quote", { p_quote_id: trip.quote_id })
@@ -76,9 +76,9 @@ Deno.serve(async (req: Request) => {
   // No amounts are passed. complete_trip() derives the total and the commission
   // itself, from the trip's locked quote and that quote's policy: this function
   // is not a trust boundary (complete_trip is granted to `authenticated`, so any
-  // driver can reach it directly through PostgREST), so the numbers that reach
+  // rider can reach it directly through PostgREST), so the numbers that reach
   // the ledger cannot come from here. Called as the CALLER: complete_trip defers
-  // to trip_transition, which rejects anyone who is not the trip's driver.
+  // to trip_transition, which rejects anyone who is not the trip's rider.
   const { data: completed, error: completeError } = await caller
     .rpc("complete_trip", {
       p_trip_id: tripId,

@@ -58,7 +58,7 @@ export declare function buildReceipt(
   actualDistanceMetres: number,
 ): Receipt;
 
-/** A driver holds an exclusive offer for this long before it passes on. */
+/** A rider holds an exclusive offer for this long before it passes on. */
 export declare const OFFER_TTL_SECONDS = 15;
 
 /** The search widens only when a stage finds nobody (spec 3.3). */
@@ -82,7 +82,7 @@ export interface EtaProvider {
 
 export declare const straightLineEta: EtaProvider;
 
-export declare function rankByEta<T extends { driverId: string; distanceM: number }>(
+export declare function rankByEta<T extends { riderId: string; distanceM: number }>(
   candidates: readonly T[],
   vehicleClass: VehicleClass,
   provider: EtaProvider,

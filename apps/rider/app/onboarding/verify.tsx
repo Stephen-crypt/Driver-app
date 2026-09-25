@@ -22,7 +22,7 @@ export default function VerifyScreen() {
     setBusy(true);
     try {
       await verifyOtp(supabase, phone, code);
-      router.replace("/onboarding/name");
+      router.replace("/onboarding/details");
     } catch {
       setError("That code didn't work. Try again.");
     } finally {

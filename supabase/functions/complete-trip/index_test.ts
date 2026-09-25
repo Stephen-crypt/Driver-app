@@ -34,7 +34,7 @@ Deno.test("commission never exceeds the fare", () => {
 // ledger are derived independently now, so they must be fed the SAME distance.
 // index.ts used to build the receipt from the raw actualDistanceM while sending
 // Math.round(actualDistanceM) to the RPC, and a fractional distance then showed
-// the rider one price while the driver was charged against another.
+// the passenger one price while the rider was charged against another.
 Deno.test("a fractional distance rounds once, before either path uses it", () => {
   const rawActual = 4000.4;
   const distanceM = Math.round(rawActual);

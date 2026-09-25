@@ -24,7 +24,7 @@ const ROOT = process.cwd();
 /** Modules that throw on import under Expo Go, not on first use. */
 const UNSAFE_TO_IMPORT = ["expo-notifications"];
 
-const ROOTS = ["apps/rider", "apps/driver"];
+const ROOTS = ["apps/passenger", "apps/rider"];
 
 function* sourceFiles(dir) {
   let entries;

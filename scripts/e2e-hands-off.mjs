@@ -1,12 +1,12 @@
-// The regression test for "it stops at Finding you a driver".
+// The regression test for "it stops at Finding you a rider".
 //
-// A rider creates a trip and NOTHING else is called - no dispatch, no accept,
+// A passenger creates a trip and NOTHING else is called - no dispatch, no accept,
 // no transition. If the product is whole, the trip reaches `completed` on its
-// own: dispatch_pending_trips makes the first offer, a driver answers it, and
+// own: dispatch_pending_trips makes the first offer, a rider answers it, and
 // the trip walks itself to the end. Every earlier e2e script hand-called
 // /functions/v1/dispatch, which is exactly why this gap survived them all.
 //
-// Requires the local stack AND `pnpm simulate` running with working drivers.
+// Requires the local stack AND `pnpm simulate` running with working riders.
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
@@ -20,7 +20,7 @@ if (!ANON) {
 }
 
 const TIMEOUT_MS = Number(process.env.GERA_HANDS_OFF_TIMEOUT_MS ?? 120_000);
-const RIDER = crypto.randomUUID();
+const PASSENGER = crypto.randomUUID();
 const suffix = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
 
 const psql = (sql) =>
@@ -57,29 +57,29 @@ const wkt = (p) => `POINT(${p.lng} ${p.lat})`;
 
 async function main() {
   const online = Number(psql(
-    `select count(*) from public.driver_presence
+    `select count(*) from public.rider_presence
       where status='online' and vehicle_class='moto'
         and heartbeat_at > now() - interval '30 seconds';`));
   if (online === 0) {
-    console.error("No moto drivers online. Start `pnpm simulate` first.");
+    console.error("No moto riders online. Start `pnpm simulate` first.");
     process.exit(1);
   }
-  console.log(`${online} moto driver(s) online.\n`);
+  console.log(`${online} moto rider(s) online.\n`);
 
   psql(`insert into auth.users (instance_id,id,aud,role,email,confirmation_token,recovery_token,email_change_token_new,email_change,created_at,updated_at)
-        values ('00000000-0000-0000-0000-000000000000','${RIDER}','authenticated','authenticated','h.rider.${suffix}@test.local','','','','',now(),now());`);
+        values ('00000000-0000-0000-0000-000000000000','${PASSENGER}','authenticated','authenticated','h.passenger.${suffix}@test.local','','','','',now(),now());`);
   psql(`insert into public.profiles (id,role,first_name,phone)
-        values ('${RIDER}','rider','Aline','+2507885${suffix}');`);
+        values ('${PASSENGER}','passenger','Aline','+2507885${suffix}');`);
 
-  const riderJwt = mint(RIDER);
+  const passengerJwt = mint(PASSENGER);
 
-  const quote = await call("/functions/v1/quote", riderJwt, {
+  const quote = await call("/functions/v1/quote", passengerJwt, {
     vehicleClass: "moto", distanceM: 4000, durationS: 720,
   });
   if (quote.status !== 200) throw new Error(`quote failed: ${quote.status}`);
   console.log(`quoted ${quote.body.amountRwf} RWF`);
 
-  const created = await call("/rest/v1/rpc/create_trip_from_quote", riderJwt, {
+  const created = await call("/rest/v1/rpc/create_trip_from_quote", passengerJwt, {
     p_quote_id: quote.body.quoteId,
     p_pickup: wkt(PICKUP),
     p_pickup_label: "Kimironko Market",
@@ -93,7 +93,7 @@ async function main() {
   console.log("Hands off from here. Watching…\n");
 
   const TERMINAL = new Set([
-    "completed", "no_drivers", "cancelled_by_rider", "cancelled_by_driver", "expired",
+    "completed", "no_riders", "cancelled_by_passenger", "cancelled_by_rider", "expired",
   ]);
   const seen = [];
   const started = Date.now();

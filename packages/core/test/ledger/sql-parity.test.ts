@@ -19,7 +19,7 @@ function sql(query: string): string {
  * SQL (for the go-online gate, which the database must enforce). Duplication is
  * deliberate; this test is what makes drift between them impossible.
  */
-describe("driver_balance SQL mirrors balanceOf", () => {
+describe("rider_balance SQL mirrors balanceOf", () => {
   const cases: { label: string; entries: LedgerEntry[] }[] = [
     { label: "empty", entries: [] },
     { label: "single top-up", entries: [{ kind: "topup_credit", amountRwf: 5000 }] },
@@ -55,7 +55,7 @@ describe("driver_balance SQL mirrors balanceOf", () => {
         .join(",");
 
       const insert = rows
-        ? `insert into public.ledger_entries (driver_id, kind, amount_rwf) values ${rows};`
+        ? `insert into public.ledger_entries (rider_id, kind, amount_rwf) values ${rows};`
         : "";
 
       const out = sql(`
@@ -65,11 +65,11 @@ describe("driver_balance SQL mirrors balanceOf", () => {
            '11111111-2222-4333-8444-555555555555',
            'authenticated','authenticated','parity@test.local');
         insert into public.profiles (id,role,first_name,phone) values
-          ('11111111-2222-4333-8444-555555555555','driver','P','+250788999001');
-        insert into public.drivers (id,verification) values
+          ('11111111-2222-4333-8444-555555555555','rider','P','+250788999001');
+        insert into public.riders (id,verification) values
           ('11111111-2222-4333-8444-555555555555','verified');
         ${insert}
-        select public.driver_balance('11111111-2222-4333-8444-555555555555');
+        select public.rider_balance('11111111-2222-4333-8444-555555555555');
         rollback;
       `);
 
@@ -79,7 +79,7 @@ describe("driver_balance SQL mirrors balanceOf", () => {
   }
 
   it("agrees with SQL on the go-online threshold", () => {
-    const out = sql(`select min_driver_balance_rwf from public.platform_settings;`);
+    const out = sql(`select min_rider_balance_rwf from public.platform_settings;`);
     const minimum = Number(out);
     expect(canGoOnline(minimum, minimum)).toBe(true);
     expect(canGoOnline(minimum - 1, minimum)).toBe(false);

@@ -20,12 +20,12 @@ describe("sheetHeightFor", () => {
     expect(sheetHeightFor("idle")).toBe(SHEET_HEIGHTS.peek);
   });
 
-  it("grows while searching for a driver", () => {
+  it("grows while searching for a rider", () => {
     expect(sheetHeightFor("requested")).toBe(SHEET_HEIGHTS.half);
   });
 
-  it("makes room for the driver card once a driver is assigned", () => {
-    // accepted and arrived carry a route, a fare, a driver card and an action
+  it("makes room for the rider card once a rider is assigned", () => {
+    // accepted and arrived carry a route, a fare, a rider card and an action
     // row; at half height the actions were clipped with no way to reach them.
     expect(sheetHeightFor("accepted")).toBe(SHEET_HEIGHTS.tall);
     expect(sheetHeightFor("arrived")).toBe(SHEET_HEIGHTS.tall);
@@ -45,17 +45,17 @@ describe("sheetHeightFor", () => {
 });
 
 describe("sheetTitleFor", () => {
-  it("tells the rider what is happening, not what the state is called", () => {
-    expect(sheetTitleFor("requested")).toBe("Finding you a driver");
-    expect(sheetTitleFor("offered")).toBe("Finding you a driver");
-    expect(sheetTitleFor("accepted")).toBe("Driver on the way");
-    expect(sheetTitleFor("arrived")).toBe("Your driver is here");
+  it("tells the passenger what is happening, not what the state is called", () => {
+    expect(sheetTitleFor("requested")).toBe("Finding you a rider");
+    expect(sheetTitleFor("offered")).toBe("Finding you a rider");
+    expect(sheetTitleFor("accepted")).toBe("Rider on the way");
+    expect(sheetTitleFor("arrived")).toBe("Your rider is here");
     expect(sheetTitleFor("in_progress")).toBe("On the way");
     expect(sheetTitleFor("completed")).toBe("Trip complete");
-    expect(sheetTitleFor("no_drivers")).toBe("No drivers nearby");
+    expect(sheetTitleFor("no_riders")).toBe("No riders nearby");
   });
 
-  it("never leaks a raw state name to a rider", () => {
+  it("never leaks a raw state name to a passenger", () => {
     const states = [
       "idle",
       "picking",
@@ -66,9 +66,9 @@ describe("sheetTitleFor", () => {
       "arrived",
       "in_progress",
       "completed",
-      "no_drivers",
+      "no_riders",
+      "cancelled_by_passenger",
       "cancelled_by_rider",
-      "cancelled_by_driver",
       "expired",
     ];
     for (const s of states) {

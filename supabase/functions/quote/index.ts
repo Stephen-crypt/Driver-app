@@ -38,7 +38,7 @@ Deno.serve(async (req: Request) => {
 
   // current_fare_policy() returns a COMPOSITE, so "no effective policy" arrives
   // as one row of nulls, not as no rows: `policyError || !row` is false and the
-  // null rates coerce to 0, quoting every rider a free ride. A null id is the
+  // null rates coerce to 0, quoting every passenger a free ride. A null id is the
   // discriminator - see _shared/policy.ts.
   const policyRow = row as FarePolicyRow | null;
   const policy = policyFromRow(policyRow);
@@ -52,7 +52,7 @@ Deno.serve(async (req: Request) => {
   const { data: quote, error: writeError } = await svc
     .from("fare_quotes")
     .insert({
-      rider_id: auth.user.id,
+      passenger_id: auth.user.id,
       policy_id: policyRow.id,
       vehicle_class: vehicleClass,
       distance_m: Math.round(distanceM),

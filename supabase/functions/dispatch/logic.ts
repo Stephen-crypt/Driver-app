@@ -17,7 +17,7 @@ export function isDispatchable(state: string): boolean {
 
 /** One ranked candidate: who to offer to, and the ETA that ranked them. */
 export interface RankedCandidate {
-  driverId: string;
+  riderId: string;
   etaSeconds: number;
 }
 
@@ -27,13 +27,13 @@ export interface RankedCandidate {
  *
  *  This returns the WHOLE ranked list, not just its head, and that is the
  *  point. The head alone was a one-shot proposal: when create_trip_offer
- *  refused the best candidate - `driver_already_offered` or
- *  `driver_already_committed`, because the driver took something else between
+ *  refused the best candidate - `rider_already_offered` or
+ *  `rider_already_committed`, because the rider took something else between
  *  the candidate search and the insert - the dispatcher had nothing left to
  *  try and left the trip sitting in `requested` with no offer and nothing
  *  scheduled to retry it. That is the same stranding shape the offer chain
  *  exists to remove, reached from the other end. With the list, a refusal is
- *  just a reason to ask the next-best driver.
+ *  just a reason to ask the next-best rider.
  *
  *  Ranking is still only a PROPOSAL. Whether the candidate the caller picks is
  *  who actually ends up holding the offer is decided by create_trip_offer,
@@ -41,17 +41,17 @@ export interface RankedCandidate {
  *  caller must build its response from that RPC's return value, never from
  *  this function's. */
 export async function rankCandidates(
-  rows: readonly { driver_id: string; distance_m: number }[],
+  rows: readonly { rider_id: string; distance_m: number }[],
   vehicleClass: VehicleClass,
   provider: EtaProvider,
 ): Promise<RankedCandidate[]> {
   if (rows.length === 0) return [];
 
   const ranked = await rankByEta(
-    rows.map((c) => ({ driverId: c.driver_id, distanceM: Number(c.distance_m) })),
+    rows.map((c) => ({ riderId: c.rider_id, distanceM: Number(c.distance_m) })),
     vehicleClass,
     provider,
   );
 
-  return ranked.map((c) => ({ driverId: c.driverId, etaSeconds: c.etaSeconds }));
+  return ranked.map((c) => ({ riderId: c.riderId, etaSeconds: c.etaSeconds }));
 }

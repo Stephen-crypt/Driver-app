@@ -83,15 +83,15 @@ describe("balanceOf", () => {
 });
 
 describe("canGoOnline", () => {
-  it("permits a driver at exactly the minimum", () => {
+  it("permits a rider at exactly the minimum", () => {
     expect(canGoOnline(500, 500)).toBe(true);
   });
 
-  it("blocks a driver below the minimum", () => {
+  it("blocks a rider below the minimum", () => {
     expect(canGoOnline(499, 500)).toBe(false);
   });
 
-  it("blocks a driver in arrears", () => {
+  it("blocks a rider in arrears", () => {
     expect(canGoOnline(-200, 500)).toBe(false);
   });
 });

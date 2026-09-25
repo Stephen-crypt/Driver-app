@@ -2,22 +2,22 @@ begin;
 select plan(9);
 
 select ok(
-  public.is_legal_transition('offered', 'accepted', 'driver'),
-  'a driver may accept an offered trip'
+  public.is_legal_transition('offered', 'accepted', 'rider'),
+  'a rider may accept an offered trip'
 );
 
 select ok(
-  not public.is_legal_transition('accepted', 'completed', 'driver'),
-  'a driver may not complete a trip that never started'
+  not public.is_legal_transition('accepted', 'completed', 'rider'),
+  'a rider may not complete a trip that never started'
 );
 
 select ok(
-  not public.is_legal_transition('arrived', 'in_progress', 'rider'),
-  'a rider may not start the trip'
+  not public.is_legal_transition('arrived', 'in_progress', 'passenger'),
+  'a passenger may not start the trip'
 );
 
 select ok(
-  not public.is_legal_transition('completed', 'in_progress', 'driver'),
+  not public.is_legal_transition('completed', 'in_progress', 'rider'),
   'nothing escapes a terminal state'
 );
 

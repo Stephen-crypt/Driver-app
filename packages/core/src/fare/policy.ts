@@ -7,13 +7,13 @@ export interface FarePolicy {
   readonly baseRwf: number;
   readonly perKmRwf: number;
   readonly perMinuteRwf: number;
-  /** No rider is ever quoted below this, in whole RWF. */
+  /** No passenger is ever quoted below this, in whole RWF. */
   readonly minimumRwf: number;
   /** Platform commission as a percentage of the fare, 0-100. */
   readonly commissionPct: number;
 }
 
-/** Rider-facing fares are always whole hundreds of francs, rounded up. */
+/** Passenger-facing fares are always whole hundreds of francs, rounded up. */
 export function roundFareRwf(amount: number): number {
   return Math.ceil(amount / 100) * 100;
 }

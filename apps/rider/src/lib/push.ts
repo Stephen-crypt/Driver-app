@@ -34,8 +34,8 @@ let handlerSet = false;
  * Registers this install for push and returns the Expo token.
  *
  * Every failure is a named reason rather than a throw, because none of them
- * should stop the app: a rider with no push still gets a working booking
- * screen, they just have to keep it open.
+ * should stop the app: a rider with no push still sees offers while the app is
+ * open - they just cannot leave it in their pocket.
  */
 export async function registerForPush(): Promise<PushResult> {
   if (IN_EXPO_GO) return { ok: false, reason: "expo_go" };
@@ -47,7 +47,7 @@ export async function registerForPush(): Promise<PushResult> {
     const Device = require("expo-device") as DeviceModule;
 
     // Notifications arriving while the app is open should still be seen: a
-    // rider watching the map is exactly who needs to know their driver arrived.
+    // passenger watching the map is exactly who needs to know their rider arrived.
     if (!handlerSet) {
       Notifications.setNotificationHandler({
         handleNotification: async () => ({
@@ -68,7 +68,7 @@ export async function registerForPush(): Promise<PushResult> {
       // The channel must exist before the first notification lands, and the
       // importance is what lets a trip update make a sound on a locked phone.
       await Notifications.setNotificationChannelAsync("offers", {
-        name: "Trip updates",
+        name: "Trip offers",
         importance: Notifications.AndroidImportance.MAX,
         vibrationPattern: [0, 250, 250, 250],
         lightColor: "#F5A524",

@@ -7,20 +7,20 @@ describe("legal transitions", () => {
     expect(canTransition("requested", "offered", "system")).toBe(true);
   });
 
-  it("driver may accept an offered trip", () => {
-    expect(canTransition("offered", "accepted", "driver")).toBe(true);
+  it("rider may accept an offered trip", () => {
+    expect(canTransition("offered", "accepted", "rider")).toBe(true);
   });
 
-  it("driver may mark arrival after accepting", () => {
-    expect(canTransition("accepted", "arrived", "driver")).toBe(true);
+  it("rider may mark arrival after accepting", () => {
+    expect(canTransition("accepted", "arrived", "rider")).toBe(true);
   });
 
-  it("driver may start the trip after arriving", () => {
-    expect(canTransition("arrived", "in_progress", "driver")).toBe(true);
+  it("rider may start the trip after arriving", () => {
+    expect(canTransition("arrived", "in_progress", "rider")).toBe(true);
   });
 
-  it("driver may complete a trip in progress", () => {
-    expect(canTransition("in_progress", "completed", "driver")).toBe(true);
+  it("rider may complete a trip in progress", () => {
+    expect(canTransition("in_progress", "completed", "rider")).toBe(true);
   });
 
   it("an offer may bounce back to offered when declined", () => {
@@ -28,7 +28,7 @@ describe("legal transitions", () => {
   });
 
   it("applyTransition returns the new state", () => {
-    expect(applyTransition("arrived", "in_progress", "driver")).toEqual({
+    expect(applyTransition("arrived", "in_progress", "rider")).toEqual({
       ok: true,
       state: "in_progress",
     });
@@ -36,7 +36,7 @@ describe("legal transitions", () => {
 });
 
 describe("the negative matrix", () => {
-  const ACTORS: Actor[] = ["rider", "driver", "system"];
+  const ACTORS: Actor[] = ["passenger", "rider", "system"];
 
   const legal = new Set(
     TRANSITIONS.flatMap((r) => r.actors.map((a) => `${r.from}>${r.to}>${a}`)),
@@ -60,29 +60,29 @@ describe("the negative matrix", () => {
     expect(wrongly_allowed).toEqual([]);
   });
 
-  it("names the reason a driver cannot complete an accepted trip", () => {
-    expect(applyTransition("accepted", "completed", "driver")).toEqual({
+  it("names the reason a rider cannot complete an accepted trip", () => {
+    expect(applyTransition("accepted", "completed", "rider")).toEqual({
       ok: false,
       reason: "illegal_edge",
     });
   });
 
-  it("names the reason a rider cannot start a trip", () => {
-    expect(applyTransition("arrived", "in_progress", "rider")).toEqual({
+  it("names the reason a passenger cannot start a trip", () => {
+    expect(applyTransition("arrived", "in_progress", "passenger")).toEqual({
       ok: false,
       reason: "wrong_actor",
     });
   });
 
   it("refuses to move out of a terminal state", () => {
-    expect(applyTransition("completed", "in_progress", "driver")).toEqual({
+    expect(applyTransition("completed", "in_progress", "rider")).toEqual({
       ok: false,
       reason: "terminal",
     });
   });
 
-  it("never allows a rider to cancel once the trip is in progress", () => {
-    expect(canTransition("in_progress", "cancelled_by_rider", "rider")).toBe(false);
+  it("never allows a passenger to cancel once the trip is in progress", () => {
+    expect(canTransition("in_progress", "cancelled_by_passenger", "passenger")).toBe(false);
   });
 });
 
@@ -92,21 +92,21 @@ describe("the table itself", () => {
   // than folding the error into the matrix's own baseline.
   const EXPECTED_EDGES = [
     "requested>offered>system",
-    "requested>no_drivers>system",
-    "requested>cancelled_by_rider>rider",
+    "requested>no_riders>system",
+    "requested>cancelled_by_passenger>passenger",
     "offered>offered>system",
-    "offered>accepted>driver",
+    "offered>accepted>rider",
     "offered>expired>system",
-    "offered>no_drivers>system",
-    "offered>cancelled_by_rider>rider",
-    "accepted>arrived>driver",
+    "offered>no_riders>system",
+    "offered>cancelled_by_passenger>passenger",
+    "accepted>arrived>rider",
+    "accepted>cancelled_by_passenger>passenger",
     "accepted>cancelled_by_rider>rider",
-    "accepted>cancelled_by_driver>driver",
     "accepted>offered>system",
-    "arrived>in_progress>driver",
+    "arrived>in_progress>rider",
+    "arrived>cancelled_by_passenger>passenger",
     "arrived>cancelled_by_rider>rider",
-    "arrived>cancelled_by_driver>driver",
-    "in_progress>completed>driver",
+    "in_progress>completed>rider",
   ].sort();
 
   it("contains exactly the sixteen intended edges and no others", () => {

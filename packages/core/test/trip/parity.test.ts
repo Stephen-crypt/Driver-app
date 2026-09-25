@@ -1,10 +1,43 @@
 import { describe, it, expect } from "vitest";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { TRANSITIONS } from "../../src/trip/transitions";
 import { TRIP_STATES, TERMINAL_STATES, isTerminal } from "../../src/trip/states";
 import { VEHICLE_CLASSES } from "../../src/fare/policy";
 import { LEDGER_ENTRY_KINDS } from "../../src/ledger/commission";
 import { OFFER_TTL_SECONDS } from "../../src/dispatch/eta";
+
+/**
+ * The live schema, not a migration file.
+ *
+ * These two assertions used to read 0006_transition_fn.sql. That worked until
+ * the NOVA rename, which moved the vocabulary in a LATER migration and left
+ * 0006 frozen with the old words - so the guard began comparing today's
+ * TypeScript against last month's SQL and failed on a difference that was not
+ * drift. A migration file is history; only the database holds the current rule.
+ */
+const CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+
+function query(sql: string): string[] {
+  let out: string;
+  try {
+    out = execFileSync("docker", [
+      "exec", CONTAINER, "psql", "-U", "postgres", "-d", "postgres", "-tA", "-c", sql,
+    ]).toString();
+  } catch (error) {
+    throw new Error(
+      [
+        `Could not reach the local database (container ${CONTAINER}).`,
+        "Start it with: supabase start   (or set GERA_DB_CONTAINER)",
+        String(error),
+      ].join(String.fromCharCode(10)),
+    );
+  }
+  return out
+    .split(String.fromCharCode(10))
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
 
 function migration(file: string): string {
   return readFileSync(
@@ -28,18 +61,10 @@ function quotedAfter(sql: string, marker: string): string[] {
  * transition table.
  */
 describe("TS/SQL transition parity", () => {
-  it("matches the rows seeded in 0006_transition_fn.sql", () => {
-    const sql = migration("0006_transition_fn.sql");
-
-    const insertBlock = sql
-      .split("insert into public.trip_transition_rules (from_state, to_state, actor) values")[1]
-      ?.split(";")[0];
-
-    expect(insertBlock, "seed block not found in migration").toBeDefined();
-
-    const sqlRules = [...insertBlock!.matchAll(/\(\s*'(\w+)'\s*,\s*'(\w+)'\s*,\s*'(\w+)'\s*\)/g)]
-      .map((m) => `${m[1]}>${m[2]}>${m[3]}`)
-      .sort();
+  it("matches the rows in trip_transition_rules", () => {
+    const sqlRules = query(
+      "select from_state || '>' || to_state || '>' || actor from public.trip_transition_rules;",
+    ).sort();
 
     const tsRules = TRANSITIONS.flatMap((r) =>
       r.actors.map((a) => `${r.from}>${r.to}>${a}`),
@@ -50,10 +75,11 @@ describe("TS/SQL transition parity", () => {
 });
 
 describe("TS/SQL terminal state parity", () => {
-  it("TERMINAL_STATES matches is_terminal() in 0006_transition_fn.sql", () => {
-    const sqlTerminal = quotedAfter(
-      migration("0006_transition_fn.sql"),
-      "select p_state in (",
+  it("TERMINAL_STATES matches what is_terminal() actually returns", () => {
+    // Asked of the function itself rather than parsed out of its source, so it
+    // cannot drift from what the database does at runtime.
+    const sqlTerminal = query(
+      "select s from unnest(enum_range(null::trip_state)) s where public.is_terminal(s);",
     ).sort();
 
     expect(sqlTerminal).toEqual([...TERMINAL_STATES].sort());
@@ -96,7 +122,7 @@ describe("TS/SQL dispatch constant parity", () => {
   it("OFFER_TTL_SECONDS matches offer_ttl_seconds() in 0020_dispatch_chain.sql", () => {
     // The sweeper creates offers now, and it never sees a TypeScript constant,
     // so the TTL had to be authored a second time in SQL. Two copies of the
-    // number that decides how long a driver holds a trip is exactly the drift
+    // number that decides how long a rider holds a trip is exactly the drift
     // this file exists to make impossible - and 017_dispatch_chain.test.sql
     // asserts the cron sweep interval is shorter than the SQL copy, so a silent
     // divergence here would quietly un-tune that guard too.

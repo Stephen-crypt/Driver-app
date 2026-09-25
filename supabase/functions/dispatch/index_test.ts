@@ -20,16 +20,16 @@ Deno.test("an offer is exclusive for fifteen seconds", () => {
   assertEquals(OFFER_TTL_SECONDS, 15);
 });
 
-Deno.test("the nearest driver is offered first", async () => {
+Deno.test("the nearest rider is offered first", async () => {
   const ranked = await rankByEta(
     [
-      { driverId: "far", distanceM: 3800 },
-      { driverId: "near", distanceM: 400 },
+      { riderId: "far", distanceM: 3800 },
+      { riderId: "near", distanceM: 400 },
     ],
     "moto",
     straightLineEta,
   );
-  assertEquals(ranked[0]?.driverId, "near");
+  assertEquals(ranked[0]?.riderId, "near");
 });
 
 // The dispatcher's own logic: what state a trip must be in, and which
@@ -41,7 +41,7 @@ Deno.test("isDispatchable accepts a fresh request and a re-dispatch", () => {
 });
 
 Deno.test("isDispatchable rejects trips no longer open to (re)dispatch", () => {
-  for (const state of ["accepted", "in_progress", "completed", "cancelled_by_rider"]) {
+  for (const state of ["accepted", "in_progress", "completed", "cancelled_by_passenger"]) {
     assertEquals(isDispatchable(state), false, `${state} must not be dispatchable`);
   }
 });
@@ -54,42 +54,42 @@ Deno.test("rankCandidates returns an empty list when there is nobody to rank", a
 Deno.test("rankCandidates puts the lowest ETA first, not the first row", async () => {
   const ranked = await rankCandidates(
     [
-      { driver_id: "far", distance_m: 3800 },
-      { driver_id: "near", distance_m: 400 },
+      { rider_id: "far", distance_m: 3800 },
+      { rider_id: "near", distance_m: 400 },
     ],
     "moto",
     straightLineEta,
   );
-  assertEquals(ranked[0]?.driverId, "near");
+  assertEquals(ranked[0]?.riderId, "near");
 });
 
 Deno.test("rankCandidates handles a single candidate", async () => {
   const ranked = await rankCandidates(
-    [{ driver_id: "only", distance_m: 900 }],
+    [{ rider_id: "only", distance_m: 900 }],
     "moto",
     straightLineEta,
   );
   assertEquals(ranked.length, 1);
-  assertEquals(ranked[0]?.driverId, "only");
+  assertEquals(ranked[0]?.riderId, "only");
   assertEquals(typeof ranked[0]?.etaSeconds, "number");
 });
 
 // Finding 4: the head alone was not enough. When create_trip_offer refuses the
-// best candidate - the driver took another trip between the candidate search
+// best candidate - the rider took another trip between the candidate search
 // and the insert - the dispatcher has to have somebody else to ask, or the trip
 // sits in `requested` with no offer and nothing scheduled to retry it. That is
 // only possible if the ranking yields the whole list.
 Deno.test("rankCandidates yields the whole shortlist, in ETA order", async () => {
   const ranked = await rankCandidates(
     [
-      { driver_id: "third", distance_m: 3000 },
-      { driver_id: "first", distance_m: 200 },
-      { driver_id: "second", distance_m: 1500 },
+      { rider_id: "third", distance_m: 3000 },
+      { rider_id: "first", distance_m: 200 },
+      { rider_id: "second", distance_m: 1500 },
     ],
     "moto",
     straightLineEta,
   );
-  assertEquals(ranked.map((c) => c.driverId), ["first", "second", "third"]);
+  assertEquals(ranked.map((c) => c.riderId), ["first", "second", "third"]);
 });
 
 // The fallback is only useful if every entry carries what create_trip_offer
@@ -98,16 +98,16 @@ Deno.test("rankCandidates yields the whole shortlist, in ETA order", async () =>
 Deno.test("every ranked candidate carries an ETA, not just the head", async () => {
   const ranked = await rankCandidates(
     [
-      { driver_id: "a", distance_m: 200 },
-      { driver_id: "b", distance_m: 1500 },
-      { driver_id: "c", distance_m: 3000 },
+      { rider_id: "a", distance_m: 200 },
+      { rider_id: "b", distance_m: 1500 },
+      { rider_id: "c", distance_m: 3000 },
     ],
     "moto",
     straightLineEta,
   );
   assertEquals(ranked.length, 3);
   for (const c of ranked) {
-    assertEquals(typeof c.etaSeconds, "number", `${c.driverId} has no ETA`);
+    assertEquals(typeof c.etaSeconds, "number", `${c.riderId} has no ETA`);
   }
   // Strictly increasing, so "next best" is a real ordering and not an accident
   // of the input order.
@@ -121,11 +121,11 @@ Deno.test("every ranked candidate carries an ETA, not just the head", async () =
 Deno.test("rankCandidates coerces distances before ranking them", async () => {
   const ranked = await rankCandidates(
     [
-      { driver_id: "nine-hundred", distance_m: "900" as unknown as number },
-      { driver_id: "one-thousand-one-hundred", distance_m: "1100" as unknown as number },
+      { rider_id: "nine-hundred", distance_m: "900" as unknown as number },
+      { rider_id: "one-thousand-one-hundred", distance_m: "1100" as unknown as number },
     ],
     "moto",
     straightLineEta,
   );
-  assertEquals(ranked.map((c) => c.driverId), ["nine-hundred", "one-thousand-one-hundred"]);
+  assertEquals(ranked.map((c) => c.riderId), ["nine-hundred", "one-thousand-one-hundred"]);
 });

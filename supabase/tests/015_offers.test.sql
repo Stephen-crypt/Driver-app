@@ -3,22 +3,22 @@ select plan(9);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','e0000000-0000-4000-8000-000000000001',
-   'authenticated','authenticated','o.rider@test.local'),
+   'authenticated','authenticated','o.passenger@test.local'),
   ('00000000-0000-0000-0000-000000000000','e0000000-0000-4000-8000-000000000002',
-   'authenticated','authenticated','o.driver1@test.local'),
+   'authenticated','authenticated','o.rider1@test.local'),
   ('00000000-0000-0000-0000-000000000000','e0000000-0000-4000-8000-000000000003',
-   'authenticated','authenticated','o.driver2@test.local');
+   'authenticated','authenticated','o.rider2@test.local');
 
 insert into public.profiles (id, role, first_name, phone) values
-  ('e0000000-0000-4000-8000-000000000001','rider','Aline','+250788950001'),
-  ('e0000000-0000-4000-8000-000000000002','driver','Eric','+250788950002'),
-  ('e0000000-0000-4000-8000-000000000003','driver','Jean','+250788950003');
+  ('e0000000-0000-4000-8000-000000000001','passenger','Aline','+250788950001'),
+  ('e0000000-0000-4000-8000-000000000002','rider','Eric','+250788950002'),
+  ('e0000000-0000-4000-8000-000000000003','rider','Jean','+250788950003');
 
-insert into public.drivers (id, verification) values
+insert into public.riders (id, verification) values
   ('e0000000-0000-4000-8000-000000000002','verified'),
   ('e0000000-0000-4000-8000-000000000003','verified');
 
-insert into public.trips (id, rider_id, vehicle_class, state,
+insert into public.trips (id, passenger_id, vehicle_class, state,
                           pickup, pickup_label, dropoff, dropoff_label)
 values ('e1000000-0000-4000-8000-000000000001',
         'e0000000-0000-4000-8000-000000000001','moto','requested',
@@ -51,10 +51,10 @@ select lives_ok(
 );
 
 select is(
-  (select driver_id from public.trip_offers
+  (select rider_id from public.trip_offers
     where trip_id='e1000000-0000-4000-8000-000000000001' and outcome is null),
   'e0000000-0000-4000-8000-000000000002'::uuid,
-  'and it does NOT steal the live offer from the first driver'
+  'and it does NOT steal the live offer from the first rider'
 );
 
 set local role authenticated;
@@ -67,7 +67,7 @@ select throws_ok(
          where trip_id='e1000000-0000-4000-8000-000000000001' and outcome is null),
        'accept-wrong') $$,
   '42501', null,
-  'a driver cannot accept an offer addressed to someone else'
+  'a rider cannot accept an offer addressed to someone else'
 );
 
 set local request.jwt.claims to
@@ -79,7 +79,7 @@ select is(
        where trip_id='e1000000-0000-4000-8000-000000000001' and outcome is null),
      'accept-1')),
   'accepted',
-  'the offered driver accepts and the trip advances'
+  'the offered rider accepts and the trip advances'
 );
 
 select is(
