@@ -2,3 +2,5 @@ export * from "./client";
 export * from "./phone";
 export * from "./auth";
 export * from "./trips";
+export * from "./places";
+export * from "./trip-watch";
