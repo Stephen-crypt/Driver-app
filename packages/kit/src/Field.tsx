@@ -10,6 +10,8 @@ interface Props extends TextInputProps {
   /** A fixed prefix inside the field, like the country code. */
   readonly prefix?: string;
   readonly hint?: ReactNode;
+  /** On a white sheet rather than the grey page: the field needs a grey fill to be seen. */
+  readonly onPaper?: boolean;
 }
 
 /**
@@ -18,7 +20,7 @@ interface Props extends TextInputProps {
  * half-filled form with no way to tell which box was which.
  */
 export const Field = forwardRef<TextInput, Props>(function Field(
-  { label, big, prefix, hint, style, onFocus, onBlur, ...rest },
+  { label, big, prefix, hint, onPaper, style, onFocus, onBlur, ...rest },
   ref,
 ) {
   const [focused, setFocused] = useState(false);
@@ -29,7 +31,7 @@ export const Field = forwardRef<TextInput, Props>(function Field(
           {label}
         </Txt>
       ) : null}
-      <View style={[styles.box, big && styles.boxBig, focused && styles.focused]}>
+      <View style={[styles.box, big && styles.boxBig, onPaper && styles.boxOnPaper, focused && styles.focused]}>
         {prefix ? (
           <Txt v={big ? "title" : "bodyStrong"} tone="muted" style={big ? styles.prefixBig : null}>
             {prefix}
@@ -74,6 +76,7 @@ const styles = StyleSheet.create({
     borderColor: "transparent",
   },
   boxBig: { minHeight: 72 },
+  boxOnPaper: { backgroundColor: c.surfaceHigh },
   focused: { borderColor: c.accent },
   // minWidth 0: a text input will not shrink below its intrinsic width on the
   // web without it, and the overflow scrolled the whole screen sideways.

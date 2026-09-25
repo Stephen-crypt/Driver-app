@@ -1,41 +1,46 @@
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useState } from "react";
+import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, tokens } from "@gera/ui";
+import { Divider, Group, Row, Screen, Txt, c, radius, space, tap, type IconName } from "@gera/kit";
 import { EMERGENCY_NUMBER } from "@gera/data";
-import { Card } from "../src/components/Card";
+import { goBack } from "../src/lib/nav";
 
-const SAFETY: readonly {
-  icon: keyof typeof Ionicons.glyphMap;
-  title: string;
-  body: string;
-}[] = [
+const SAFETY: readonly { icon: IconName; title: string; body: string }[] = [
   {
-    icon: "car-outline",
-    title: "Check the plate before you get in",
-    body: "The plate and your rider's name are on your trip screen. If they don't match the vehicle in front of you, don't get in.",
+    icon: "keypad",
+    title: "Only give your PIN to your rider",
+    body: "Your rider can't start the trip without it. If someone asks for it who isn't on your trip screen, don't get on.",
   },
   {
-    icon: "share-outline",
+    icon: "car",
+    title: "Check the plate and the vest",
+    body: "Both are on your trip screen. If they don't match the vehicle in front of you, don't get in.",
+  },
+  {
+    icon: "share-social",
     title: "Share your trip",
-    body: "On any live trip, tap Share. It sends where you're going, who's driving and their plate to whoever you choose.",
+    body: "On any live trip, tap Share. It sends where you're going, who's taking you and their plate.",
   },
   {
-    icon: "pricetag-outline",
+    icon: "pricetag",
     title: "The price doesn't change",
-    body: "What you agreed before booking is what you pay. If a rider asks for more, that's not a Gera fare — tell us.",
-  },
-  {
-    icon: "cash-outline",
-    title: "Pay in cash, at the end",
-    body: "Never pay before the trip. Your rider collects when you arrive.",
+    body: "What you agreed before booking is what you pay, plus waiting time if you kept your rider waiting. If a rider asks for more, tell us.",
   },
 ];
 
 const FAQ = [
   {
-    q: "Why can't I go past 'Finding you a rider'?",
-    a: "There may be nobody free nearby. We try three riders before telling you so. Wait a few minutes and book again.",
+    q: "What's the PIN for?",
+    a: "It proves to your rider that you're the person who booked. They type it in before the trip starts. It changes every trip.",
+  },
+  {
+    q: "Is waiting charged?",
+    a: "Your rider waits five minutes free once they arrive. After that each full minute is charged, and the app shows you the clock so it's never a surprise.",
+  },
+  {
+    q: "Why can't I get past 'Finding you a rider'?",
+    a: "There may be nobody free nearby. We ask the closest riders one at a time before telling you. Wait a few minutes and book again.",
   },
   {
     q: "My rider cancelled. Am I charged?",
@@ -43,150 +48,113 @@ const FAQ = [
   },
   {
     q: "Can I pay with MTN MoMo?",
-    a: "Not yet. Cash is the only method that settles today — we'd rather say so than take a payment we can't complete.",
+    a: "Not yet. Cash is the only method that settles today - we'd rather say so than take a payment we can't complete.",
   },
   {
-    // The wallet answer this replaces described a marketplace, where the rider
-    // owned the vehicle and paid Gera a commission. Gera owns the vehicles, so
-    // the cash is the company's from the moment it is handed over.
     q: "Where does my money go?",
-    a: "You hand the fare to your rider in cash. Gera owns the vehicles, so the rider passes that cash on to us and is paid separately for their work. You never pay Gera directly.",
+    a: "You hand the fare to your rider in cash. Gera owns the vehicles, so the rider passes that cash on to us and is paid separately for their work.",
   },
 ];
 
 export default function Help() {
-  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const [open, setOpen] = useState<string | null>(null);
 
   return (
-    <ScrollView
-      style={styles.root}
-      contentContainerStyle={[
-        styles.content,
-        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
-      ]}
-      showsVerticalScrollIndicator={false}
-    >
-      <Text style={styles.title}>Help and safety</Text>
-
-      {/* First, because someone opening this screen in a hurry is not here to
-          read a FAQ. */}
-      <Pressable
-        style={styles.emergency}
-        onPress={() => Linking.openURL(`tel:${EMERGENCY_NUMBER}`)}
-        accessibilityRole="button"
-      >
-        <View style={styles.emergencyWell}>
-          <Ionicons name="call" size={22} color={theme.onAccent} />
-        </View>
-        <View style={styles.flex}>
-          <Text style={styles.emergencyTitle}>Call {EMERGENCY_NUMBER}</Text>
-          <Text style={styles.emergencyBody}>Rwanda emergency services</Text>
-        </View>
-        <Ionicons name="chevron-forward" size={20} color={theme.danger} />
-      </Pressable>
-
-      <Text style={styles.section}>Staying safe</Text>
-      {SAFETY.map((s) => (
-        <Card key={s.title} style={styles.item}>
-          <View style={styles.well}>
-            <Ionicons name={s.icon} size={18} color={theme.accent} />
+    <Screen title="Help and safety" onBack={() => goBack(router)}>
+      <View style={styles.stack}>
+        {/* First, because someone opening this screen in a hurry is not here to
+            read a FAQ. */}
+        <Pressable
+          style={styles.emergency}
+          onPress={() => Linking.openURL(`tel:${EMERGENCY_NUMBER}`)}
+          accessibilityRole="button"
+        >
+          <View style={styles.emergencyWell}>
+            <Ionicons name="call" size={22} color={c.onAccent} />
           </View>
           <View style={styles.flex}>
-            <Text style={styles.cardTitle}>{s.title}</Text>
-            <Text style={styles.cardBody}>{s.body}</Text>
+            <Txt v="figure" tone="bad">
+              Call {EMERGENCY_NUMBER}
+            </Txt>
+            <Txt v="label" tone="bad">
+              Rwanda emergency services
+            </Txt>
           </View>
-        </Card>
-      ))}
+          <Ionicons name="chevron-forward" size={20} color={c.danger} />
+        </Pressable>
 
-      <Text style={styles.section}>Common questions</Text>
-      {FAQ.map((f) => (
-        <Card key={f.q} style={styles.faq}>
-          <Text style={styles.cardTitle}>{f.q}</Text>
-          <Text style={styles.cardBody}>{f.a}</Text>
-        </Card>
-      ))}
+        <Group title="Staying safe">
+          {SAFETY.map((s, i) => (
+            <View key={s.title}>
+              {i > 0 ? <Divider inset={70} /> : null}
+              <Row title={s.title} subtitle={s.body} icon={s.icon} iconTone="good" />
+            </View>
+          ))}
+        </Group>
 
-      {/* Said plainly rather than implied by a support button that goes
-          nowhere. A promise of help nobody answers is worse than none. */}
-      <Text style={styles.footnote}>
-        Gera does not have a 24-hour support line yet. For anything urgent during a
-        trip, use the Help button on your trip screen — it records your location and
-        who you're with — and call {EMERGENCY_NUMBER} if you're in danger.
-      </Text>
-    </ScrollView>
+        <Group title="Common questions">
+          {FAQ.map((f, i) => {
+            const isOpen = open === f.q;
+            return (
+              <View key={f.q}>
+                {i > 0 ? <Divider /> : null}
+                <Pressable
+                  onPress={() => {
+                    tap();
+                    setOpen(isOpen ? null : f.q);
+                  }}
+                  accessibilityRole="button"
+                  accessibilityState={{ expanded: isOpen }}
+                  style={styles.faq}
+                >
+                  <View style={styles.faqHead}>
+                    <Txt v="bodyStrong" style={styles.flex}>
+                      {f.q}
+                    </Txt>
+                    <Ionicons name={isOpen ? "remove" : "add"} size={20} color={c.textMuted} />
+                  </View>
+                  {isOpen ? (
+                    <Txt v="body" tone="muted">
+                      {f.a}
+                    </Txt>
+                  ) : null}
+                </Pressable>
+              </View>
+            );
+          })}
+        </Group>
+
+        {/* Said plainly rather than implied by a support button that goes
+            nowhere. A promise of help nobody answers is worse than none. */}
+        <Txt v="label" tone="muted">
+          Gera doesn't have a 24-hour support line yet. During a trip, the Safety button records your
+          location and who you're with. If you're in danger, call {EMERGENCY_NUMBER}.
+        </Txt>
+      </View>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface },
-  content: { paddingHorizontal: tokens.space.lg },
   flex: { flex: 1 },
-  title: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-    marginBottom: tokens.space.lg,
-  },
+  stack: { gap: space.lg },
   emergency: {
     flexDirection: "row",
     alignItems: "center",
-    gap: tokens.space.md,
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.lg,
-    backgroundColor: theme.dangerSoft,
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: c.dangerSoft,
   },
   emergencyWell: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: theme.danger,
+    backgroundColor: c.danger,
     alignItems: "center",
     justifyContent: "center",
   },
-  emergencyTitle: {
-    fontSize: tokens.type.body.size + 2,
-    fontWeight: "700",
-    color: theme.danger,
-  },
-  emergencyBody: { fontSize: tokens.type.label.size, color: theme.danger },
-  section: {
-    marginTop: tokens.space.xl,
-    marginBottom: tokens.space.sm,
-    fontSize: tokens.type.label.size,
-    fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
-    color: theme.textMuted,
-  },
-  item: {
-    flexDirection: "row",
-    gap: tokens.space.sm,
-    marginBottom: tokens.space.sm,
-  },
-  well: {
-    width: 32,
-    height: 32,
-    borderRadius: tokens.radius.sm,
-    backgroundColor: theme.accentSoft,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  faq: { marginBottom: tokens.space.sm },
-  cardTitle: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  cardBody: {
-    marginTop: tokens.space.xs,
-    fontSize: tokens.type.body.size,
-    lineHeight: tokens.type.body.leading,
-    color: theme.textMuted,
-  },
-  footnote: {
-    marginTop: tokens.space.xl,
-    fontSize: tokens.type.label.size,
-    lineHeight: 20,
-    color: theme.textMuted,
-  },
+  faq: { padding: space.md, gap: space.sm },
+  faqHead: { flexDirection: "row", alignItems: "center", gap: space.md },
 });

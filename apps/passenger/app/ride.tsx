@@ -1,245 +1,251 @@
-import { useCallback, useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  Alert,
-  Linking,
-  Pressable,
-  Share,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { Alert, Linking, Pressable, Share, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { theme, tokens, ROUTE_DOT, railGeometry } from "@gera/ui";
+import { GeraMap, Paper, c, notify, shadow, space, type MapMarker } from "@gera/kit";
 import {
-  requestQuote,
-  createTripFromQuote,
-  getTrip,
-  getRiderCard,
-  getRoute,
-  getTripContact,
-  cancelTrip,
-  rateTrip,
-  watchTrip,
-  getRiderPosition,
-  raiseSos,
-  shareTripText,
-  etaLabel,
   EMERGENCY_NUMBER,
+  cancelTrip,
+  createTripFromQuote,
+  getRidePin,
+  getRiderCard,
+  getRiderPosition,
+  getRoute,
+  getTrip,
+  getTripContact,
+  getTripPoints,
+  getTripTotal,
+  getWaitStatus,
   isTripLive,
-  type RiderPosition,
+  nearestLandmark,
+  pickupLabelFor,
+  raiseSos,
+  rateTrip,
+  requestQuote,
+  shareTripText,
+  watchTrip,
+  distanceBetween,
   type QuoteResult,
-  type TripSnapshot,
   type RiderCard,
+  type RiderPosition,
+  type TripPoints,
+  type TripSnapshot,
+  type TripTotal,
+  type WaitStatus,
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
-import { TripMap, type MapMarker } from "../src/components/TripMap";
-import { Sheet } from "../src/components/Sheet";
+import { goBack } from "../src/lib/nav";
+import * as loc from "../src/lib/location";
+import { CLASSES, Choose, type VehicleClass } from "../src/ride/Choose";
+import { Assigned, Ended, Searching } from "../src/ride/Live";
+import { Completed } from "../src/ride/Completed";
 
-const PICKUP = { lat: -1.9403, lng: 30.1128 };
-const PICKUP_LABEL = "Kimironko Market";
-
-// Moto first and default: it is the dominant mode in Kigali. Ordering it second
-// would import a Western assumption about what a ride normally is.
-const CLASSES = [
-  { id: "moto", label: "Moto", blurb: "Fastest through traffic", icon: "bicycle" },
-  { id: "cab", label: "Cab", blurb: "Covered, up to 3 people", icon: "car" },
-  { id: "cab_xl", label: "Cab XL", blurb: "More room and luggage", icon: "car-sport" },
-] as const;
-
-type VehicleClass = (typeof CLASSES)[number]["id"];
-
-/** Straight-line metres. Real road distance arrives with navigation. */
-function haversineM(a: typeof PICKUP, b: typeof PICKUP): number {
-  const R = 6371000;
-  const dLat = ((b.lat - a.lat) * Math.PI) / 180;
-  const dLng = ((b.lng - a.lng) * Math.PI) / 180;
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((a.lat * Math.PI) / 180) *
-      Math.cos((b.lat * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
-  return Math.round(2 * R * Math.asin(Math.sqrt(s)));
-}
-
-const money = (rwf: number) => rwf.toLocaleString("en-US");
+const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const num = (v: string | string[] | undefined) => {
+  const n = Number(one(v));
+  return Number.isFinite(n) && one(v) !== undefined ? n : null;
+};
 
 export default function Ride() {
   const router = useRouter();
-  const params = useLocalSearchParams<{
-    lng?: string | string[];
-    lat?: string | string[];
-    label?: string | string[];
-    note?: string | string[];
-  }>();
-  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<Record<string, string | string[]>>();
 
-  const lng = Number(one(params.lng));
-  const lat = Number(one(params.lat));
-  const label = one(params.label) ?? "Destination";
-  const note = one(params.note);
-  const haveDropoff = Number.isFinite(lat) && Number.isFinite(lng);
+  // Two ways in: a destination to book, or a trip id to resume.
+  const resumeId = one(params.trip);
+  const dropLat = num(params.lat);
+  const dropLng = num(params.lng);
+  const dropoff = dropLat !== null && dropLng !== null ? { lat: dropLat, lng: dropLng } : null;
+  const dropLabel = one(params.label) ?? "Destination";
 
-  const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
-  const [quote, setQuote] = useState<QuoteResult | null>(null);
+  const [pickup, setPickup] = useState<loc.Coords | null>(() => {
+    const la = num(params.plat);
+    const ln = num(params.plng);
+    return la !== null && ln !== null ? { lat: la, lng: ln } : null;
+  });
+  const [pickupLabel, setPickupLabel] = useState(one(params.plabel) ?? "Current location");
+  const [pickupNote, setPickupNote] = useState("");
+
+  const [road, setRoad] = useState<{ distanceM: number; durationS: number } | null>(null);
+  const [quotes, setQuotes] = useState<Partial<Record<VehicleClass, QuoteResult>>>({});
+  const [selected, setSelected] = useState<VehicleClass>("moto");
+
   const [trip, setTrip] = useState<TripSnapshot | null>(null);
+  const [points, setPoints] = useState<TripPoints | null>(null);
   const [rider, setRider] = useState<RiderCard | null>(null);
   const [riderAt, setRiderAt] = useState<RiderPosition | null>(null);
-  const [rating, setRating] = useState(0);
+  const [pin, setPin] = useState<string | null>(null);
+  const [wait, setWait] = useState<{ status: WaitStatus; readAt: number } | null>(null);
+  const [total, setTotal] = useState<TripTotal | null>(null);
   const [rated, setRated] = useState(false);
+  const [now, setNow] = useState(Date.now());
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [paperH, setPaperH] = useState(420);
 
-  // Straight-line until the server answers with a real road route. Kigali is
-  // built on ridges: two points 2km apart across a valley can be a 5km drive,
-  // so the straight line under-reads badly and the rider would be paid for a
-  // trip nobody made. The fallback exists only so a routing outage still
-  // produces a quote.
-  const fallbackM = haveDropoff ? haversineM(PICKUP, { lat, lng }) : 0;
-  const [road, setRoad] = useState<{ distanceM: number; durationS: number } | null>(null);
-
-  const distanceM = road?.distanceM ?? fallbackM;
-  // ~27 km/h through Kigali traffic, in metres per second.
-  const durationS = road?.durationS ?? Math.max(60, Math.round(fallbackM / 7.5));
-
+  // ---- resuming ----------------------------------------------------------------
   useEffect(() => {
-    if (!haveDropoff || trip) return;
+    if (!resumeId) return;
+    getTrip(supabase, resumeId).then(setTrip).catch(() => setError("Could not load that trip."));
+  }, [resumeId]);
+
+  // ---- where the passenger is --------------------------------------------------
+  // Only when booking and the home screen did not already have a fix.
+  useEffect(() => {
+    if (resumeId || pickup) return;
     let active = true;
-    getRoute(supabase, PICKUP, { lat, lng })
-      .then((r) => {
-        if (active && r) setRoad(r);
-      })
-      .catch(() => {
-        // getRoute already returns null on failure; this is belt and braces.
-      });
+    (async () => {
+      if (!(await loc.requestPermission())) return;
+      const at = await loc.getCurrent(8000);
+      if (!active || !at) return;
+      setPickup(at);
+      nearestLandmark(supabase, at)
+        .then((l) => active && setPickupLabel(pickupLabelFor(l)))
+        .catch(() => {});
+    })();
     return () => {
       active = false;
     };
-  }, [haveDropoff, lat, lng, trip]);
+  }, [resumeId, pickup]);
 
-  // Re-quote whenever the class changes, so the price on screen is always the
-  // price that gets booked. Spec: the quote is locked, not an estimate.
+  // ---- pricing -------------------------------------------------------------------
+  const straightM = pickup && dropoff ? distanceBetween(pickup, dropoff) : 0;
+  // Road distance when the router answers; straight-line otherwise. Kigali is
+  // built on ridges, so the straight line under-reads - it is only a fallback.
+  const distanceM = road?.distanceM ?? straightM;
+  const durationS = road?.durationS ?? Math.max(60, Math.round(straightM / 7.5));
+
   useEffect(() => {
-    if (trip || !haveDropoff) return;
+    if (trip || !pickup || !dropoff) return;
     let active = true;
-    setBusy(true);
+    getRoute(supabase, pickup, dropoff)
+      .then((r) => active && r && setRoad(r))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [trip, pickup?.lat, pickup?.lng, dropLat, dropLng]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Every class quoted at once, so each option carries its own locked price.
+  useEffect(() => {
+    if (trip || !pickup || !dropoff || distanceM <= 0) return;
+    let active = true;
     setError(null);
-    requestQuote(supabase, { vehicleClass, distanceM, durationS })
-      .then((q) => {
-        if (active) setQuote(q);
-      })
-      .catch(() => {
-        if (active) setError("Could not get a price just now.");
-      })
-      .finally(() => {
-        if (active) setBusy(false);
-      });
+    Promise.all(
+      CLASSES.map((k) =>
+        requestQuote(supabase, { vehicleClass: k.id, distanceM, durationS })
+          .then((q) => [k.id, q] as const)
+          .catch(() => null),
+      ),
+    ).then((rows) => {
+      if (!active) return;
+      const got = Object.fromEntries(rows.filter((r): r is NonNullable<typeof r> => r !== null));
+      setQuotes(got);
+      if (Object.keys(got).length === 0) setError("Could not get a price just now. Check your connection.");
+    });
     return () => {
       active = false;
     };
-  }, [vehicleClass, distanceM, durationS, trip, haveDropoff]);
+  }, [trip, distanceM, durationS]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Realtime is the primary signal; the slow poll is a backstop for a dropped
-  // websocket, which on a Kigali mobile connection is not rare. Fifteen seconds
-  // rather than three: it only has to catch a subscription that died, and a
-  // three-second poll was spending a passenger's data bundle on a row that changes
-  // four or five times in a whole trip.
+  // ---- the live trip ---------------------------------------------------------------
+  const live = trip ? isTripLive(trip.state) : false;
+
   useEffect(() => {
-    if (!trip || !isTripLive(trip.state)) return;
+    if (!trip || !live) return;
     const tripId = trip.id;
-
-    const refresh = () => {
-      getTrip(supabase, tripId)
-        .then(setTrip)
-        .catch(() => {
-          // A dropped read is not a failed trip.
-        });
-    };
-
+    const refresh = () => getTrip(supabase, tripId).then(setTrip).catch(() => {});
     const sub = watchTrip(supabase, tripId, refresh);
     const id = setInterval(refresh, 15000);
-
     return () => {
       sub.unsubscribe();
       clearInterval(id);
     };
-    // Keyed on the id, not the whole trip: re-subscribing on every state change
-    // would tear down the channel exactly when it is doing its job.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [trip?.id, trip !== null && isTripLive(trip.state)]);
+  }, [trip?.id, live]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Follow the rider. This is what turns "Rider on the way" from a spinner
-  // into something a passenger can believe: the marker moves, and the ETA counts
-  // down. Polled rather than pushed - the track points arrive far faster than
-  // the trip row changes, and a re-read every four seconds is cheaper than a
-  // second realtime channel per trip.
   useEffect(() => {
-    if (!trip?.riderId || !isTripLive(trip.state)) {
+    if (!trip) return;
+    getTripPoints(supabase, trip.id).then(setPoints).catch(() => {});
+  }, [trip?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (!trip?.riderId || rider) return;
+    getRiderCard(supabase, trip.id).then(setRider).catch(() => {});
+  }, [trip?.riderId, trip?.id, rider]);
+
+  // The rider moving on the map is what makes "on the way" believable.
+  useEffect(() => {
+    if (!trip?.riderId || !live) {
       setRiderAt(null);
       return;
     }
     const tripId = trip.id;
     let active = true;
-
-    const read = () => {
-      getRiderPosition(supabase, tripId)
-        .then((p) => {
-          if (active) setRiderAt(p);
-        })
-        .catch(() => {
-          // No fix yet is an ordinary state, not an error.
-        });
-    };
-
-    read();
+    const read = () => getRiderPosition(supabase, tripId).then((p) => active && setRiderAt(p)).catch(() => {});
+    void read();
     const id = setInterval(read, 4000);
     return () => {
       active = false;
       clearInterval(id);
     };
-  }, [trip?.id, trip?.riderId, trip?.state]);
+  }, [trip?.id, trip?.riderId, live]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Fetch the rider card once, when a rider is first assigned. It does not
-  // change for the life of the trip, so re-fetching it on every poll would be
-  // three requests a second for a name and a plate.
   useEffect(() => {
-    if (!trip?.riderId || rider) return;
+    if (!trip || (trip.state !== "accepted" && trip.state !== "arrived")) return;
+    getRidePin(supabase, trip.id).then(setPin).catch(() => {});
+  }, [trip?.id, trip?.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setWait(null);
+    if (!trip || trip.state !== "arrived") return;
+    notify("warning");
     let active = true;
-    getRiderCard(supabase, trip.id)
-      .then((d) => {
-        if (active) setRider(d);
-      })
-      .catch(() => {
-        // The card is a convenience. Losing it must not break the trip screen.
-      });
+    const read = () =>
+      getWaitStatus(supabase, trip.id)
+        .then((s) => active && s && setWait({ status: s, readAt: Date.now() }))
+        .catch(() => {});
+    void read();
+    const sync = setInterval(read, 30_000);
+    const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => {
       active = false;
+      clearInterval(sync);
+      clearInterval(tick);
     };
-  }, [trip?.riderId, trip?.id, rider]);
+  }, [trip?.id, trip?.state]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  useEffect(() => {
+    if (trip?.state !== "completed") return;
+    notify("success");
+    getTripTotal(supabase, trip.id).then(setTotal).catch(() => {});
+  }, [trip?.id, trip?.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- actions -----------------------------------------------------------------------
   const book = useCallback(async () => {
-    if (!quote) return;
+    const quote = quotes[selected];
+    if (!quote || !pickup || !dropoff) return;
     setBusy(true);
     setError(null);
     try {
       const created = await createTripFromQuote(supabase, {
         quoteId: quote.quoteId,
-        pickup: PICKUP,
-        pickupLabel: PICKUP_LABEL,
-        ...(note ? { pickupNote: note } : {}),
-        dropoff: { lng, lat },
-        dropoffLabel: label,
+        pickup,
+        pickupLabel,
+        ...(pickupNote.trim() ? { pickupNote: pickupNote.trim() } : {}),
+        dropoff,
+        dropoffLabel: dropLabel,
       });
       setTrip(await getTrip(supabase, created.id));
     } catch {
-      setError("Could not book that ride. Your price may have expired.");
+      setError("Could not book that ride. The price may have expired - pick again.");
     } finally {
       setBusy(false);
     }
-  }, [quote, note, label, lng, lat]);
+  }, [quotes, selected, pickup, dropoff, pickupLabel, pickupNote, dropLabel]);
 
-  const onCall = useCallback(async () => {
+  const call = async () => {
     if (!trip) return;
     try {
       const contact = await getTripContact(supabase, trip.id);
@@ -251,11 +257,11 @@ export default function Ride() {
     } catch {
       Alert.alert("Could not call", "Try again in a moment.");
     }
-  }, [trip]);
+  };
 
-  const onCancel = useCallback(() => {
+  const cancel = () => {
     if (!trip) return;
-    Alert.alert("Cancel this trip?", "Your rider is on the way.", [
+    Alert.alert("Cancel this trip?", trip.riderId ? "Your rider is already on the way." : "", [
       { text: "Keep it", style: "cancel" },
       {
         text: "Cancel trip",
@@ -273,24 +279,9 @@ export default function Ride() {
         },
       },
     ]);
-  }, [trip]);
+  };
 
-  const onRate = useCallback(
-    async (stars: number) => {
-      if (!trip) return;
-      setRating(stars);
-      try {
-        await rateTrip(supabase, trip.id, stars);
-        setRated(true);
-      } catch {
-        setRating(0);
-        setError("Could not save your rating.");
-      }
-    },
-    [trip],
-  );
-
-  const onShare = useCallback(async () => {
+  const share = async () => {
     if (!trip) return;
     try {
       await Share.share({
@@ -305,471 +296,145 @@ export default function Ride() {
     } catch {
       // The passenger dismissed the share sheet.
     }
-  }, [trip, rider, riderAt]);
+  };
 
-  const onSos = useCallback(() => {
-    Alert.alert(
-      "Emergency",
-      "We'll record where you are and who you're with. If you're in danger, call 112.",
-      [
-        { text: "Close", style: "cancel" },
-        {
-          text: "Record alert",
-          onPress: async () => {
-            try {
-              await raiseSos(supabase, {
-                ...(trip ? { tripId: trip.id } : {}),
-                ...(riderAt ? { at: { lng: riderAt.lng, lat: riderAt.lat } } : {}),
-              });
-              Alert.alert("Recorded", "Your alert and location have been saved.");
-            } catch {
-              Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
-            }
-          },
+  const sos = () => {
+    Alert.alert("Safety", `We'll record where you are and who you're with. If you're in danger, call ${EMERGENCY_NUMBER}.`, [
+      { text: "Close", style: "cancel" },
+      {
+        text: "Record alert",
+        onPress: async () => {
+          try {
+            await raiseSos(supabase, {
+              ...(trip ? { tripId: trip.id } : {}),
+              ...(riderAt ? { at: { lng: riderAt.lng, lat: riderAt.lat } } : {}),
+            });
+            Alert.alert("Recorded", "Your alert and location have been saved.");
+          } catch {
+            Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
+          }
         },
-        {
-          text: `Call ${EMERGENCY_NUMBER}`,
-          style: "destructive",
-          onPress: () => {
-            void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
-            void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
-          },
+      },
+      {
+        text: `Call ${EMERGENCY_NUMBER}`,
+        style: "destructive",
+        onPress: () => {
+          void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
+          void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
         },
-      ],
+      },
+    ]);
+  };
+
+  // ---- map -------------------------------------------------------------------------
+  const from = points?.pickup ?? pickup;
+  const to = points?.dropoff ?? dropoff;
+  const markers = useMemo(() => {
+    const m: MapMarker[] = [];
+    if (from) m.push({ id: "pickup", at: from, kind: trip ? "pickup" : "me", tag: trip ? "Pickup" : undefined });
+    if (to) m.push({ id: "dropoff", at: to, kind: "dropoff", tag: trip ? undefined : dropLabel });
+    if (riderAt) m.push({ id: "rider", at: riderAt, kind: "rider", tag: rider?.vestNumber ?? "" });
+    return m;
+  }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- sheet ---------------------------------------------------------------------------
+  let body;
+  if (!trip) {
+    body = (
+      <Choose
+        destination={dropLabel}
+        pickupLabel={pickupLabel}
+        quotes={quotes}
+        selected={selected}
+        onSelect={setSelected}
+        pickupNote={pickupNote}
+        onPickupNote={setPickupNote}
+        durationS={road?.durationS ?? null}
+        busy={busy}
+        error={pickup ? error : "We need your location to send a rider. Turn on location and try again."}
+        canBook={!!pickup}
+        onBook={book}
+      />
     );
-  }, [trip, riderAt]);
-
-  const state = trip?.state ?? (quote ? "quoted" : "idle");
-  // Cancellable exactly where trip_transition_rules says it is, so the button
-  // never appears for a transition the server would refuse.
-  const cancellable =
-    trip !== null &&
-    ["requested", "offered", "accepted", "arrived"].includes(trip.state);
-
-  const markers: MapMarker[] = [
-    { id: "p", at: PICKUP, label: "Pickup", kind: "pickup" },
-    ...(haveDropoff ? [{ id: "d", at: { lat, lng }, label, kind: "dropoff" as const }] : []),
-    ...(riderAt
-      ? [
-          {
-            id: "drv",
-            at: { lat: riderAt.lat, lng: riderAt.lng },
-            label: rider?.firstName ? `${rider.firstName} · ${etaLabel(riderAt.etaSeconds)}` : "Your rider",
-            kind: "rider" as const,
-          },
-        ]
-      : []),
-  ];
+  } else if (trip.state === "requested" || trip.state === "offered") {
+    body = <Searching onCancel={cancel} busy={busy} />;
+  } else if (live) {
+    body = (
+      <Assigned
+        trip={trip}
+        rider={rider}
+        riderAt={riderAt}
+        pin={pin}
+        wait={wait}
+        now={now}
+        busy={busy}
+        onCall={call}
+        onShare={share}
+        onSos={sos}
+        onCancel={cancel}
+      />
+    );
+  } else if (trip.state === "completed") {
+    body = (
+      <Completed
+        total={total}
+        quoted={trip.quotedAmountRwf}
+        riderName={rider?.firstName ?? "your rider"}
+        rated={rated}
+        onRate={async (stars, comment) => {
+          try {
+            await rateTrip(supabase, trip.id, stars, comment || undefined);
+            setRated(true);
+          } catch {
+            setError("Could not save your rating.");
+          }
+        }}
+        onDone={() => router.replace("/")}
+      />
+    );
+  } else {
+    body = <Ended state={trip.state} onAgain={() => router.replace("/")} />;
+  }
 
   return (
     <View style={styles.root}>
-      <TripMap center={PICKUP} markers={markers} />
-
-      <Sheet state={state}>
-        {trip ? (
-          <View style={styles.flex}>
-            <View style={styles.routeBlock}>
-              <View style={styles.rail}>
-                <View style={[styles.dot, styles.dotOrigin]} />
-                <View style={styles.railLine} />
-                <View style={[styles.dot, styles.dotDestination]} />
-              </View>
-              <View style={styles.flex}>
-                <Text style={styles.leg} numberOfLines={1}>{trip.pickupLabel}</Text>
-                <Text style={[styles.leg, styles.legLast]} numberOfLines={1}>
-                  {trip.dropoffLabel}
-                </Text>
-              </View>
-            </View>
-            {trip.quotedAmountRwf !== null ? (
-              <View style={styles.fareRow}>
-                <Text style={styles.fare}>{money(trip.quotedAmountRwf)}</Text>
-                <Text style={styles.fareUnit}>RWF</Text>
-              </View>
-            ) : null}
-            {riderAt && trip.state !== "completed" ? (
-              <Text style={styles.eta}>
-                {trip.state === "in_progress"
-                  ? `About ${etaLabel(riderAt.etaSeconds)} to go`
-                  : `About ${etaLabel(riderAt.etaSeconds)} away`}
-              </Text>
-            ) : null}
-
-            <Text style={styles.payNote}>
-              {trip.state === "completed"
-                ? "Pay your rider in cash now."
-                : "Pay your rider in cash at the end."}
-            </Text>
-
-            {/* What the passenger needs at the kerb: who to look for, and which
-                vehicle is theirs. Nothing here identifies the rider further. */}
-            {rider ? (
-              <View style={styles.riderCard}>
-                <View style={styles.riderAvatar}>
-                  <Text style={styles.riderInitial}>
-                    {rider.firstName.trim().charAt(0).toUpperCase()}
-                  </Text>
-                </View>
-                <View style={styles.flex}>
-                  <Text style={styles.riderName}>{rider.firstName}</Text>
-                  <Text style={styles.riderMeta}>
-                    {rider.vehicleClass === "moto"
-                      ? "Moto"
-                      : rider.vehicleClass === "cab_xl"
-                        ? "Cab XL"
-                        : "Cab"}
-                    {rider.vestNumber ? ` · vest ${rider.vestNumber}` : ""}
-                  </Text>
-                </View>
-                {rider.plate ? (
-                  <View style={styles.plateChip}>
-                    <Text style={styles.plate}>{rider.plate}</Text>
-                  </View>
-                ) : null}
-              </View>
-            ) : null}
-
-            {rider && isTripLive(trip.state) ? (
-              <View style={styles.actions}>
-                <Pressable style={styles.action} onPress={onCall} accessibilityRole="button">
-                  <View style={styles.actionCircle}>
-                    <Ionicons name="call" size={20} color={theme.textStrong} />
-                  </View>
-                  <Text style={styles.actionLabel}>Call</Text>
-                </Pressable>
-                <Pressable style={styles.action} onPress={onShare} accessibilityRole="button">
-                  <View style={styles.actionCircle}>
-                    <Ionicons name="share-social" size={20} color={theme.textStrong} />
-                  </View>
-                  <Text style={styles.actionLabel}>Share</Text>
-                </Pressable>
-
-                <Pressable style={styles.action} onPress={onSos} accessibilityRole="button">
-                  <View style={[styles.actionCircle, styles.actionDanger]}>
-                    <Ionicons name="alert" size={20} color={theme.danger} />
-                  </View>
-                  <Text style={styles.actionLabel}>Help</Text>
-                </Pressable>
-
-                {cancellable ? (
-                  <Pressable
-                    style={styles.action}
-                    onPress={onCancel}
-                    disabled={busy}
-                    accessibilityRole="button"
-                  >
-                    <View style={styles.actionCircle}>
-                      <Ionicons name="close" size={22} color={theme.danger} />
-                    </View>
-                    <Text style={styles.actionLabel}>Cancel</Text>
-                  </Pressable>
-                ) : null}
-              </View>
-            ) : null}
-
-            {/* Rating lives on the completed sheet, not a separate screen: the
-                moment the passenger is most willing to give one is right now. */}
-            {trip.state === "completed" ? (
-              <View style={styles.rateBlock}>
-                <Text style={styles.rateLabel}>
-                  {rated ? "Thanks for rating" : "How was your trip?"}
-                </Text>
-                <View style={styles.stars}>
-                  {[1, 2, 3, 4, 5].map((n) => (
-                    <Pressable
-                      key={n}
-                      onPress={() => onRate(n)}
-                      disabled={rated}
-                      style={styles.star}
-                      accessibilityRole="button"
-                      accessibilityLabel={`${n} star${n > 1 ? "s" : ""}`}
-                    >
-                      {/* Drawn rather than typed: the star character falls back
-                          to a different font on some Android builds and rendered
-                          at a visibly different size from its neighbours. */}
-                      <Ionicons
-                        name={n <= rating ? "star" : "star-outline"}
-                        size={32}
-                        color={n <= rating ? theme.warning : theme.textMuted}
-                      />
-                    </Pressable>
-                  ))}
-                </View>
-              </View>
-            ) : null}
-
-            {trip.state === "no_riders" ? (
-              <Text style={styles.sorry}>
-                Nobody is free near you right now. Try again in a few minutes.
-              </Text>
-            ) : null}
-
-            {isTripLive(trip.state) ? (
-              <>
-                <ActivityIndicator style={styles.spin} color={theme.accent} />
-                {/* Before a rider is assigned there is no action row, so
-                    cancelling needs its own way out. */}
-                {cancellable && !rider ? (
-                  <Pressable
-                    style={styles.cancel}
-                    onPress={onCancel}
-                    disabled={busy}
-                    accessibilityRole="button"
-                  >
-                    <Text style={styles.cancelText}>Cancel trip</Text>
-                  </Pressable>
-                ) : null}
-              </>
-            ) : (
-              <Pressable
-                style={styles.cta}
-                onPress={() => router.replace("/")}
-                accessibilityRole="button"
-              >
-                <Text style={styles.ctaText}>Done</Text>
-              </Pressable>
-            )}
-          </View>
-        ) : (
-          <View style={styles.flex}>
-            {CLASSES.map((c) => {
-              const selected = vehicleClass === c.id;
-              return (
-                <Pressable
-                  key={c.id}
-                  style={[styles.card, selected && styles.cardActive]}
-                  onPress={() => setVehicleClass(c.id)}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected }}
-                >
-                  <View style={[styles.classWell, selected && styles.classWellOn]}>
-                    <Ionicons
-                      name={c.icon}
-                      size={20}
-                      color={selected ? theme.onAccent : theme.textMuted}
-                    />
-                  </View>
-                  <View style={styles.flex}>
-                    <Text style={styles.cardLabel}>{c.label}</Text>
-                    <Text style={styles.cardBlurb}>{c.blurb}</Text>
-                  </View>
-                  {selected && quote ? (
-                    <Text style={styles.cardPrice}>{money(quote.amountRwf)} RWF</Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-
-            {error ? <Text style={styles.error}>{error}</Text> : null}
-
-            <Pressable
-              style={[styles.cta, (!quote || busy) && styles.ctaDisabled]}
-              onPress={book}
-              disabled={!quote || busy}
-              accessibilityRole="button"
-            >
-              <Text style={styles.ctaText}>
-                {busy
-                  ? "Just a moment…"
-                  : quote
-                    ? `Book for ${money(quote.amountRwf)} RWF`
-                    : "Getting price…"}
-              </Text>
-            </Pressable>
-          </View>
-        )}
-      </Sheet>
+      <GeraMap
+        center={from ?? loc.KIGALI_FALLBACK}
+        markers={markers}
+        route={from && to && (!trip || trip.state === "requested" || trip.state === "offered") ? [from, to] : undefined}
+        fit={markers.length > 1}
+        topInset={insets.top + 56}
+        bottomInset={paperH}
+      />
+      {!trip || !live ? (
+        <Pressable
+          onPress={() => (trip ? router.replace("/") : goBack(router))}
+          style={[styles.back, { top: insets.top + space.sm }]}
+          accessibilityRole="button"
+          accessibilityLabel="Back"
+        >
+          <Ionicons name={trip ? "close" : "arrow-back"} size={22} color={c.textStrong} />
+        </Pressable>
+      ) : null}
+      <View style={styles.sheet} onLayout={(e) => setPaperH(e.nativeEvent.layout.height)}>
+        <Paper>{body}</Paper>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: theme.surface },
-  flex: { flex: 1 },
-  card: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: tokens.space.sm,
-    minHeight: tokens.MIN_TOUCH_TARGET + 8,
-    paddingHorizontal: tokens.space.md,
-    paddingVertical: tokens.space.sm,
-    borderRadius: tokens.radius.md,
-    borderWidth: 2,
-    borderColor: "transparent",
-    backgroundColor: theme.surfaceHigh,
-    marginBottom: tokens.space.sm,
-  },
-  // Selection is carried by a tint as well as a border. A border alone is a
-  // 2pt difference to find on a phone in sunlight.
-  cardActive: { borderColor: theme.accent, backgroundColor: theme.accentSoft },
-  classWell: {
-    width: 38,
-    height: 38,
-    borderRadius: tokens.radius.sm,
-    backgroundColor: theme.surfaceRaised,
+  root: { flex: 1, backgroundColor: c.surface },
+  sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  back: {
+    position: "absolute",
+    left: space.md,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: c.surfaceRaised,
     alignItems: "center",
     justifyContent: "center",
-  },
-  classWellOn: { backgroundColor: theme.accent },
-  cardLabel: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  cardBlurb: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  cardPrice: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  fareRow: {
-    flexDirection: "row",
-    alignItems: "baseline",
-    marginTop: tokens.space.sm,
-  },
-  fare: {
-    fontSize: tokens.type.display.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-    letterSpacing: -1,
-  },
-  fareUnit: {
-    marginLeft: tokens.space.xs,
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.textMuted,
-  },
-  payNote: {
-    fontSize: tokens.type.label.size,
-    color: theme.textMuted,
-    marginTop: tokens.space.xs,
-  },
-  riderCard: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: tokens.space.md,
-    marginTop: tokens.space.md,
-    padding: tokens.space.md,
-    borderRadius: tokens.radius.md,
-    backgroundColor: theme.surfaceHigh,
-  },
-  riderAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: theme.accent,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  riderInitial: {
-    fontSize: tokens.type.body.size + 2,
-    fontWeight: "700",
-    color: theme.onAccent,
-  },
-  riderName: {
-    fontSize: tokens.type.title.size,
-    fontWeight: "700",
-    color: theme.textStrong,
-  },
-  riderMeta: { fontSize: tokens.type.label.size, color: theme.textMuted },
-  // The plate is what the passenger scans the kerb for, so it is set like a
-  // plate: boxed, spaced, and the only monospaced-looking thing on the sheet.
-  plateChip: {
-    paddingHorizontal: tokens.space.sm,
-    paddingVertical: tokens.space.xs,
-    borderRadius: tokens.radius.sm,
-    backgroundColor: theme.surfaceRaised,
-    borderWidth: 1,
-    borderColor: theme.border,
-  },
-  plate: {
-    fontSize: tokens.type.body.size + 1,
-    fontWeight: "700",
-    letterSpacing: 1.5,
-    color: theme.textStrong,
-  },
-  sorry: {
-    marginTop: tokens.space.md,
-    fontSize: tokens.type.body.size,
-    color: theme.textMuted,
-  },
-  routeBlock: { flexDirection: "row", alignItems: "center" },
-  rail: { width: ROUTE_DOT.size, alignItems: "center", marginRight: tokens.space.md },
-  dot: { width: ROUTE_DOT.size, height: ROUTE_DOT.size, borderRadius: tokens.radius.pill },
-  dotOrigin: { backgroundColor: theme.origin },
-  dotDestination: { backgroundColor: theme.destination },
-  railLine: {
-    width: ROUTE_DOT.railWidth,
-    height: railGeometry().height,
-    backgroundColor: theme.border,
-  },
-  leg: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "600",
-    color: theme.textStrong,
-    height: ROUTE_DOT.size + ROUTE_DOT.gap / 2,
-  },
-  legLast: { height: undefined },
-  actions: {
-    flexDirection: "row",
-    gap: tokens.space.lg,
-    marginTop: tokens.space.md,
-  },
-  action: { alignItems: "center" },
-  actionCircle: {
-    width: tokens.MIN_TOUCH_TARGET,
-    height: tokens.MIN_TOUCH_TARGET,
-    borderRadius: tokens.radius.pill,
-    backgroundColor: theme.surfaceHigh,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  actionDanger: { backgroundColor: theme.dangerSoft },
-  eta: {
-    marginTop: tokens.space.xs,
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.accent,
-  },
-  actionLabel: {
-    marginTop: tokens.space.xs,
-    fontSize: tokens.type.label.size,
-    color: theme.textMuted,
-  },
-  cancel: {
-    marginTop: "auto",
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelText: { fontSize: tokens.type.body.size, color: theme.danger },
-  rateBlock: { marginTop: tokens.space.lg },
-  rateLabel: { fontSize: tokens.type.body.size, color: theme.textMuted },
-  stars: { flexDirection: "row", marginTop: tokens.space.sm },
-  star: {
-    minWidth: tokens.MIN_TOUCH_TARGET,
-    minHeight: tokens.MIN_TOUCH_TARGET,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  spin: { marginTop: tokens.space.lg },
-  error: {
-    color: theme.danger,
-    marginBottom: tokens.space.sm,
-    fontSize: tokens.type.body.size,
-  },
-  cta: {
-    marginTop: "auto",
-    minHeight: tokens.MIN_TOUCH_TARGET + 6,
-    backgroundColor: theme.accent,
-    borderRadius: tokens.radius.pill,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  ctaDisabled: { opacity: 0.5 },
-  ctaText: {
-    fontSize: tokens.type.body.size,
-    fontWeight: "700",
-    color: theme.onAccent,
+    ...shadow.float,
   },
 });

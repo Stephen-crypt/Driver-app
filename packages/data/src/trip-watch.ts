@@ -99,3 +99,34 @@ export async function getRiderCard(
     rating: r.rating === null ? null : Number(r.rating),
   };
 }
+
+/**
+ * The passenger's trip still in motion, if any. The home screen uses it to put
+ * them back on their trip after the app was closed - without it, a passenger
+ * who switched apps to answer a call came back to "Where to?" with a rider on
+ * the way and no way to see them.
+ */
+export async function getActivePassengerTrip(
+  client: GeraClient,
+  passengerId: string,
+): Promise<TripSnapshot | null> {
+  const { data, error } = await client
+    .from("trips")
+    .select("id, state, rider_id, quoted_amount_rwf, pickup_label, dropoff_label")
+    .eq("passenger_id", passengerId)
+    .in("state", [...LIVE_TRIP_STATES])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  const r = data as TripRow;
+  return {
+    id: r.id,
+    state: r.state,
+    riderId: r.rider_id,
+    quotedAmountRwf: r.quoted_amount_rwf,
+    pickupLabel: r.pickup_label,
+    dropoffLabel: r.dropoff_label,
+  };
+}
