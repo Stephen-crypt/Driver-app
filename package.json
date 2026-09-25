@@ -15,7 +15,8 @@
     "e2e:handsoff": "node scripts/e2e-hands-off.mjs",
     "dev:approve-driver": "node scripts/dev-approve-driver.mjs",
     "check:expo-go": "node scripts/check-expo-go-safety.mjs",
-    "e2e:tracking": "node scripts/e2e-tracking.mjs"
+    "e2e:tracking": "node scripts/e2e-tracking.mjs",
+    "review": "node scripts/review.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
