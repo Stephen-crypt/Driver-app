@@ -2,13 +2,21 @@ import { assertEquals, assertMatch } from "jsr:@std/assert@1";
 import { quoteFare } from "./core.ts";
 import type { FarePolicy } from "./core.ts";
 import type {
+  AVERAGE_SPEED_MPS as RealAverageSpeedMps,
+  DISPATCH_RADII_M as RealDispatchRadiiM,
   FarePolicy as RealFarePolicy,
+  rankByEta as realRankByEta,
   Receipt as RealReceipt,
+  straightLineEta as realStraightLineEta,
   VehicleClass as RealVehicleClass,
 } from "@gera/core";
 import type {
+  AVERAGE_SPEED_MPS as BundleAverageSpeedMps,
+  DISPATCH_RADII_M as BundleDispatchRadiiM,
   FarePolicy as BundleFarePolicy,
+  rankByEta as bundleRankByEta,
   Receipt as BundleReceipt,
+  straightLineEta as bundleStraightLineEta,
   VehicleClass as BundleVehicleClass,
 } from "./core.bundle.d.ts";
 
@@ -49,6 +57,35 @@ const _vehicleClassTypesMatch: AssertSame<
 > = true;
 const _receiptTypesMatch: AssertSame<RealReceipt, BundleReceipt> = true;
 
+// The DISPATCH half of the same guard. Flagged in two phases and deferred
+// twice: only the fare shapes above were covered, so the four dispatch
+// declarations - the ones supabase/functions/dispatch actually calls - could
+// drift freely. `DISPATCH_RADII_M` widening from `readonly [1000, 2000, 4000]`
+// to `readonly number[]`, or `AVERAGE_SPEED_MPS` losing its exhaustive
+// `Record<VehicleClass, number>` key set, would both type-check fine here and
+// be wrong at the call site.
+//
+// These are `import type` of VALUES, which TypeScript permits so long as they
+// are only ever used in a type position - `typeof X` is one. Nothing is
+// imported at runtime, so this stays a pure typecheck-time guard and the test
+// keeps its narrow permission set.
+const _rankByEtaTypesMatch: AssertSame<
+  typeof realRankByEta,
+  typeof bundleRankByEta
+> = true;
+const _straightLineEtaTypesMatch: AssertSame<
+  typeof realStraightLineEta,
+  typeof bundleStraightLineEta
+> = true;
+const _averageSpeedTypesMatch: AssertSame<
+  typeof RealAverageSpeedMps,
+  typeof BundleAverageSpeedMps
+> = true;
+const _dispatchRadiiTypesMatch: AssertSame<
+  typeof RealDispatchRadiiM,
+  typeof BundleDispatchRadiiM
+> = true;
+
 Deno.test(
   "core.bundle.d.ts's hand-written types match packages/core's real types " +
     "(enforced above at typecheck time; a failure here means the AssertSame " +
@@ -57,6 +94,10 @@ Deno.test(
     assertEquals(_farePolicyTypesMatch, true);
     assertEquals(_vehicleClassTypesMatch, true);
     assertEquals(_receiptTypesMatch, true);
+    assertEquals(_rankByEtaTypesMatch, true);
+    assertEquals(_straightLineEtaTypesMatch, true);
+    assertEquals(_averageSpeedTypesMatch, true);
+    assertEquals(_dispatchRadiiTypesMatch, true);
   },
 );
 
