@@ -119,9 +119,8 @@ psql(`insert into public.riders (id,verification) values ${
 // that has none makes the passenger's rider card untestable.
 psql(`insert into public.vehicles (rider_id,class,plate,vest_number,is_active) values ${
   riders.map((d) => `('${d.id}','${d.class}','${d.plate}','${d.vest}',true)`).join(",")};`);
-// Funded above the go-online minimum.
-psql(`insert into public.ledger_entries (rider_id,kind,amount_rwf) values ${
-  riders.map((d) => `('${d.id}','topup_credit',5000)`).join(",")};`);
+// No float. A fleet rider does not buy their way onto the road - what they
+// need is an active vehicle, which the insert above already gave them.
 psql(`insert into public.rider_presence (rider_id,status,vehicle_class,position,heartbeat_at) values ${
   riders.map((d) => `('${d.id}','online','${d.class}',st_point(${d.lng},${d.lat})::geography,now())`).join(",")};`);
 

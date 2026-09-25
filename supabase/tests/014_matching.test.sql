@@ -25,8 +25,12 @@ select ('d0000000-0000-4000-8000-00000000000' || n)::uuid,
        case when n = 5 then 'submitted'::verification_status else 'verified'::verification_status end
   from generate_series(1,6) n;
 
-insert into public.ledger_entries (rider_id, kind, amount_rwf)
-select ('d0000000-0000-4000-8000-00000000000' || n)::uuid, 'topup_credit', 5000
+-- A fleet rider is dispatchable because they have a vehicle, not because they
+-- funded a float. The float was the marketplace gate and no longer grants
+-- anything.
+insert into public.vehicles (rider_id, class, plate, is_active)
+select ('d0000000-0000-4000-8000-00000000000' || n)::uuid, 'moto',
+       'RAM 00' || n, true
   from generate_series(1,6) n;
 
 insert into public.rider_presence (rider_id, status, vehicle_class, position, heartbeat_at) values

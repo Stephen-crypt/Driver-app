@@ -38,7 +38,10 @@ export interface ReceiptLine {
 export interface Receipt {
   readonly lines: readonly ReceiptLine[];
   readonly totalRwf: number;
+  /** The company's share. Internal - never shown to a passenger. */
   readonly commissionRwf: number;
+  /** What the rider is owed for this trip. */
+  readonly riderEarningRwf: number;
 }
 
 export declare function roundFareRwf(amount: number): number;

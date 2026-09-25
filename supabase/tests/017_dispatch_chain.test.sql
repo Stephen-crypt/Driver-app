@@ -3,7 +3,7 @@
 -- moved again, and it did not - the trip sat in `offered` with no live offer and
 -- its rider, still attached, was excluded from every future match.
 begin;
-select plan(43);
+select plan(44);
 
 -- Three verified, funded, online motos at 100m, 200m and 300m from one pickup,
 -- so "the next candidate" has an unambiguous answer. D4 is a cab 5km away: far
@@ -34,12 +34,18 @@ insert into public.riders (id, verification) values
   ('a0000000-0000-4000-8000-000000000004','verified'),
   ('a0000000-0000-4000-8000-000000000005','verified');
 
+insert into public.vehicles (rider_id, class, plate, is_active) values
+  ('a0000000-0000-4000-8000-000000000002','moto','RAC 002A',true),
+  ('a0000000-0000-4000-8000-000000000003','moto','RAC 003A',true),
+  ('a0000000-0000-4000-8000-000000000004','moto','RAC 004A',true),
+  ('a0000000-0000-4000-8000-000000000005','moto','RAC 005A',true);
+
+-- Rider 5 is close to the cash ceiling: one more fare takes them over it,
+-- mid-shift. The fleet analogue of the old near-the-float-minimum case, and
+-- the reason the presence policy needs its already-online escape hatch.
 insert into public.ledger_entries (rider_id, kind, amount_rwf) values
-  ('a0000000-0000-4000-8000-000000000002','topup_credit',5000),
-  ('a0000000-0000-4000-8000-000000000003','topup_credit',5000),
-  ('a0000000-0000-4000-8000-000000000004','topup_credit',5000),
-  -- Above the 500 minimum now; a commission debit takes it under, mid-shift.
-  ('a0000000-0000-4000-8000-000000000005','topup_credit',600);
+  ('a0000000-0000-4000-8000-000000000005','fare_collected',
+   (select max_cash_held_rwf - 100 from public.platform_settings));
 
 insert into public.rider_presence (rider_id, status, vehicle_class, position, heartbeat_at) values
   ('a0000000-0000-4000-8000-000000000002','online','moto',st_point(30.0628,-1.9441)::geography, now()),
@@ -217,18 +223,23 @@ select throws_ok(
   'an offer whose window has closed cannot be declined, only timed out');
 
 -- ---------------------------------------------------------------------------
--- I1: rider_balance() no longer launders around the ledger's RLS.
+-- I1: the ledger readings do not launder around the ledger's RLS.
 -- ---------------------------------------------------------------------------
 set local request.jwt.claims to
   '{"sub":"a0000000-0000-4000-8000-000000000002","role":"authenticated"}';
 
-select is(public.rider_balance('a0000000-0000-4000-8000-000000000002'), 5000,
-  'a rider reads their own balance');
+select is(public.rider_cash_held('a0000000-0000-4000-8000-000000000002'), 0,
+  'a rider reads their own cash position');
 
 select throws_ok(
-  $$ select public.rider_balance('a0000000-0000-4000-8000-000000000003') $$,
+  $$ select public.rider_cash_held('a0000000-0000-4000-8000-000000000003') $$,
   '42501', null,
   'but not somebody else''s - security definer stops bypassing ledger RLS');
+
+select throws_ok(
+  $$ select public.rider_net_owed('a0000000-0000-4000-8000-000000000003') $$,
+  '42501', null,
+  'nor what another rider is owed');
 
 select throws_ok(
   $$ select public.can_go_online('a0000000-0000-4000-8000-000000000003') $$,
@@ -236,12 +247,12 @@ select throws_ok(
   'and cannot infer it through can_go_online either');
 
 -- service_role has no auth.uid(). offer_next_candidate and the dispatcher both
--- depend on reading any rider's balance, so this must keep working.
+-- depend on reading any rider's cash position, so this must keep working.
 set local role service_role;
 set local request.jwt.claims to '';
 
-select is(public.rider_balance('a0000000-0000-4000-8000-000000000003'), 5000,
-  'service_role, with no auth.uid(), still reads any balance');
+select is(public.rider_cash_held('a0000000-0000-4000-8000-000000000003'), 0,
+  'service_role, with no auth.uid(), still reads any rider''s cash position');
 
 -- ---------------------------------------------------------------------------
 -- I3: going online and reporting a position are different acts.
@@ -258,49 +269,52 @@ set local role postgres;
 set local request.jwt.claims to '';
 
 -- ---------------------------------------------------------------------------
--- I1: funding is enforced at the point of dispatch, not only at the door.
+-- I1: the cash ceiling is enforced at the point of dispatch, not only at the
+-- door.
 -- ---------------------------------------------------------------------------
--- The control. 600 RWF against a 500 minimum, verified, online, fresh
--- heartbeat, idle: this rider is dispatchable on every filter there is. If
--- this assertion ever fails the one below it proves nothing, because absence
--- would have some other cause.
+-- The control. 100 RWF under the ceiling, verified, online, fresh heartbeat,
+-- idle: this rider is dispatchable on every filter there is. If this assertion
+-- ever fails the one below it proves nothing, because absence would have some
+-- other cause.
 select ok(
   exists (
     select 1 from public.find_candidate_riders(
       st_point(30.1200,-1.9441)::geography, 'cab', 2000, 10)
      where rider_id = 'a0000000-0000-4000-8000-000000000005'
   ),
-  'a funded, verified, online rider with a fresh heartbeat is dispatchable');
+  'a verified, online rider under the cash ceiling is dispatchable');
 
+-- One more fare takes them over it. This is not a contrived edit: the row that
+-- pushes a rider over is written by their OWN completed trip, which is what
+-- makes the case worth testing at all.
 insert into public.ledger_entries (rider_id, kind, amount_rwf)
-values ('a0000000-0000-4000-8000-000000000005','commission_debit',300);
+values ('a0000000-0000-4000-8000-000000000005','fare_collected',200);
 
--- 300 RWF now, below the 500 minimum, and nothing about the presence row
--- changed: still 'online', still verified, still beating. Before 0021 this was
--- the hole - the presence policy gates only the transition INTO online, which
--- this rider made while they could still afford it, so an underfunded rider
--- stayed in the dispatch index until they chose to go offline. Spec 3.5 says a
--- rider below the minimum cannot be online; dispatch is where that has to bite.
+-- Over the ceiling now, and nothing about the presence row changed: still
+-- 'online', still verified, still beating. The presence policy gates only the
+-- transition INTO online, which this rider made while they were still clear -
+-- so without a filter at dispatch, a rider carrying too much of the company's
+-- cash would keep taking fares until they chose to stop.
 select ok(
   not exists (
     select 1 from public.find_candidate_riders(
       st_point(30.1200,-1.9441)::geography, 'cab', 2000, 10)
      where rider_id = 'a0000000-0000-4000-8000-000000000005'
   ),
-  'but an online rider whose wallet fell below the minimum mid-shift is not');
+  'but one who went over the cash ceiling mid-shift is not');
 
 set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"a0000000-0000-4000-8000-000000000005","role":"authenticated"}';
 
--- Phase 3 feeds the passenger's live map from this write. A rider who dips below
--- the minimum mid-shift used to get 42501 on every ping, so the passenger watching
--- their moto approach would simply see it stop.
+-- Phase 3 feeds the passenger's live map from this write. A rider who goes over
+-- the ceiling mid-shift must not get 42501 on every ping, or the passenger
+-- watching their moto approach would simply see it stop.
 select lives_ok(
   $$ update public.rider_presence
         set position = st_point(30.1210,-1.9441)::geography, heartbeat_at = now()
       where rider_id = 'a0000000-0000-4000-8000-000000000005' $$,
-  'an underfunded rider already online can still report a position');
+  'a rider over the ceiling who is already online can still report a position');
 
 select lives_ok(
   $$ update public.rider_presence set status = 'offline'
@@ -311,7 +325,7 @@ select throws_ok(
   $$ update public.rider_presence set status = 'online'
       where rider_id = 'a0000000-0000-4000-8000-000000000005' $$,
   '42501', null,
-  'but going back INTO online is still gated on the wallet');
+  'but going back INTO online is still gated on the cash they carry');
 
 -- ---------------------------------------------------------------------------
 -- C1 again, reached by DECLINING: the decline must advance the chain.
@@ -350,10 +364,10 @@ insert into public.riders (id, verification) values
   ('a0000000-0000-4000-8000-000000000007','verified'),
   ('a0000000-0000-4000-8000-000000000008','verified');
 
-insert into public.ledger_entries (rider_id, kind, amount_rwf) values
-  ('a0000000-0000-4000-8000-000000000006','topup_credit',5000),
-  ('a0000000-0000-4000-8000-000000000007','topup_credit',5000),
-  ('a0000000-0000-4000-8000-000000000008','topup_credit',5000);
+insert into public.vehicles (rider_id, class, plate, is_active) values
+  ('a0000000-0000-4000-8000-000000000006','moto','RAC 006A',true),
+  ('a0000000-0000-4000-8000-000000000007','moto','RAC 007A',true),
+  ('a0000000-0000-4000-8000-000000000008','moto','RAC 008A',true);
 
 insert into public.rider_presence (rider_id, status, vehicle_class, position, heartbeat_at) values
   -- ~100m and ~200m from T6's pickup: who is "next" is unambiguous.
@@ -383,10 +397,11 @@ set local request.jwt.claims to
 
 -- The decline is made by the RIDER, so the chain now advances inside a
 -- transaction whose auth.uid() belongs to somebody who is not the next
--- candidate. That is why 0021 splits the wallet arithmetic out of the guarded
--- rider_balance(): find_candidate_riders has to ask about other people's
--- balances by definition, and the guarded form would raise not_your_balance on
--- every search reached this way. If that split is ever undone, this fails first.
+-- candidate. That is why the ledger arithmetic is split out of the guarded
+-- wrappers into rider_cash_held_internal(): find_candidate_riders has to ask
+-- about other people's cash positions by definition, and the guarded form would
+-- raise not_your_ledger on every search reached this way. If that split is ever
+-- undone, this fails first.
 select lives_ok(
   $decline$ select public.decline_offer(
        (select id from public.trip_offers

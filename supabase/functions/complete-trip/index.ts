@@ -100,6 +100,8 @@ Deno.serve(async (req: Request) => {
     tripId,
     state: completedTrip?.state ?? "completed",
     receipt: { lines: receipt.lines, totalRwf: receipt.totalRwf },
-    commissionRwf: receipt.commissionRwf,
+    // The rider's earning, not the company's cut - this response goes to the
+    // rider's phone, and what they need is what they made.
+    riderEarningRwf: receipt.riderEarningRwf,
   });
 });

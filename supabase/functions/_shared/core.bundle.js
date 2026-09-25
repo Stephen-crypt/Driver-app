@@ -208,26 +208,72 @@ function finalizeFare(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
   };
 }
 
-// packages/core/src/ledger/commission.ts
+// packages/core/src/ledger/entries.ts
 var LEDGER_ENTRY_KINDS = [
-  "commission_debit",
-  "topup_credit",
+  // Cash side.
+  "fare_collected",
+  "cash_remittance",
+  // Earnings side.
+  "trip_earning",
+  "bonus",
+  "deduction",
+  "payout",
   "adjustment_credit",
-  "adjustment_debit"
+  "adjustment_debit",
+  // Retired marketplace kinds. Postgres cannot drop an enum value and the rows
+  // already written are real history, so they stay - classified, never written.
+  "commission_debit",
+  "topup_credit"
 ];
-function isCredit(kind) {
+function classify(kind) {
   switch (kind) {
-    case "topup_credit":
+    case "fare_collected":
+      return {
+        side: "cash",
+        sign: 1
+      };
+    case "cash_remittance":
+      return {
+        side: "cash",
+        sign: -1
+      };
+    case "trip_earning":
+    case "bonus":
     case "adjustment_credit":
-      return true;
-    case "commission_debit":
+    // A top-up was money the rider had already handed the company, so under
+    // the fleet reading it counts the same way: something we owe them back.
+    case "topup_credit":
+      return {
+        side: "owed",
+        sign: 1
+      };
+    case "deduction":
+    case "payout":
     case "adjustment_debit":
-      return false;
+    // Commission reduced what a marketplace rider was owed.
+    case "commission_debit":
+      return {
+        side: "owed",
+        sign: -1
+      };
     default: {
       const unhandled = kind;
       throw new Error(`unhandled ledger entry kind: ${String(unhandled)}`);
     }
   }
+}
+function total(entries, side) {
+  return entries.reduce((sum, entry) => {
+    if (entry.amountRwf < 0) throw new Error("amountRwf must be >= 0");
+    const { side: entrySide, sign } = classify(entry.kind);
+    return entrySide === side ? sum + sign * entry.amountRwf : sum;
+  }, 0);
+}
+function cashHeldOf(entries) {
+  return total(entries, "cash");
+}
+function netOwedOf(entries) {
+  return total(entries, "owed");
 }
 function commissionFor(fareRwf, ratePercent) {
   if (ratePercent < 0 || ratePercent > 100) {
@@ -235,14 +281,11 @@ function commissionFor(fareRwf, ratePercent) {
   }
   return Math.round(fareRwf * ratePercent / 100);
 }
-function balanceOf(entries) {
-  return entries.reduce((total, entry) => {
-    if (entry.amountRwf < 0) throw new Error("amountRwf must be >= 0");
-    return isCredit(entry.kind) ? total + entry.amountRwf : total - entry.amountRwf;
-  }, 0);
+function riderEarningFor(fareRwf, commissionPercent) {
+  return fareRwf - commissionFor(fareRwf, commissionPercent);
 }
-function canGoOnline(balanceRwf, minimumRwf) {
-  return balanceRwf >= minimumRwf;
+function canGoOnline(args) {
+  return args.hasActiveVehicle && args.cashHeldRwf <= args.maxCashHeldRwf;
 }
 
 // packages/core/src/fare/receipt.ts
@@ -263,7 +306,8 @@ function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
   return {
     lines,
     totalRwf: final.totalRwf,
-    commissionRwf: commissionFor(final.totalRwf, policy.commissionPct)
+    commissionRwf: commissionFor(final.totalRwf, policy.commissionPct),
+    riderEarningRwf: riderEarningFor(final.totalRwf, policy.commissionPct)
   };
 }
 
@@ -308,15 +352,17 @@ export {
   TRIP_STATES,
   VEHICLE_CLASSES,
   applyTransition,
-  balanceOf,
   buildReceipt,
   canGoOnline,
   canTransition,
+  cashHeldOf,
   commissionFor,
   finalizeFare,
   isTerminal,
+  netOwedOf,
   quoteFare,
   rankByEta,
+  riderEarningFor,
   roundFareRwf,
   straightLineEta
 };

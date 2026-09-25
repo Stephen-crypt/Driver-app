@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { TRANSITIONS } from "../../src/trip/transitions";
 import { TRIP_STATES, TERMINAL_STATES, isTerminal } from "../../src/trip/states";
 import { VEHICLE_CLASSES } from "../../src/fare/policy";
-import { LEDGER_ENTRY_KINDS } from "../../src/ledger/commission";
+import { LEDGER_ENTRY_KINDS } from "../../src/ledger/entries";
 import { OFFER_TTL_SECONDS } from "../../src/dispatch/eta";
 
 /**
@@ -99,22 +99,19 @@ describe("TS/SQL terminal state parity", () => {
 });
 
 describe("TS/SQL enum parity", () => {
-  it("VEHICLE_CLASSES matches the vehicle_class enum in 0001", () => {
-    const sqlClasses = quotedAfter(
-      migration("0001_extensions_and_enums.sql"),
-      "create type vehicle_class as enum (",
-    ).sort();
+  // Read from the live type, not from 0001. Both of these enums have since
+  // been extended by later migrations - ledger_entry_kind gained six fleet
+  // kinds in 0034 - so parsing the file that first created them compares
+  // today's TypeScript against the enum as it was on day one.
+  const enumValues = (typeName: string) =>
+    query(`select unnest(enum_range(null::${typeName}))::text;`).sort();
 
-    expect(sqlClasses).toEqual([...VEHICLE_CLASSES].sort());
+  it("VEHICLE_CLASSES matches the vehicle_class enum", () => {
+    expect(enumValues("vehicle_class")).toEqual([...VEHICLE_CLASSES].sort());
   });
 
-  it("LEDGER_ENTRY_KINDS matches the ledger_entry_kind enum in 0001", () => {
-    const sqlKinds = quotedAfter(
-      migration("0001_extensions_and_enums.sql"),
-      "create type ledger_entry_kind as enum (",
-    ).sort();
-
-    expect(sqlKinds).toEqual([...LEDGER_ENTRY_KINDS].sort());
+  it("LEDGER_ENTRY_KINDS matches the ledger_entry_kind enum", () => {
+    expect(enumValues("ledger_entry_kind")).toEqual([...LEDGER_ENTRY_KINDS].sort());
   });
 });
 

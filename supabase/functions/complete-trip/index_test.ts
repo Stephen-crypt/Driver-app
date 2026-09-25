@@ -16,6 +16,7 @@ Deno.test("a trip matching its quote receipts as a single line", () => {
   assertEquals(r.lines.length, 1);
   assertEquals(r.totalRwf, 1700);
   assertEquals(r.commissionRwf, 255);
+  assertEquals(r.riderEarningRwf, 1445);
 });
 
 Deno.test("a detour beyond tolerance is itemised and raises commission", () => {
@@ -23,11 +24,14 @@ Deno.test("a detour beyond tolerance is itemised and raises commission", () => {
   assertEquals(r.lines.length, 2);
   assertEquals(r.totalRwf, 2000);
   assertEquals(r.commissionRwf, 300);
+  assertEquals(r.riderEarningRwf, r.totalRwf - 300);
 });
 
 Deno.test("commission never exceeds the fare", () => {
   const r = buildReceipt(MOTO, 1700, 4000, 4000);
   assertEquals(r.commissionRwf < r.totalRwf, true);
+  // The split is exact: nothing leaks between the two sides.
+  assertEquals(r.commissionRwf + r.riderEarningRwf, r.totalRwf);
 });
 
 // The receipt in the response body and the figures the database writes to the

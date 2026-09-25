@@ -120,10 +120,28 @@ async function main() {
     process.exit(1);
   }
 
-  const ledger = psql(
-    `select count(*) from public.ledger_entries where trip_id='${tripId}';`);
-  const fare = psql(`select quoted_amount_rwf from public.trips where id='${tripId}';`);
-  console.log(`fare ${fare} RWF, ${ledger} commission entry`);
+  // Both sides of the fleet model, checked rather than assumed: a completed
+  // cash trip puts the fare in the rider's pocket and earns them their share of
+  // it, and the two must sum back to the fare exactly.
+  const [collected, earned] = psql(
+    `select coalesce(sum(case when kind='fare_collected' then amount_rwf end),0)
+         || '|' || coalesce(sum(case when kind='trip_earning' then amount_rwf end),0)
+       from public.ledger_entries where trip_id='${tripId}';`,
+  ).split("|").map(Number);
+
+  const fare = Number(psql(
+    `select quoted_amount_rwf from public.trips where id='${tripId}';`));
+
+  console.log(`fare ${fare} RWF - rider took ${collected}, earned ${earned}`);
+
+  if (collected !== fare) {
+    console.error(`FAIL: cash recorded (${collected}) is not the fare (${fare}).`);
+    process.exit(1);
+  }
+  if (earned <= 0 || earned >= collected) {
+    console.error(`FAIL: earning ${earned} is not a share of ${collected}.`);
+    process.exit(1);
+  }
   console.log("\nHands-off loop passed: nobody touched the trip after booking.");
 }
 

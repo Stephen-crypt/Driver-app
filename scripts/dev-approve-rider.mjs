@@ -6,7 +6,7 @@
 // does by hand what an ops reviewer would do.
 //
 //   node scripts/dev-approve-rider.mjs +250730123456
-//   node scripts/dev-approve-rider.mjs +250730123456 --class cab --topup 10000
+//   node scripts/dev-approve-rider.mjs +250730123456 --class cab
 import { execFileSync } from "node:child_process";
 
 const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
@@ -23,12 +23,11 @@ const arg = (name, fallback) => {
 
 const phone = process.argv[2];
 if (!phone || phone.startsWith("--")) {
-  console.error("Usage: node scripts/dev-approve-rider.mjs <phone> [--class moto|cab|cab_xl] [--topup 5000]");
+  console.error("Usage: node scripts/dev-approve-rider.mjs <phone> [--class moto|cab|cab_xl]");
   process.exit(1);
 }
 
 const vehicleClass = arg("class", "moto");
-const topup = Number(arg("topup", "5000"));
 if (!["moto", "cab", "cab_xl"].includes(vehicleClass)) {
   console.error(`Unknown class '${vehicleClass}'.`);
   process.exit(1);
@@ -66,12 +65,10 @@ psql(`insert into public.vehicles (rider_id, class, plate, vest_number, is_activ
       on conflict do nothing;`);
 console.log(`vehicle: ${vehicleClass} ${plate}`);
 
-const balance = Number(psql(`select public.rider_balance('${id}');`));
-if (balance < topup) {
-  psql(`insert into public.ledger_entries (rider_id, kind, amount_rwf)
-        values ('${id}','topup_credit',${topup - balance});`);
-}
-console.log(`wallet: ${psql(`select public.rider_balance('${id}');`)} RWF`);
+// Nothing to fund. In a fleet the gate is a vehicle and a clean cash position,
+// and the vehicle was assigned above - so all that is left is to report it.
+const held = Number(psql(`select public.rider_cash_held_internal('${id}');`));
+console.log(`carrying: ${held} RWF of company cash`);
 
 const allowed = psql(`select public.can_go_online('${id}');`);
 console.log(`can go online: ${allowed}`);

@@ -1,5 +1,5 @@
 begin;
-select plan(15);
+select plan(17);
 
 insert into auth.users (instance_id, id, aud, role, email) values
   ('00000000-0000-0000-0000-000000000000','ffffffff-0000-0000-0000-000000000001',
@@ -81,21 +81,43 @@ select is(
   'the actual distance is recorded'
 );
 
+-- Two rows, not one. A completed cash trip puts the fare in the rider's pocket
+-- AND earns them their share of it, and those are different facts: netting them
+-- into a single entry would hide how much company cash the rider is carrying,
+-- which is the number that decides whether they work tomorrow.
 select is(
   (select count(*)::int from public.ledger_entries
-    where trip_id='bbbbbbbb-0000-0000-0000-000000000001' and kind='commission_debit'),
-  1,
-  'exactly one commission debit is written'
+    where trip_id='bbbbbbbb-0000-0000-0000-000000000001'),
+  2,
+  'a completed trip writes both the cash taken and the earning'
 );
 
 -- 4100m is inside the 15% band on a 4000m quote, so the total is the quoted
--- 1700 and the commission is 15% of it. Derived in SQL from the trip's own
--- locked quote - the caller had no way to say otherwise.
+-- 1700. Derived in SQL from the trip's own locked quote - the caller had no way
+-- to say otherwise.
 select is(
   (select amount_rwf from public.ledger_entries
+    where trip_id='bbbbbbbb-0000-0000-0000-000000000001' and kind='fare_collected'),
+  1700,
+  'the cash taken is the locked total, not a figure the caller chose'
+);
+
+select is(
+  (select amount_rwf from public.ledger_entries
+    where trip_id='bbbbbbbb-0000-0000-0000-000000000001' and kind='trip_earning'),
+  1445,
+  'the earning is the remainder after commission'
+);
+
+-- The split must be exact. Two independent roundings would leak a franc on
+-- most fares, and a rider who adds up their own trips will find it.
+select is(
+  (select sum(case when kind='trip_earning' then amount_rwf else 0 end)::int
+        + public.commission_rwf(1700, 15)
+     from public.ledger_entries
     where trip_id='bbbbbbbb-0000-0000-0000-000000000001'),
-  255,
-  'the commission is derived in SQL from the locked quote, not chosen by the caller'
+  1700,
+  'earning plus commission is exactly the fare'
 );
 
 select is(
@@ -106,10 +128,10 @@ select is(
 );
 
 select is(
-  (select (meta->>'commission_rwf')::int from public.trip_events
+  (select (meta->>'rider_earning_rwf')::int from public.trip_events
     where trip_id='bbbbbbbb-0000-0000-0000-000000000001' and to_state='completed'),
-  255,
-  'and the commission alongside it'
+  1445,
+  'and what the rider earned alongside it'
 );
 
 select lives_ok(
@@ -121,8 +143,8 @@ select lives_ok(
 select is(
   (select count(*)::int from public.ledger_entries
     where trip_id='bbbbbbbb-0000-0000-0000-000000000001'),
-  1,
-  'a replayed completion does NOT debit commission twice'
+  2,
+  'a replayed completion does NOT write the money twice'
 );
 
 -- Neither the passenger nor the rider: a non-participant replaying an already-used
@@ -171,9 +193,9 @@ select lives_ok(
 
 select is(
   (select amount_rwf from public.ledger_entries
-    where trip_id='bbbbbbbb-0000-0000-0000-000000000002'),
-  255,
-  'it is priced under the policy it was QUOTED under (255), not today rate (680)'
+    where trip_id='bbbbbbbb-0000-0000-0000-000000000002' and kind='trip_earning'),
+  1445,
+  'it is priced under the policy it was QUOTED under (15%, so 1445 earned), not today''s 40% (1020)'
 );
 
 select throws_ok(

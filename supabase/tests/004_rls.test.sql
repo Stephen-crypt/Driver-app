@@ -42,8 +42,16 @@ values (
   st_point(30.0588, -1.9536)::geography, 'Kigali Heights'
 );
 
-insert into public.ledger_entries (rider_id, kind, amount_rwf)
-values ('33333333-3333-3333-3333-333333333333', 'topup_credit', 5000);
+-- A fleet rider is dispatchable with a vehicle, not a float.
+insert into public.vehicles (rider_id, class, plate, is_active)
+values ('33333333-3333-3333-3333-333333333333', 'moto', 'RAR 331A', true);
+
+-- One ledger row each for two different riders. Asserting "the rider sees one
+-- row" only means something when there is a second row they must NOT see;
+-- against a single-row table the same assertion passes with no RLS at all.
+insert into public.ledger_entries (rider_id, kind, amount_rwf) values
+  ('33333333-3333-3333-3333-333333333333', 'fare_collected', 1700),
+  ('55555555-5555-5555-5555-555555555555', 'fare_collected', 2100);
 
 -- Act as passenger A.
 set local role authenticated;
@@ -165,7 +173,7 @@ select is(
 select is(
   (select count(*)::int from public.ledger_entries),
   1,
-  'a rider reads their own ledger'
+  'a rider reads their own ledger row and not the other rider''s'
 );
 
 select is(

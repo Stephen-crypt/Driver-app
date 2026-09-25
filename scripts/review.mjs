@@ -15,8 +15,11 @@
 //   node scripts/review.mjs doc <rider-id> <kind> reject "Photo is blurred"
 //   node scripts/review.mjs verify <rider-id>
 //   node scripts/review.mjs suspend <rider-id> "Reason"
-//   node scripts/review.mjs credit <rider-id> 5000 "MoMo ref 884213"
-//   node scripts/review.mjs balance <rider-id>
+//   node scripts/review.mjs remit <rider-id> 5000 "MoMo ref 884213"
+//   node scripts/review.mjs pay <rider-id> 12000 "Week 40 payout"
+//   node scripts/review.mjs bonus <rider-id> 500 "Weekend cover"
+//   node scripts/review.mjs deduct <rider-id> 2000 "Damaged mirror"
+//   node scripts/review.mjs money <rider-id>
 //
 // Against the cloud project instead of the local stack:
 //   GERA_DB_URL="postgresql://..." node scripts/review.mjs queue
@@ -48,8 +51,11 @@ The Gera rider desk.
   doc <rider-id> <kind> reject "<why>"  reject it, with a reason the rider sees
   verify <rider-id>                     verify - refused unless all documents pass
   suspend <rider-id> "<reason>"         stop them driving, immediately
-  credit <rider-id> <rwf> "<reference>" top up their wallet
-  balance <rider-id>                    what they have left
+  remit <rider-id> <rwf> "<ref>"        record cash they handed in
+  pay <rider-id> <rwf> "<ref>"          pay them what they are owed
+  bonus <rider-id> <rwf> "<why>"        add a bonus
+  deduct <rider-id> <rwf> "<why>"       take a deduction
+  money <rider-id>                      cash they carry, and what we owe them
 
   kinds: ${KINDS.join(", ")}
 `);
@@ -59,7 +65,7 @@ function queue() {
   const rows = psql(`
     select rider_id || '|' || coalesce(first_name,'?') || '|' || coalesce(phone,'?')
            || '|' || verification || '|' || coalesce(vehicle_class,'-')
-           || '|' || coalesce(plate,'-') || '|' || balance_rwf
+           || '|' || coalesce(plate,'-') || '|' || cash_held_rwf
            || '|' || (select count(*) from jsonb_each(documents) where value->>'status' = 'approved')
       from public.review_queue();`);
 
@@ -70,11 +76,11 @@ function queue() {
 
   console.log("\nWaiting on a decision:\n");
   for (const line of rows.split("\n")) {
-    const [id, name, phone, verification, cls, plate, balance, approved] = line.split("|");
+    const [id, name, phone, verification, cls, plate, cash, approved] = line.split("|");
     console.log(`  ${name}  ${phone}`);
     console.log(`    ${id}`);
     console.log(
-      `    ${verification} · ${cls} ${plate} · wallet ${Number(balance).toLocaleString()} RWF` +
+      `    ${verification} · ${cls} ${plate} · carrying ${Number(cash).toLocaleString()} RWF` +
         ` · ${approved}/${KINDS.length} documents approved`,
     );
     console.log("");
@@ -85,7 +91,7 @@ function show(id) {
   const row = psql(`
     select coalesce(first_name,'?') || '|' || coalesce(phone,'?') || '|' || verification
            || '|' || coalesce(vehicle_class,'-') || '|' || coalesce(plate,'-')
-           || '|' || balance_rwf || '|' || documents::text
+           || '|' || cash_held_rwf || '|' || documents::text
       from public.review_queue() where rider_id = ${lit(id)};`);
 
   if (!row) {
@@ -96,7 +102,7 @@ function show(id) {
     return;
   }
 
-  const [name, phone, verification, cls, plate, balance, docs] = row.split("|");
+  const [name, phone, verification, cls, plate, cash, docs] = row.split("|");
   console.log(`\n${name}  ${phone}`);
   console.log(`${verification} · ${cls} ${plate} · wallet ${Number(balance).toLocaleString()} RWF\n`);
 
@@ -151,12 +157,17 @@ function verify(id) {
   const result = psql(`select public.verify_rider(${lit(id)});`);
   console.log(result);
   if (result === "verified") {
-    const balance = Number(psql(`select public.rider_balance(${lit(id)});`));
     const canGo = psql(`select public.can_go_online(${lit(id)});`);
-    console.log(`wallet ${balance.toLocaleString()} RWF · can go online: ${canGo}`);
+    console.log(`can go online: ${canGo}`);
     if (canGo !== "t") {
-      console.log("They are verified but cannot go online yet - top the wallet up:");
-      console.log(`  node scripts/review.mjs credit ${id} 5000 "<reference>"`);
+      // Two different reasons, and telling them the wrong one wastes a day.
+      const hasVehicle = psql(
+        `select exists(select 1 from public.vehicles where rider_id=${lit(id)} and is_active);`);
+      console.log(
+        hasVehicle === "t"
+          ? "Verified, but carrying too much cash. Record a remittance first."
+          : "Verified, but no vehicle assigned yet. Assign one before they can work.",
+      );
     }
   }
 }
@@ -178,16 +189,37 @@ function main() {
       if (rest.length < 2) return usage();
       psql(`select public.suspend_rider(${lit(rest[0])}, ${lit(rest[1])});`);
       return console.log("Suspended and taken offline.");
-    case "credit": {
+    case "remit": {
       if (rest.length < 3) return usage();
-      const balance = psql(
-        `select public.credit_rider_wallet(${lit(rest[0])}, ${Number(rest[1])}, ${lit(rest[2])});`);
-      return console.log(`wallet is now ${Number(balance).toLocaleString()} RWF`);
+      const held = psql(
+        `select public.record_remittance(${lit(rest[0])}, ${Number(rest[1])}, ${lit(rest[2])});`);
+      return console.log(`still carrying ${Number(held).toLocaleString()} RWF`);
     }
-    case "balance":
+    case "pay": {
+      if (rest.length < 3) return usage();
+      const owed = psql(
+        `select public.pay_rider(${lit(rest[0])}, ${Number(rest[1])}, ${lit(rest[2])});`);
+      return console.log(`still owed ${Number(owed).toLocaleString()} RWF`);
+    }
+    case "bonus":
+    case "deduct": {
+      if (rest.length < 3) return usage();
+      const kind = command === "bonus" ? "bonus" : "deduction";
+      const owed = psql(
+        `select public.adjust_rider_earnings(${lit(rest[0])}, ${Number(rest[1])},` +
+        ` ${lit(kind)}::ledger_entry_kind, ${lit(rest[2])});`);
+      return console.log(`now owed ${Number(owed).toLocaleString()} RWF`);
+    }
+    case "money": {
       if (!rest[0]) return usage();
-      return console.log(
-        `${Number(psql(`select public.rider_balance(${lit(rest[0])});`)).toLocaleString()} RWF`);
+      // Two numbers, never netted. One is ours and has to come back; the other
+      // is theirs and has to go out.
+      const held = Number(psql(`select public.rider_cash_held(${lit(rest[0])});`));
+      const owed = Number(psql(`select public.rider_net_owed(${lit(rest[0])});`));
+      console.log(`  carrying (ours):  ${held.toLocaleString()} RWF`);
+      console.log(`  owed (theirs):    ${owed.toLocaleString()} RWF`);
+      return;
+    }
     default:
       return usage();
   }

@@ -1,5 +1,5 @@
 import { finalizeFare } from "./finalize";
-import { commissionFor } from "../ledger/commission";
+import { commissionFor, riderEarningFor } from "../ledger/entries";
 import type { FarePolicy } from "./policy";
 
 export interface ReceiptLine {
@@ -10,7 +10,10 @@ export interface ReceiptLine {
 export interface Receipt {
   readonly lines: readonly ReceiptLine[];
   readonly totalRwf: number;
+  /** The company's share. Internal - never shown to a passenger. */
   readonly commissionRwf: number;
+  /** What the rider is owed for this trip. The number they actually care about. */
+  readonly riderEarningRwf: number;
 }
 
 /**
@@ -35,5 +38,6 @@ export function buildReceipt(
     lines,
     totalRwf: final.totalRwf,
     commissionRwf: commissionFor(final.totalRwf, policy.commissionPct),
+    riderEarningRwf: riderEarningFor(final.totalRwf, policy.commissionPct),
   };
 }

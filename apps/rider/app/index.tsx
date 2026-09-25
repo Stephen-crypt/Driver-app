@@ -17,7 +17,8 @@ import {
   setPresence,
   heartbeat,
   getPresence,
-  getBalance,
+  getCashHeld,
+  getNetOwed,
   canGoOnline,
   getLiveOffer,
   acceptOffer,
@@ -55,7 +56,8 @@ export default function Console() {
 
   const [online, setOnline] = useState(false);
   const [blocked, setBlocked] = useState<string | null>(null);
-  const [balance, setBalance] = useState<number | null>(null);
+  const [cashHeld, setCashHeld] = useState<number | null>(null);
+  const [netOwed, setNetOwed] = useState<number | null>(null);
   const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
 
   const [here, setHere] = useState<loc.Coords | null>(null);
@@ -141,19 +143,29 @@ export default function Console() {
     let active = true;
     (async () => {
       try {
-        const [p, b, allowed] = await Promise.all([
+        const [p, cash, owed, allowed] = await Promise.all([
           getPresence(supabase, riderId),
-          getBalance(supabase, riderId),
+          getCashHeld(supabase, riderId),
+          getNetOwed(supabase, riderId),
           canGoOnline(supabase, riderId),
         ]);
         if (!active) return;
-        setBalance(b);
+        setCashHeld(cash);
+        setNetOwed(owed);
         if (p) {
           setOnline(p.status !== "offline");
           setVehicleClass(p.vehicleClass);
         }
         // The server owns this rule; the app only reports it.
-        setBlocked(allowed ? null : "Top up your wallet to go online.");
+        // The server owns this rule; the app only reports it. Two things can
+        // block a fleet rider, and telling them the wrong one wastes their day.
+        setBlocked(
+          allowed
+            ? null
+            : cash > 0
+              ? "Hand in the cash you're carrying before your next shift."
+              : "No vehicle assigned yet. Speak to the depot.",
+        );
       } catch (e) {
         if (active) setError(e instanceof Error ? e.message : "Could not load your status.");
       }
@@ -269,7 +281,12 @@ export default function Console() {
         if (next) {
           const allowed = await canGoOnline(supabase, riderId);
           if (!allowed) {
-            setBlocked("Top up your wallet to go online.");
+            const cash = await getCashHeld(supabase, riderId);
+            setBlocked(
+              cash > 0
+                ? "Hand in the cash you're carrying before your next shift."
+                : "No vehicle assigned yet. Speak to the depot.",
+            );
             return;
           }
           setBlocked(null);
@@ -350,7 +367,8 @@ export default function Console() {
         idempotencyKey: `complete-${trip.id}`,
       });
       setTrip(null);
-      setBalance(await getBalance(supabase, riderId));
+      setCashHeld(await getCashHeld(supabase, riderId));
+      setNetOwed(await getNetOwed(supabase, riderId));
       setEarnings(await getEarningsSince(supabase, riderId, startOfToday()));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not finish the trip.");
@@ -466,11 +484,22 @@ export default function Console() {
         />
       </View>
 
+      {/* Two numbers, never one. The cash is the company's and has to be
+          handed in; the owed is the rider's and gets paid out. A single
+          "balance" would net them and tell the rider neither fact. */}
       <View style={styles.walletRow}>
-        <Text style={styles.walletLabel}>Wallet</Text>
-        <Text style={styles.walletValue}>
-          {balance === null ? "—" : `${money(balance)} RWF`}
-        </Text>
+        <View style={styles.flex}>
+          <Text style={styles.walletLabel}>Cash to hand in</Text>
+          <Text style={styles.walletValue}>
+            {cashHeld === null ? "—" : `${money(cashHeld)} RWF`}
+          </Text>
+        </View>
+        <View style={styles.flex}>
+          <Text style={styles.walletLabel}>You're owed</Text>
+          <Text style={[styles.walletValue, styles.owedValue]}>
+            {netOwed === null ? "—" : `${money(netOwed)} RWF`}
+          </Text>
+        </View>
       </View>
 
       {/* Gross, commission and net together. Showing gross alone is the number
@@ -483,18 +512,14 @@ export default function Console() {
             <Text style={styles.earningsLabel}>trips</Text>
           </View>
           <View style={styles.earningsCell}>
-            <Text style={styles.earningsValue}>{money(earnings?.grossRwf ?? 0)}</Text>
+            <Text style={styles.earningsValue}>{money(earnings?.collectedRwf ?? 0)}</Text>
             <Text style={styles.earningsLabel}>collected</Text>
           </View>
           <View style={styles.earningsCell}>
-            <Text style={styles.earningsValue}>−{money(earnings?.commissionRwf ?? 0)}</Text>
-            <Text style={styles.earningsLabel}>commission</Text>
-          </View>
-          <View style={styles.earningsCell}>
             <Text style={[styles.earningsValue, styles.earningsNet]}>
-              {money(earnings?.netRwf ?? 0)}
+              {money(earnings?.earnedRwf ?? 0)}
             </Text>
-            <Text style={styles.earningsLabel}>you keep</Text>
+            <Text style={styles.earningsLabel}>you earned</Text>
           </View>
         </View>
       </View>
@@ -572,7 +597,7 @@ export default function Console() {
               onPress={onComplete}
               disabled={busy}
             >
-              <Text style={styles.ctaText}>Finish · collect cash</Text>
+              <Text style={styles.ctaText}>Finish · take cash</Text>
             </Pressable>
           )}
 
@@ -663,7 +688,8 @@ const styles = StyleSheet.create({
     borderRadius: tokens.radius.md,
     backgroundColor: theme.surfaceRaised,
   },
-  walletLabel: { fontSize: tokens.type.body.size, color: theme.textMuted },
+  walletLabel: { fontSize: tokens.type.label.size, color: theme.textMuted },
+  owedValue: { color: theme.success },
   walletValue: {
     fontSize: tokens.type.title.size,
     fontWeight: "700",

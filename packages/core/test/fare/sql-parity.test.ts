@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import { execFileSync } from "node:child_process";
 import { finalizeFare } from "../../src/fare/finalize";
 import { roundFareRwf, type FarePolicy } from "../../src/fare/policy";
-import { commissionFor } from "../../src/ledger/commission";
+import { commissionFor } from "../../src/ledger/entries";
 
 /**
  * The guard that makes the SQL copy of the fare arithmetic safe.

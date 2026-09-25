@@ -69,17 +69,35 @@ export async function getPresence(
   return { status: row.status, vehicleClass: row.vehicle_class };
 }
 
-/** Wallet balance in whole RWF. Commission is debited from this. */
-export async function getBalance(client: GeraClient, riderId: string): Promise<number> {
-  const { data, error } = await client.rpc("rider_balance", { p_rider_id: riderId });
+/**
+ * Company cash the rider is currently carrying: fares collected less what they
+ * have handed in. This is exposure, not earnings, and it is the number that
+ * decides whether they can work - a rider over the ceiling must remit first.
+ */
+export async function getCashHeld(client: GeraClient, riderId: string): Promise<number> {
+  const { data, error } = await client.rpc("rider_cash_held", { p_rider_id: riderId });
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
 }
 
 /**
- * Whether the rider may go online at all: verified, and funded above the
- * minimum. Asking the server rather than re-deriving it in the app is what
- * keeps one copy of the rule.
+ * What the company owes the rider: earnings and bonuses less deductions and
+ * payouts. Negative means they owe the company.
+ *
+ * Deliberately separate from cash held. Netting the two would tell a rider
+ * carrying 50,000 of our cash that they are 30,000 in credit, which is true of
+ * the arithmetic and useless as a fact about their day.
+ */
+export async function getNetOwed(client: GeraClient, riderId: string): Promise<number> {
+  const { data, error } = await client.rpc("rider_net_owed", { p_rider_id: riderId });
+  if (error) throw new Error(error.message);
+  return Number(data ?? 0);
+}
+
+/**
+ * Whether the rider may go online: they have a vehicle assigned, and are not
+ * carrying more of the company's cash than the ceiling allows. Asking the
+ * server rather than re-deriving it in the app keeps one copy of the rule.
  */
 export async function canGoOnline(client: GeraClient, riderId: string): Promise<boolean> {
   const { data, error } = await client.rpc("can_go_online", { p_rider_id: riderId });
@@ -245,56 +263,57 @@ export function secondsLeft(expiresAt: string, now = Date.now()): number {
 
 export interface Earnings {
   readonly trips: number;
-  readonly grossRwf: number;
-  readonly commissionRwf: number;
-  readonly netRwf: number;
+  /** Cash the rider took from passengers. Belongs to the company. */
+  readonly collectedRwf: number;
+  /** What the rider earned on those trips. Theirs. */
+  readonly earnedRwf: number;
+  /** What the company kept. collectedRwf - earnedRwf. */
+  readonly companyShareRwf: number;
 }
 
 /**
- * What the rider actually made since a given moment, usually the start of
- * today.
+ * The day's work, in the three numbers a fleet rider actually needs.
  *
- * Gross is the cash they collected; commission is what Gera debited from the
- * wallet for those trips. Net is what they keep. Showing gross alone is the
- * number that makes riders feel cheated when the wallet moves, so all three
- * are shown together.
+ * Both figures come from the ledger rather than one from the ledger and one
+ * from the trips table: they are written together by complete_trip, and reading
+ * them from the same place is what stops a cancelled or adjusted trip making
+ * the two disagree.
  */
 export async function getEarningsSince(
   client: GeraClient,
   riderId: string,
   since: Date,
 ): Promise<Earnings> {
-  const iso = since.toISOString();
+  const { data, error } = await client
+    .from("ledger_entries")
+    .select("amount_rwf, kind, trip_id")
+    .eq("rider_id", riderId)
+    .in("kind", ["fare_collected", "trip_earning"])
+    .gte("created_at", since.toISOString());
 
-  const [tripsRes, ledgerRes] = await Promise.all([
-    client
-      .from("trips")
-      .select("quoted_amount_rwf")
-      .eq("rider_id", riderId)
-      .eq("state", "completed")
-      .gte("created_at", iso),
-    client
-      .from("ledger_entries")
-      .select("amount_rwf, kind")
-      .eq("rider_id", riderId)
-      .eq("kind", "commission_debit")
-      .gte("created_at", iso),
-  ]);
+  if (error) throw new Error(error.message);
 
-  if (tripsRes.error) throw new Error(tripsRes.error.message);
-  if (ledgerRes.error) throw new Error(ledgerRes.error.message);
+  const rows = (data ?? []) as {
+    amount_rwf: number;
+    kind: "fare_collected" | "trip_earning";
+    trip_id: string | null;
+  }[];
 
-  const trips = (tripsRes.data ?? []) as { quoted_amount_rwf: number | null }[];
-  const ledger = (ledgerRes.data ?? []) as { amount_rwf: number }[];
+  let collectedRwf = 0;
+  let earnedRwf = 0;
+  const trips = new Set<string>();
 
-  const grossRwf = trips.reduce((sum, t) => sum + (t.quoted_amount_rwf ?? 0), 0);
-  const commissionRwf = ledger.reduce((sum, l) => sum + Math.abs(l.amount_rwf), 0);
+  for (const row of rows) {
+    if (row.kind === "fare_collected") collectedRwf += row.amount_rwf;
+    else earnedRwf += row.amount_rwf;
+    if (row.trip_id) trips.add(row.trip_id);
+  }
 
   return {
-    trips: trips.length,
-    grossRwf,
-    commissionRwf,
-    netRwf: grossRwf - commissionRwf,
+    trips: trips.size,
+    collectedRwf,
+    earnedRwf,
+    companyShareRwf: collectedRwf - earnedRwf,
   };
 }
 

@@ -68,38 +68,75 @@ Takes effect immediately — it flips their verification *and* forces them offli
 
 ---
 
-## 3. The wallet — this is your revenue, and it is manual
+## 3. The money — two numbers, never one
 
-Gera never touches the fare. The passenger pays the rider in cash, in full. Your commission is debited from a **prepaid wallet** the rider tops up.
+This is the part most worth reading twice, because netting the two is how cash fleets lose money quietly.
 
-This means: **a rider with an empty wallet cannot go online.** Verified is not enough.
+A passenger pays the rider in cash. The company owns the vehicle. So at the end of every trip **two** things are true at once:
+
+| | What it is | What you do about it |
+|---|---|---|
+| **Carrying** | Company cash in the rider's pocket. Fares collected minus what they've handed in. | Chase it. This is exposure. |
+| **Owed** | What you owe the rider. Earnings and bonuses minus deductions and payouts. | Pay it. This is a liability. |
+
+A rider carrying 50,000 RWF who has earned 20,000 nets to −30,000. That number is arithmetically true and operationally useless: what decides whether they work tomorrow is the **50,000 in their pocket**, not the net.
 
 ```bash
-pnpm review credit <rider-id> 5000 "MoMo ref 884213"
-pnpm review balance <rider-id>
+pnpm review money <rider-id>
+#   carrying (ours):  2,400 RWF
+#   owed (theirs):    2,390 RWF
 ```
 
-The reference is required. It should be something that proves the money arrived — a MoMo transaction id, a receipt number. An unreferenced credit is indistinguishable from an invented one, and when a rider disputes their balance six weeks later that reference is the entire argument.
+### Recording cash coming in
 
-**Today the flow is:**
+```bash
+pnpm review remit <rider-id> 5000 "MoMo ref 884213"
+```
 
-1. Rider sends mobile money to your business number, or hands over cash
-2. You confirm it arrived
-3. You run `credit` with the transaction reference
-4. Their wallet updates and they can go online
+The reference is required, and it must prove the money arrived — a MoMo transaction id, a receipt number. An unreferenced remittance is indistinguishable from an invented one, and when a rider disputes their position six weeks later that reference is the entire argument.
 
-That is fine for ten riders and impossible at a hundred. Connecting MTN MoMo Collections or an aggregator (Paypack, Flutterwave, Kpay) turns step 2–3 into a webhook calling the same function. Nothing else changes — `credit_rider_wallet` is already the single entry point for money in.
+Remitting reduces what they're carrying. It does **not** change what you owe them. That's the point.
 
-### Setting the float
+### Paying riders
 
-Two numbers in `platform_settings` govern this:
+```bash
+pnpm review pay <rider-id> 12000 "Week 40 payout"
+pnpm review bonus <rider-id> 500 "Weekend cover"
+pnpm review deduct <rider-id> 2000 "Damaged mirror"
+```
 
-- **Minimum balance to go online** — set it to roughly three trips' commission. Too low and riders go negative mid-shift; too high and you are asking for a deposit before they have earned anything.
-- **Commission percentage** — currently 15%.
+A deduction needs a reason and the rider is shown it. A deduction nobody can explain is a dispute waiting.
 
-On a 1,700 RWF moto trip the commission is 255 RWF. A 5,000 RWF float covers about nineteen trips, which is most of a day.
+### The cash ceiling
 
----
+A rider carrying more than `platform_settings.max_cash_held_rwf` (default 50,000) **cannot go online**. They must remit first.
+
+This is your real control on cash. Without it, exposure grows quietly with every shift and the first anyone notices is when somebody stops answering their phone.
+
+A rider already online who goes over the ceiling mid-shift — because their own completed fare pushed them over — is **not** frozen. They can still report position and go offline; they simply can't start a new shift until they've remitted. That escape hatch is deliberate and there's a test pinning it: without it, a passenger watching their moto approach would see it stop dead.
+
+### What the rider earns
+
+The rider's share is the remainder after commission, taken from `fare_policies.commission_pct` for their vehicle class. At the default 15%, a 1,700 RWF trip splits 255 to the company and 1,445 to the rider.
+
+**Change that number.** 15% was a marketplace rate, where the rider owned the vehicle and paid fuel. In a fleet you own both, so the company's share should be considerably higher:
+
+```sql
+insert into fare_policies (vehicle_class, base_rwf, per_km_rwf, per_minute_rwf,
+                           minimum_rwf, commission_pct, effective_from)
+values ('moto', 500, 900, 22, 800, 40.00, now());
+```
+
+Rates are versioned by `effective_from`, so a trip already quoted settles at the rate it was quoted under. Raising the rate never reaches a trip in flight.
+
+### Going online
+
+Two conditions, and telling a rider the wrong one wastes their day:
+
+1. **A vehicle assigned** — the company owns it, so no vehicle means not working today
+2. **Under the cash ceiling**
+
+`pnpm review verify` tells you which one is missing.
 
 ## 4. Recruiting
 
@@ -111,12 +148,13 @@ Order matters. Riders before passengers, always — a passenger who opens the ap
 
 **What they will ask, in this order:**
 
-1. *How much do I keep?* — All the cash. Commission comes from the wallet.
-2. *When do I get paid?* — Immediately. The passenger hands it to you.
-3. *What does it cost me?* — 15%, taken after each trip from a wallet you top up.
-4. *What if there are no trips?* — Be honest. Early on there will be quiet hours.
+1. *How much do I earn?* — Your share of every completed fare, set per vehicle class.
+2. *When do I get paid?* — On the payout schedule you set. Say a real one and keep it.
+3. *What do I have to hand in?* — All the cash you collect. Your earnings are paid separately.
+4. *Whose vehicle is it?* — The company's. You don't pay for it, and you don't own it.
+5. *What if there are no trips?* — Be honest. Early on there will be quiet hours.
 
-That third answer is why the wallet model is worth the operational overhead: a rider who has already paid their commission is not deciding whether to hand you money at the end of a good day.
+Answer three carefully. A rider who thinks the cash in their pocket is theirs will spend it, and then you are having a very different conversation.
 
 ---
 
@@ -126,7 +164,7 @@ That third answer is why the wallet model is worth the operational overhead: a r
 - [ ] **RURA operator licence applied for** — start now, it is the long pole
 - [ ] Registered as a data controller with NCSA (Law N° 058/2021 — you store phone numbers and live GPS, it applies)
 - [ ] Business insurance
-- [ ] Mobile money business number for wallet top-ups
+- [ ] Mobile money business number for riders to remit cash to
 - [ ] Pindo account funded, `Gera` sender ID registered
 - [ ] Someone named as the person who answers the safety line (see below)
 - [ ] 15–20 verified, funded riders in **one** sector
@@ -163,13 +201,17 @@ Run it. Every day. Until it is somebody's actual job.
 
 ```
 pnpm review queue                                 everyone waiting
-pnpm review show <rider-id>                      one rider in full
-pnpm review doc <rider-id> <kind> approve        approve a document
-pnpm review doc <rider-id> <kind> reject "<why>" reject, with a reason they see
-pnpm review verify <rider-id>                    verify (needs all four approved)
-pnpm review suspend <rider-id> "<reason>"        stop them driving, now
-pnpm review credit <rider-id> <rwf> "<ref>"      top up their wallet
-pnpm review balance <rider-id>                   what they have left
+pnpm review show <rider-id>                       one rider in full
+pnpm review doc <rider-id> <kind> approve         approve a document
+pnpm review doc <rider-id> <kind> reject "<why>"  reject, with a reason they see
+pnpm review verify <rider-id>                     verify (needs all four approved)
+pnpm review suspend <rider-id> "<reason>"         stop them driving, now
+
+pnpm review money <rider-id>                      what they carry, what we owe
+pnpm review remit <rider-id> <rwf> "<ref>"        cash they handed in
+pnpm review pay <rider-id> <rwf> "<ref>"          pay what they are owed
+pnpm review bonus <rider-id> <rwf> "<why>"        add a bonus
+pnpm review deduct <rider-id> <rwf> "<why>"       take a deduction
 ```
 
 Kinds: `national_id`, `driving_licence`, `vehicle_registration`, `insurance`

@@ -120,9 +120,9 @@ select lives_ok(
 
 select is(
   (select amount_rwf from public.ledger_entries
-    where rider_id='b1111111-0000-4000-8000-000000000002' and kind='commission_debit'),
-  255,
-  'and the commission is still debited by the database'
+    where rider_id='b1111111-0000-4000-8000-000000000002' and kind='trip_earning'),
+  1445,
+  'and the earning is still derived by the database, not by the caller'
 );
 
 select * from finish();
