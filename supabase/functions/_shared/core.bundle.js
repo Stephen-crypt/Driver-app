@@ -266,9 +266,42 @@ function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
     commissionRwf: commissionFor(final.totalRwf, policy.commissionPct)
   };
 }
+
+// packages/core/src/dispatch/eta.ts
+var OFFER_TTL_SECONDS = 15;
+var DISPATCH_RADII_M = [
+  1e3,
+  2e3,
+  4e3
+];
+var CANDIDATE_SHORTLIST = 5;
+var AVERAGE_SPEED_MPS = {
+  moto: 7.5,
+  cab: 5.5,
+  cab_xl: 5
+};
+var straightLineEta = {
+  estimate(distanceMetres, vehicleClass) {
+    if (distanceMetres < 0) {
+      return Promise.reject(new Error("distanceMetres must be >= 0"));
+    }
+    return Promise.resolve(Math.round(distanceMetres / AVERAGE_SPEED_MPS[vehicleClass]));
+  }
+};
+async function rankByEta(candidates, vehicleClass, provider) {
+  const withEta = await Promise.all(candidates.map(async (c) => ({
+    ...c,
+    etaSeconds: await provider.estimate(c.distanceM, vehicleClass)
+  })));
+  return withEta.sort((a, b) => a.etaSeconds - b.etaSeconds);
+}
 export {
   ACTORS,
+  AVERAGE_SPEED_MPS,
+  CANDIDATE_SHORTLIST,
+  DISPATCH_RADII_M,
   LEDGER_ENTRY_KINDS,
+  OFFER_TTL_SECONDS,
   OVERAGE_TOLERANCE,
   TERMINAL_STATES,
   TRANSITIONS,
@@ -283,5 +316,7 @@ export {
   finalizeFare,
   isTerminal,
   quoteFare,
-  roundFareRwf
+  rankByEta,
+  roundFareRwf,
+  straightLineEta
 };

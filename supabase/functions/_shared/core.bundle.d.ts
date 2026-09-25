@@ -57,3 +57,33 @@ export declare function buildReceipt(
   quotedDistanceMetres: number,
   actualDistanceMetres: number,
 ): Receipt;
+
+/** A driver holds an exclusive offer for this long before it passes on. */
+export declare const OFFER_TTL_SECONDS = 15;
+
+/** The search widens only when a stage finds nobody (spec 3.3). */
+export declare const DISPATCH_RADII_M: readonly [1000, 2000, 4000];
+
+/**
+ * Only this many candidates get a real ETA lookup. Straight-line narrowing is
+ * free; road ETAs are billed per call, so the shortlist is the cost control.
+ */
+export declare const CANDIDATE_SHORTLIST = 5;
+
+/**
+ * Rough Kigali averages including stops. A moto filters through traffic a car
+ * cannot, which is most of why motos dominate the city.
+ */
+export declare const AVERAGE_SPEED_MPS: Record<VehicleClass, number>;
+
+export interface EtaProvider {
+  estimate(distanceMetres: number, vehicleClass: VehicleClass): Promise<number>;
+}
+
+export declare const straightLineEta: EtaProvider;
+
+export declare function rankByEta<T extends { driverId: string; distanceM: number }>(
+  candidates: readonly T[],
+  vehicleClass: VehicleClass,
+  provider: EtaProvider,
+): Promise<(T & { etaSeconds: number })[]>;

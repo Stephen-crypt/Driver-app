@@ -5,3 +5,4 @@ export * from "./fare/quote";
 export * from "./fare/finalize";
 export * from "./ledger/commission";
 export * from "./fare/receipt";
+export * from "./dispatch/eta";
