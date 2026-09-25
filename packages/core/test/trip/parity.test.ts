@@ -4,6 +4,7 @@ import { TRANSITIONS } from "../../src/trip/transitions";
 import { TRIP_STATES, TERMINAL_STATES, isTerminal } from "../../src/trip/states";
 import { VEHICLE_CLASSES } from "../../src/fare/policy";
 import { LEDGER_ENTRY_KINDS } from "../../src/ledger/commission";
+import { OFFER_TTL_SECONDS } from "../../src/dispatch/eta";
 
 function migration(file: string): string {
   return readFileSync(
@@ -88,5 +89,27 @@ describe("TS/SQL enum parity", () => {
     ).sort();
 
     expect(sqlKinds).toEqual([...LEDGER_ENTRY_KINDS].sort());
+  });
+});
+
+describe("TS/SQL dispatch constant parity", () => {
+  it("OFFER_TTL_SECONDS matches offer_ttl_seconds() in 0020_dispatch_chain.sql", () => {
+    // The sweeper creates offers now, and it never sees a TypeScript constant,
+    // so the TTL had to be authored a second time in SQL. Two copies of the
+    // number that decides how long a driver holds a trip is exactly the drift
+    // this file exists to make impossible - and 017_dispatch_chain.test.sql
+    // asserts the cron sweep interval is shorter than the SQL copy, so a silent
+    // divergence here would quietly un-tune that guard too.
+    const sql = migration("0020_dispatch_chain.sql");
+
+    const body = sql
+      .split("create or replace function public.offer_ttl_seconds()")[1]
+      ?.split("$$")[1];
+
+    expect(body, "offer_ttl_seconds() body not found in migration").toBeDefined();
+
+    const literal = body!.match(/select\s+(\d+)\s*;/)?.[1];
+    expect(literal, "offer_ttl_seconds() does not return a plain literal").toBeDefined();
+    expect(Number(literal)).toBe(OFFER_TTL_SECONDS);
   });
 });
