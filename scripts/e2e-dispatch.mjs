@@ -30,9 +30,47 @@ function mint(sub) {
   return `${h}.${p}.${s}`;
 }
 
+// Every run places its whole scene somewhere else in Kigali. Back to back, the
+// PREVIOUS run's driver is still `online` with a heartbeat inside the 30-second
+// window; at fixed coordinates it sat at exactly the same distance from exactly
+// the same pickup as this run's driver, and "and it is the only eligible
+// driver" lost that tie about half the time. Pickup, dropoff and driver are
+// offset together, so the geometry the test depends on - one moto ~300m from
+// the pickup - is unchanged; only its position on the map moves.
+const LNG_MIN = 30.03, LNG_MAX = 30.13;
+const LAT_MIN = -1.99, LAT_MAX = -1.91;
+const rand = (lo, hi) => lo + Math.random() * (hi - lo);
+const originLng = rand(LNG_MIN, LNG_MAX);
+const originLat = rand(LAT_MIN, LAT_MAX);
+const M_PER_DEG_LAT = 111_320;
+const mPerDegLng = M_PER_DEG_LAT * Math.cos((originLat * Math.PI) / 180);
+const east = (metres) => originLng + metres / mPerDegLng;
+const north = (metres) => originLat + metres / M_PER_DEG_LAT;
+
+const PICKUP = { lng: originLng, lat: originLat };
+const DRIVER_AT = { lng: east(300), lat: originLat };
+// The same ~1.1km hop the fixed fixture used, kept so the trip still looks like
+// a real short Kigali ride.
+const DROPOFF = { lng: east(-344), lat: north(-1058) };
+const point = (p) => `st_point(${p.lng},${p.lat})::geography`;
+const wkt = (p) => `POINT(${p.lng} ${p.lat})`;
+
+// The other half of the same flake: a run that leaves its driver online is the
+// run that breaks the NEXT one. Jitter makes a collision unlikely; parking the
+// driver makes a clean run leave nothing behind at all.
+function parkDriver() {
+  try {
+    psql(`update public.driver_presence set status='offline', updated_at=now()
+           where driver_id='${DRIVER}';`);
+  } catch (err) {
+    console.error("warning: could not park the fixture driver offline", err.message);
+  }
+}
+
 function check(label, actual, expected) {
   if (String(actual) !== String(expected)) {
     console.error(`FAIL ${label}: expected ${expected}, got ${actual}`);
+    parkDriver();
     process.exit(1);
   }
   console.log(`ok   ${label}`);
@@ -47,9 +85,9 @@ psql(`insert into public.profiles (id,role,first_name,phone) values
  ('${DRIVER}','driver','Eric','+2507882${suffix}');`);
 psql(`insert into public.drivers (id,verification) values ('${DRIVER}','verified');`);
 psql(`insert into public.ledger_entries (driver_id,kind,amount_rwf) values ('${DRIVER}','topup_credit',5000);`);
-// One moto, online, 300m from the pickup.
+// One moto, online, 300m from the pickup - wherever this run's pickup landed.
 psql(`insert into public.driver_presence (driver_id,status,vehicle_class,position,heartbeat_at)
-      values ('${DRIVER}','online','moto',st_point(30.0650,-1.9441)::geography,now());`);
+      values ('${DRIVER}','online','moto',${point(DRIVER_AT)},now());`);
 
 const riderJwt = mint(RIDER);
 const driverJwt = mint(DRIVER);
@@ -70,10 +108,10 @@ check("quote returns 200", quote.status, 200);
 
 const created = await call("/rest/v1/rpc/create_trip_from_quote", riderJwt, {
   p_quote_id: quote.body.quoteId,
-  p_pickup: "POINT(30.0619 -1.9441)",
+  p_pickup: wkt(PICKUP),
   p_pickup_label: "Kimironko Market",
   p_pickup_note: "blue gate opposite the pharmacy",
-  p_dropoff: "POINT(30.0588 -1.9536)",
+  p_dropoff: wkt(DROPOFF),
   p_dropoff_label: "Kigali Heights",
 });
 check("trip created", created.status, 200);
@@ -112,5 +150,7 @@ check("exactly one commission debit",
   psql(`select count(*) from public.ledger_entries where trip_id='${tripId}';`), "1");
 check("driver balance is 5000 - 255",
   psql(`select public.driver_balance('${DRIVER}');`), "4745");
+
+parkDriver();
 
 console.log("\nDispatch end-to-end passed: nobody chose the driver.");

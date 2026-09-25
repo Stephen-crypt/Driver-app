@@ -57,11 +57,35 @@ console.log(`${DRIVERS} drivers online. Moving for ${MINUTES} minute(s); Ctrl-C 
 
 const until = Date.now() + MINUTES * 60_000;
 
+// Leaving simulated drivers `online` poisons everything that runs next: they
+// stay in driver_presence_dispatchable_idx, they are matched to real trips by
+// find_candidate_drivers for as long as their heartbeat looks fresh, and
+// scripts/e2e-dispatch.mjs starts losing its "only eligible driver" check to
+// them. The rows themselves stay - ledger_entries has no cascade by design -
+// but the presence goes.
+let parked = false;
+function parkDrivers() {
+  if (parked) return;
+  parked = true;
+  psql(`update public.driver_presence set status = 'offline', updated_at = now()
+         where driver_id in (${drivers.map((d) => `'${d.id}'`).join(",")});`);
+  console.log("\ndrivers set offline.");
+}
+
+// Ctrl-C is the NORMAL way to stop this script, so the teardown cannot live
+// only on the finished path. Re-raising as an exit code rather than calling
+// process.exit() keeps the signal's meaning for whatever spawned us.
+process.on("SIGINT", () => {
+  parkDrivers();
+  process.exit(130);
+});
+
 const timer = setInterval(() => {
   if (Date.now() > until) {
     clearInterval(timer);
-    console.log("simulation finished. Drivers left online and funded.");
-    console.log("Run `supabase db reset` to clear them.");
+    parkDrivers();
+    console.log("simulation finished. Drivers left offline, funded and verified.");
+    console.log("Run `supabase db reset` to clear them entirely.");
     return;
   }
 
