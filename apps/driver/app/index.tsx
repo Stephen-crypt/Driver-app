@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -22,12 +24,16 @@ import {
   getActiveTrip,
   advanceTrip,
   completeTrip,
+  registerDeviceToken,
+  getTripContact,
+  cancelTrip,
   secondsLeft,
   type LiveOffer,
   type ActiveTrip,
   type VehicleClass,
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
+import { registerForPush } from "../src/lib/push";
 import * as loc from "../src/lib/location";
 
 const money = (rwf: number) => rwf.toLocaleString("en-US");
@@ -72,6 +78,26 @@ export default function Console() {
       sub.subscription.unsubscribe();
     };
   }, []);
+
+  // Push. This is what makes an offer reach a driver whose phone is in their
+  // pocket - polling only works while the app is foregrounded, and an offer
+  // lives fifteen seconds.
+  useEffect(() => {
+    if (!driverId) return;
+    let active = true;
+    (async () => {
+      const result = await registerForPush();
+      if (!active || !result.ok) return;
+      try {
+        await registerDeviceToken(supabase, driverId, result.token, "android");
+      } catch {
+        // A driver without push still sees offers while the app is open.
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [driverId]);
 
   // Location. Asked for once, up front: a driver who goes online without it is
   // invisible to dispatch, which looks like "the app gives me no work".
@@ -250,6 +276,46 @@ export default function Console() {
     }
   }, [trip, driverId]);
 
+  const onCallRider = useCallback(async () => {
+    if (!trip) return;
+    try {
+      const contact = await getTripContact(supabase, trip.id);
+      if (!contact?.phone) {
+        Alert.alert("Not available", "You can call once the trip is active.");
+        return;
+      }
+      await Linking.openURL(`tel:${contact.phone}`);
+    } catch {
+      Alert.alert("Could not call", "Try again in a moment.");
+    }
+  }, [trip]);
+
+  const onCancelTrip = useCallback(() => {
+    if (!trip) return;
+    Alert.alert(
+      "Cancel this trip?",
+      "Cancelling after accepting affects your standing.",
+      [
+        { text: "Keep it", style: "cancel" },
+        {
+          text: "Cancel trip",
+          style: "destructive",
+          onPress: async () => {
+            setBusy(true);
+            try {
+              await cancelTrip(supabase, trip.id, "driver");
+              setTrip(null);
+            } catch (e) {
+              setError(e instanceof Error ? e.message : "Could not cancel.");
+            } finally {
+              setBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  }, [trip]);
+
   if (signedIn === null) {
     return (
       <View style={styles.centre}>
@@ -361,6 +427,18 @@ export default function Console() {
               <Text style={styles.ctaText}>Finish · collect cash</Text>
             </Pressable>
           )}
+
+          <Pressable style={styles.call} onPress={onCallRider} accessibilityRole="button">
+            <Text style={styles.callText}>Call rider</Text>
+          </Pressable>
+
+          {/* Cancelling is allowed from accepted and arrived, and nowhere else -
+              the same window trip_transition_rules defines. */}
+          {trip.state !== "in_progress" ? (
+            <Pressable style={styles.ghost} onPress={onCancelTrip} disabled={busy}>
+              <Text style={styles.cancelText}>Cancel trip</Text>
+            </Pressable>
+          ) : null}
         </View>
       ) : null}
 
@@ -496,4 +574,19 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   ghostText: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  call: {
+    marginTop: tokens.space.sm,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    borderRadius: tokens.radius.md,
+    borderWidth: 2,
+    borderColor: lightTheme.textStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  callText: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  cancelText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
 });

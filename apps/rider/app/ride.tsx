@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { lightTheme, tokens } from "@gera/ui";
 import {
@@ -8,6 +8,9 @@ import {
   getTrip,
   getDriverCard,
   getRoute,
+  getTripContact,
+  cancelTrip,
+  rateTrip,
   isTripLive,
   type QuoteResult,
   type TripSnapshot,
@@ -65,6 +68,8 @@ export default function Ride() {
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [trip, setTrip] = useState<TripSnapshot | null>(null);
   const [driver, setDriver] = useState<DriverCard | null>(null);
+  const [rating, setRating] = useState(0);
+  const [rated, setRated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -170,7 +175,63 @@ export default function Ride() {
     }
   }, [quote, note, label, lng, lat]);
 
+  const onCall = useCallback(async () => {
+    if (!trip) return;
+    try {
+      const contact = await getTripContact(supabase, trip.id);
+      if (!contact?.phone) {
+        Alert.alert("Not available", "You can call your driver once they've accepted.");
+        return;
+      }
+      await Linking.openURL(`tel:${contact.phone}`);
+    } catch {
+      Alert.alert("Could not call", "Try again in a moment.");
+    }
+  }, [trip]);
+
+  const onCancel = useCallback(() => {
+    if (!trip) return;
+    Alert.alert("Cancel this trip?", "Your driver is on the way.", [
+      { text: "Keep it", style: "cancel" },
+      {
+        text: "Cancel trip",
+        style: "destructive",
+        onPress: async () => {
+          setBusy(true);
+          try {
+            await cancelTrip(supabase, trip.id, "rider");
+            setTrip(await getTrip(supabase, trip.id));
+          } catch (e) {
+            setError(e instanceof Error ? e.message : "Could not cancel.");
+          } finally {
+            setBusy(false);
+          }
+        },
+      },
+    ]);
+  }, [trip]);
+
+  const onRate = useCallback(
+    async (stars: number) => {
+      if (!trip) return;
+      setRating(stars);
+      try {
+        await rateTrip(supabase, trip.id, stars);
+        setRated(true);
+      } catch {
+        setRating(0);
+        setError("Could not save your rating.");
+      }
+    },
+    [trip],
+  );
+
   const state = trip?.state ?? (quote ? "quoted" : "idle");
+  // Cancellable exactly where trip_transition_rules says it is, so the button
+  // never appears for a transition the server would refuse.
+  const cancellable =
+    trip !== null &&
+    ["requested", "offered", "accepted", "arrived"].includes(trip.state);
 
   const markers: MapMarker[] = [
     { id: "p", at: PICKUP, label: "Pickup", kind: "pickup" },
@@ -215,6 +276,36 @@ export default function Ride() {
               </View>
             ) : null}
 
+            {driver && isTripLive(trip.state) ? (
+              <Pressable style={styles.callButton} onPress={onCall} accessibilityRole="button">
+                <Text style={styles.callText}>Call {driver.firstName}</Text>
+              </Pressable>
+            ) : null}
+
+            {/* Rating lives on the completed sheet, not a separate screen: the
+                moment the rider is most willing to give one is right now. */}
+            {trip.state === "completed" ? (
+              <View style={styles.rateBlock}>
+                <Text style={styles.rateLabel}>
+                  {rated ? "Thanks for rating" : "How was your trip?"}
+                </Text>
+                <View style={styles.stars}>
+                  {[1, 2, 3, 4, 5].map((n) => (
+                    <Pressable
+                      key={n}
+                      onPress={() => onRate(n)}
+                      disabled={rated}
+                      style={styles.star}
+                      accessibilityRole="button"
+                      accessibilityLabel={`${n} star${n > 1 ? "s" : ""}`}
+                    >
+                      <Text style={[styles.starGlyph, n <= rating && styles.starOn]}>★</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            ) : null}
+
             {trip.state === "no_drivers" ? (
               <Text style={styles.sorry}>
                 Nobody is free near you right now. Try again in a few minutes.
@@ -222,7 +313,19 @@ export default function Ride() {
             ) : null}
 
             {isTripLive(trip.state) ? (
-              <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
+              <>
+                <ActivityIndicator style={styles.spin} color={lightTheme.accent} />
+                {cancellable ? (
+                  <Pressable
+                    style={styles.cancel}
+                    onPress={onCancel}
+                    disabled={busy}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.cancelText}>Cancel trip</Text>
+                  </Pressable>
+                ) : null}
+              </>
             ) : (
               <Pressable
                 style={styles.cta}
@@ -345,6 +448,38 @@ const styles = StyleSheet.create({
     fontSize: tokens.type.body.size,
     color: lightTheme.textMuted,
   },
+  callButton: {
+    marginTop: tokens.space.md,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    borderRadius: tokens.radius.md,
+    borderWidth: 2,
+    borderColor: lightTheme.textStrong,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  callText: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  cancel: {
+    marginTop: "auto",
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
+  rateBlock: { marginTop: tokens.space.lg },
+  rateLabel: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
+  stars: { flexDirection: "row", marginTop: tokens.space.sm },
+  star: {
+    minWidth: tokens.MIN_TOUCH_TARGET,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  starGlyph: { fontSize: 34, color: lightTheme.textMuted, opacity: 0.35 },
+  starOn: { color: lightTheme.accent, opacity: 1 },
   spin: { marginTop: tokens.space.lg },
   error: {
     color: lightTheme.danger,

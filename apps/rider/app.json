@@ -1,28 +1,50 @@
 {
   "expo": {
-    "name": "rider",
-    "slug": "rider",
+    "name": "Gera",
+    "slug": "gera-rider",
+    "scheme": "gera",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "backgroundColor": "#141B34",
+    "splash": {
+      "backgroundColor": "#141B34",
+      "resizeMode": "contain",
+      "image": "./assets/icon.png"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "rw.gera.rider",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Gera uses your location to find drivers near you and set your pickup point."
+      }
     },
     "android": {
+      "package": "rw.gera.rider",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#141B34",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION"
+      ],
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      [
+        "expo-notifications",
+        {
+          "color": "#F5A524"
+        }
+      ]
     ]
   }
 }
