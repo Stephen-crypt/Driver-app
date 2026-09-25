@@ -62,13 +62,18 @@ create policy presence_owner_all on public.driver_presence
   using (driver_id = auth.uid())
   with check (
     driver_id = auth.uid()
-    and exists (
-      select 1 from public.drivers d
-       where d.id = auth.uid() and d.verification = 'verified'
+    -- Both conditions gate GOING online, not leaving. `with check` runs on every
+    -- update, so an unconditional test strands a driver whose verification is
+    -- revoked - or whose balance drops - mid-shift: unable to go offline, still
+    -- sitting in the dispatch index being matched to passengers.
+    and (
+      status <> 'online'
+      or (
+        exists (
+          select 1 from public.drivers d
+           where d.id = auth.uid() and d.verification = 'verified'
+        )
+        and public.can_go_online(auth.uid())
+      )
     )
-    -- Spec 3.5 gates GOING online, not leaving. `with check` runs on every
-    -- update, so an unconditional balance test would strand a driver whose
-    -- commission debit dropped them under the minimum mid-shift: unable to go
-    -- offline, still sitting in the dispatch index.
-    and (status <> 'online' or public.can_go_online(auth.uid()))
   );
