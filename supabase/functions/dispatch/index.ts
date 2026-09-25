@@ -96,7 +96,14 @@ Deno.serve(async (req: Request) => {
       p_limit: CANDIDATE_SHORTLIST,
     });
 
-    if (matchError) return json({ error: matchError.message }, 500);
+    // Static, like the offer branch above: matchError.message is a Postgres
+    // error string, and this endpoint answers over HTTP. It has leaked
+    // function signatures and column names before. Log the detail, return a
+    // code.
+    if (matchError) {
+      console.error("dispatch: find_candidates_for_trip failed", matchError);
+      return json({ error: "match_failed" }, 500);
+    }
 
     const rows = (candidates ?? []) as Candidate[];
     const best = await selectBestCandidate(rows, trip.vehicle_class as VehicleClass, straightLineEta);
