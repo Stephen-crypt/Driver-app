@@ -76,3 +76,64 @@ export async function getRoute(
     return null;
   }
 }
+
+export interface SavedPlace {
+  readonly id: string;
+  readonly label: string;
+  readonly note: string | null;
+  readonly lng: number;
+  readonly lat: number;
+}
+
+/**
+ * The places a rider goes back to. Spec 3.7 puts these above the gazetteer in
+ * the destination picker: for most riders most days the answer is home or work,
+ * and making them type it is the difference between four taps and one.
+ */
+export async function listSavedPlaces(
+  client: GeraClient,
+  _riderId: string,
+): Promise<SavedPlace[]> {
+  // Via RPC, not a table select. PostgREST serialises a geography column as hex
+  // EWKB ("0101000020E6100000...") rather than GeoJSON, so selecting `position`
+  // hands the app an opaque string - and a client that tries to parse
+  // coordinates out of it produces NaN, which looks exactly like "no saved
+  // places", forever. list_saved_places projects st_x/st_y the way
+  // search_landmarks already does, and runs security invoker so RLS still
+  // filters to this rider.
+  const { data, error } = await client.rpc("list_saved_places");
+  if (error) throw new Error(error.message);
+
+  return ((data ?? []) as {
+    id: string;
+    label: string;
+    note: string | null;
+    lng: number;
+    lat: number;
+  }[]).map((r) => ({
+    id: r.id,
+    label: r.label,
+    note: r.note,
+    lng: Number(r.lng),
+    lat: Number(r.lat),
+  }));
+}
+
+export async function savePlace(
+  client: GeraClient,
+  riderId: string,
+  place: { label: string; lng: number; lat: number; note?: string },
+): Promise<void> {
+  const { error } = await client.from("saved_places").insert({
+    rider_id: riderId,
+    label: place.label,
+    note: place.note ?? null,
+    position: `POINT(${place.lng} ${place.lat})`,
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function deleteSavedPlace(client: GeraClient, id: string): Promise<void> {
+  const { error } = await client.from("saved_places").delete().eq("id", id);
+  if (error) throw new Error(error.message);
+}

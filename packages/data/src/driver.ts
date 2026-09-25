@@ -242,3 +242,64 @@ export async function advanceTrip(
 export function secondsLeft(expiresAt: string, now = Date.now()): number {
   return Math.max(0, Math.ceil((new Date(expiresAt).getTime() - now) / 1000));
 }
+
+export interface Earnings {
+  readonly trips: number;
+  readonly grossRwf: number;
+  readonly commissionRwf: number;
+  readonly netRwf: number;
+}
+
+/**
+ * What the driver actually made since a given moment, usually the start of
+ * today.
+ *
+ * Gross is the cash they collected; commission is what Gera debited from the
+ * wallet for those trips. Net is what they keep. Showing gross alone is the
+ * number that makes drivers feel cheated when the wallet moves, so all three
+ * are shown together.
+ */
+export async function getEarningsSince(
+  client: GeraClient,
+  driverId: string,
+  since: Date,
+): Promise<Earnings> {
+  const iso = since.toISOString();
+
+  const [tripsRes, ledgerRes] = await Promise.all([
+    client
+      .from("trips")
+      .select("quoted_amount_rwf")
+      .eq("driver_id", driverId)
+      .eq("state", "completed")
+      .gte("created_at", iso),
+    client
+      .from("ledger_entries")
+      .select("amount_rwf, kind")
+      .eq("driver_id", driverId)
+      .eq("kind", "commission_debit")
+      .gte("created_at", iso),
+  ]);
+
+  if (tripsRes.error) throw new Error(tripsRes.error.message);
+  if (ledgerRes.error) throw new Error(ledgerRes.error.message);
+
+  const trips = (tripsRes.data ?? []) as { quoted_amount_rwf: number | null }[];
+  const ledger = (ledgerRes.data ?? []) as { amount_rwf: number }[];
+
+  const grossRwf = trips.reduce((sum, t) => sum + (t.quoted_amount_rwf ?? 0), 0);
+  const commissionRwf = ledger.reduce((sum, l) => sum + Math.abs(l.amount_rwf), 0);
+
+  return {
+    trips: trips.length,
+    grossRwf,
+    commissionRwf,
+    netRwf: grossRwf - commissionRwf,
+  };
+}
+
+export function startOfToday(now = new Date()): Date {
+  const d = new Date(now);
+  d.setHours(0, 0, 0, 0);
+  return d;
+}

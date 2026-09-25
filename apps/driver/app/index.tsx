@@ -27,10 +27,15 @@ import {
   registerDeviceToken,
   getTripContact,
   cancelTrip,
+  getEarningsSince,
+  startOfToday,
+  watchOffers,
+  watchDriverTrips,
   secondsLeft,
   type LiveOffer,
   type ActiveTrip,
   type VehicleClass,
+  type Earnings,
 } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { registerForPush } from "../src/lib/push";
@@ -54,6 +59,7 @@ export default function Console() {
   const [trip, setTrip] = useState<ActiveTrip | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [earnings, setEarnings] = useState<Earnings | null>(null);
   // Bumped on every poll purely to force a re-render, so the offer countdown
   // ticks down on screen. secondsLeft reads the clock, not this value.
   const [, setTick] = useState(0);
@@ -151,15 +157,16 @@ export default function Console() {
     };
   }, [driverId]);
 
-  // One timer drives everything: the heartbeat that keeps the driver in the
-  // dispatch index, the offer poll, and the countdown redraw.
+  // Offers arrive over realtime, not polling: an offer lives fifteen seconds and
+  // a three-second poll was spending up to a fifth of that before the driver
+  // even saw it. The interval that remains is the heartbeat - which has to keep
+  // running regardless, or the driver falls out of the dispatch index - plus a
+  // re-read as a backstop for a websocket that dropped.
   useEffect(() => {
     if (!driverId || !online) return;
-    const id = setInterval(async () => {
-      setTick((t) => t + 1);
-      const at = hereRef.current;
+
+    const refresh = async () => {
       try {
-        if (at) await heartbeat(supabase, driverId, at);
         const [o, t] = await Promise.all([
           getLiveOffer(supabase, driverId),
           getActiveTrip(supabase, driverId),
@@ -167,11 +174,53 @@ export default function Console() {
         setOffer(o);
         setTrip(t);
       } catch {
-        // A dropped tick is not a dropped shift. The next one retries.
+        // A dropped read is not a dropped shift.
+      }
+    };
+
+    const offers = watchOffers(supabase, driverId, refresh);
+    const trips = watchDriverTrips(supabase, driverId, refresh);
+    void refresh();
+
+    // Still every three seconds: this is the heartbeat, and driver_presence
+    // goes stale in thirty. The countdown redraw rides along with it.
+    const id = setInterval(async () => {
+      setTick((t) => t + 1);
+      const at = hereRef.current;
+      try {
+        if (at) await heartbeat(supabase, driverId, at);
+      } catch {
+        // The next beat retries.
       }
     }, 3000);
-    return () => clearInterval(id);
+
+    // Slower backstop, in case the subscription died quietly.
+    const backstop = setInterval(refresh, 15000);
+
+    return () => {
+      offers.unsubscribe();
+      trips.unsubscribe();
+      clearInterval(id);
+      clearInterval(backstop);
+    };
   }, [driverId, online]);
+
+  // Today's earnings. Refreshed when a trip finishes rather than on a timer -
+  // that is the only moment the number can change.
+  useEffect(() => {
+    if (!driverId) return;
+    let active = true;
+    getEarningsSince(supabase, driverId, startOfToday())
+      .then((e) => {
+        if (active) setEarnings(e);
+      })
+      .catch(() => {
+        // Earnings are informational; the console works without them.
+      });
+    return () => {
+      active = false;
+    };
+  }, [driverId, trip?.id]);
 
   const toggleOnline = useCallback(
     async (next: boolean) => {
@@ -269,6 +318,7 @@ export default function Console() {
       });
       setTrip(null);
       setBalance(await getBalance(supabase, driverId));
+      setEarnings(await getEarningsSince(supabase, driverId, startOfToday()));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not finish the trip.");
     } finally {
@@ -349,6 +399,32 @@ export default function Console() {
         <Text style={styles.walletValue}>
           {balance === null ? "—" : `${money(balance)} RWF`}
         </Text>
+      </View>
+
+      {/* Gross, commission and net together. Showing gross alone is the number
+          that makes a driver feel cheated when the wallet moves. */}
+      <View style={styles.earnings}>
+        <Text style={styles.earningsTitle}>Today</Text>
+        <View style={styles.earningsRow}>
+          <View style={styles.earningsCell}>
+            <Text style={styles.earningsValue}>{earnings?.trips ?? 0}</Text>
+            <Text style={styles.earningsLabel}>trips</Text>
+          </View>
+          <View style={styles.earningsCell}>
+            <Text style={styles.earningsValue}>{money(earnings?.grossRwf ?? 0)}</Text>
+            <Text style={styles.earningsLabel}>collected</Text>
+          </View>
+          <View style={styles.earningsCell}>
+            <Text style={styles.earningsValue}>−{money(earnings?.commissionRwf ?? 0)}</Text>
+            <Text style={styles.earningsLabel}>commission</Text>
+          </View>
+          <View style={styles.earningsCell}>
+            <Text style={[styles.earningsValue, styles.earningsNet]}>
+              {money(earnings?.netRwf ?? 0)}
+            </Text>
+            <Text style={styles.earningsLabel}>you keep</Text>
+          </View>
+        </View>
       </View>
 
       {blocked ? <Text style={styles.warn}>{blocked}</Text> : null}
@@ -589,4 +665,27 @@ const styles = StyleSheet.create({
     color: lightTheme.textStrong,
   },
   cancelText: { fontSize: tokens.type.body.size, color: lightTheme.danger },
+  earnings: {
+    marginTop: tokens.space.md,
+    padding: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: lightTheme.surfaceRaised,
+  },
+  earningsTitle: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "700",
+    letterSpacing: 1,
+    textTransform: "uppercase",
+    color: lightTheme.textMuted,
+    marginBottom: tokens.space.sm,
+  },
+  earningsRow: { flexDirection: "row", justifyContent: "space-between" },
+  earningsCell: { flex: 1 },
+  earningsValue: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  earningsNet: { color: lightTheme.success },
+  earningsLabel: { fontSize: tokens.type.label.size, color: lightTheme.textMuted },
 });

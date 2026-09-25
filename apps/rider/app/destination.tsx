@@ -10,7 +10,13 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { lightTheme, tokens } from "@gera/ui";
-import { searchLandmarks, type Place } from "@gera/data";
+import {
+  searchLandmarks,
+  listSavedPlaces,
+  savePlace,
+  type Place,
+  type SavedPlace,
+} from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { TripMap, type LatLng } from "../src/components/TripMap";
 
@@ -24,7 +30,31 @@ export default function Destination() {
   const [error, setError] = useState<string | null>(null);
   const [pin, setPin] = useState<LatLng | null>(null);
   const [note, setNote] = useState("");
+  const [saved, setSaved] = useState<SavedPlace[]>([]);
+  const [userId, setUserId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Spec 3.7 orders the picker saved -> gazetteer -> pin. For most riders on
+  // most days the answer is home or work, and making them type it is the
+  // difference between one tap and four.
+  useEffect(() => {
+    let active = true;
+    supabase.auth.getUser().then(async ({ data }) => {
+      const id = data.user?.id ?? null;
+      if (!active) return;
+      setUserId(id);
+      if (!id) return;
+      try {
+        const places = await listSavedPlaces(supabase, id);
+        if (active) setSaved(places);
+      } catch {
+        // An empty saved list is the normal first-run case.
+      }
+    });
+    return () => {
+      active = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (timer.current) clearTimeout(timer.current);
@@ -112,6 +142,22 @@ export default function Destination() {
         />
       ) : (
         <View style={styles.mapWrap}>
+          {saved.length > 0 ? (
+            <View style={styles.savedBar}>
+              {saved.slice(0, 3).map((pl) => (
+                <Pressable
+                  key={pl.id}
+                  style={styles.savedChip}
+                  onPress={() => choose(pl.lng, pl.lat, pl.label, pl.note ?? undefined)}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.savedChipText} numberOfLines={1}>
+                    {pl.label}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          ) : null}
           <TripMap
             center={KIGALI}
             markers={pin ? [{ id: "pin", at: pin, label: "Drop-off", kind: "dropoff" }] : []}
@@ -136,6 +182,27 @@ export default function Destination() {
               >
                 <Text style={styles.ctaText}>Use this spot</Text>
               </Pressable>
+              {userId ? (
+                <Pressable
+                  style={styles.saveLink}
+                  onPress={async () => {
+                    try {
+                      await savePlace(supabase, userId, {
+                        label: note.trim() || "Saved place",
+                        lng: pin.lng,
+                        lat: pin.lat,
+                        ...(note.trim() ? { note: note.trim() } : {}),
+                      });
+                      setSaved(await listSavedPlaces(supabase, userId));
+                    } catch {
+                      setError("Could not save that place.");
+                    }
+                  }}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.saveLinkText}>Save this place</Text>
+                </Pressable>
+              ) : null}
             </View>
           ) : (
             <Text style={styles.tapHint}>Tap the map to drop a pin</Text>
@@ -197,6 +264,36 @@ const styles = StyleSheet.create({
     fontSize: tokens.type.body.size,
   },
   mapWrap: { flex: 1 },
+  savedBar: {
+    position: "absolute",
+    top: tokens.space.md,
+    left: tokens.space.md,
+    right: tokens.space.md,
+    zIndex: 2,
+    flexDirection: "row",
+    gap: tokens.space.sm,
+  },
+  savedChip: {
+    flex: 1,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.pill,
+    backgroundColor: lightTheme.surfaceRaised,
+    alignItems: "center",
+    justifyContent: "center",
+    elevation: 4,
+  },
+  savedChipText: {
+    fontSize: tokens.type.label.size,
+    fontWeight: "700",
+    color: lightTheme.textStrong,
+  },
+  saveLink: {
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  saveLinkText: { fontSize: tokens.type.body.size, color: lightTheme.textMuted },
   pinPanel: {
     position: "absolute",
     left: 0,

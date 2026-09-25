@@ -6,3 +6,4 @@ export * from "./places";
 export * from "./trip-watch";
 export * from "./driver";
 export * from "./account";
+export * from "./live";

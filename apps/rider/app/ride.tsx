@@ -11,6 +11,7 @@ import {
   getTripContact,
   cancelTrip,
   rateTrip,
+  watchTrip,
   isTripLive,
   type QuoteResult,
   type TripSnapshot,
@@ -122,19 +123,34 @@ export default function Ride() {
     };
   }, [vehicleClass, distanceM, durationS, trip, haveDropoff]);
 
-  // Poll while the trip is live. Realtime streaming arrives in a later phase;
-  // polling is the honest version of "we do not have push yet".
+  // Realtime is the primary signal; the slow poll is a backstop for a dropped
+  // websocket, which on a Kigali mobile connection is not rare. Fifteen seconds
+  // rather than three: it only has to catch a subscription that died, and a
+  // three-second poll was spending a rider's data bundle on a row that changes
+  // four or five times in a whole trip.
   useEffect(() => {
     if (!trip || !isTripLive(trip.state)) return;
-    const id = setInterval(() => {
-      getTrip(supabase, trip.id)
+    const tripId = trip.id;
+
+    const refresh = () => {
+      getTrip(supabase, tripId)
         .then(setTrip)
         .catch(() => {
-          // A dropped poll is not a failed trip. The next tick retries.
+          // A dropped read is not a failed trip.
         });
-    }, 3000);
-    return () => clearInterval(id);
-  }, [trip]);
+    };
+
+    const sub = watchTrip(supabase, tripId, refresh);
+    const id = setInterval(refresh, 15000);
+
+    return () => {
+      sub.unsubscribe();
+      clearInterval(id);
+    };
+    // Keyed on the id, not the whole trip: re-subscribing on every state change
+    // would tear down the channel exactly when it is doing its job.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trip?.id, trip !== null && isTripLive(trip.state)]);
 
   // Fetch the driver card once, when a driver is first assigned. It does not
   // change for the life of the trip, so re-fetching it on every poll would be
