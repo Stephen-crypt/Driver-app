@@ -9,6 +9,7 @@
     "verify": "pnpm -r typecheck && pnpm -r test && pnpm test:functions",
     "bundle:core": "node scripts/bundle-core.mjs",
     "e2e": "node scripts/e2e-trip-loop.mjs",
+    "e2e:dispatch": "node scripts/e2e-dispatch.mjs",
     "simulate": "node scripts/simulate-drivers.mjs"
   },
   "devDependencies": {
