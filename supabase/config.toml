@@ -255,7 +255,9 @@ otp_expiry = 3600
 
 [auth.sms]
 # Allow/disallow new user signups via SMS to your project.
-enable_signup = false
+# Enabled locally so the rider and driver onboarding flows can actually be
+# signed into without a real SMS provider. Paired with the test_otp map below.
+enable_signup = true
 # If enabled, users need to confirm their phone number before signing in.
 enable_confirmations = false
 # Template for sending OTP to users
@@ -264,8 +266,12 @@ template = "Your code is {{ .Code }}"
 max_frequency = "5s"
 
 # Use pre-defined map of phone number to OTP for testing.
-# [auth.sms.test_otp]
-# 4152127777 = "123456"
+# Local development only: these numbers skip the SMS provider entirely and
+# accept the fixed code, so onboarding is walkable without Twilio credentials.
+# MTN prefixes 78/79, Airtel 72/73 - one of each so both paths are exercised.
+[auth.sms.test_otp]
+250788123456 = "123456"
+250730123456 = "123456"
 
 # Configure logged in session timeouts.
 # [auth.sessions]
@@ -286,11 +292,15 @@ max_frequency = "5s"
 
 # Configure one of the supported SMS providers: `twilio`, `twilio_verify`, `messagebird`, `textlocal`, `vonage`.
 [auth.sms.twilio]
-enabled = false
-account_sid = ""
-message_service_sid = ""
+# Local development only. GoTrue refuses /auth/v1/otp with
+# "phone_provider_disabled" unless some provider is nominally enabled, even when
+# [auth.sms.test_otp] is set - and the test_otp map short-circuits before any
+# request reaches Twilio, so these placeholder credentials are never used.
+enabled = true
+account_sid = "ACtesttesttesttesttesttesttesttest"
+message_service_sid = "MGtesttesttesttesttesttesttesttest"
 # DO NOT commit your Twilio auth token to git. Use environment variable substitution instead:
-auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
+auth_token = "test-local-only-never-used"
 
 # Multi-factor-authentication is available to Supabase Pro plan.
 [auth.mfa]
