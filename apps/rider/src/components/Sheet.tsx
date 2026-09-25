@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { theme, tokens, sheetHeightFor, sheetTitleFor } from "@gera/ui";
 
 interface Props {
@@ -18,7 +18,17 @@ export function Sheet({ state, children }: Props) {
     <View style={[styles.sheet, { height: height * sheetHeightFor(state) }]}>
       <View style={styles.grabber} />
       <Text style={styles.title}>{sheetTitleFor(state)}</Text>
-      <View style={styles.body}>{children}</View>
+      {/* Scrolls: the accepted sheet carries a route, a fare, a driver card and
+          an action row, and on a short screen the actions were being clipped
+          off the bottom with no way to reach them. */}
+      <ScrollView
+        style={styles.body}
+        contentContainerStyle={styles.bodyContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+      >
+        {children}
+      </ScrollView>
     </View>
   );
 }
@@ -57,4 +67,5 @@ const styles = StyleSheet.create({
     marginBottom: tokens.space.md,
   },
   body: { flex: 1 },
+  bodyContent: { flexGrow: 1, paddingBottom: tokens.space.md },
 });

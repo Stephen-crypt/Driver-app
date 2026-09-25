@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import {
   listMyDocuments,
@@ -30,6 +31,7 @@ function extensionFor(uri: string, mime: string): string {
 
 export default function Documents() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [driverId, setDriverId] = useState<string | null>(null);
   const [docs, setDocs] = useState<DriverDocument[]>([]);
   const [loading, setLoading] = useState(true);
@@ -112,7 +114,13 @@ export default function Documents() {
   const outstanding = docs.filter((d) => !d.uploaded).length;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
+      ]}
+    >
       <Text style={styles.title}>Your documents</Text>
       <Text style={styles.sub}>
         We check these before your first trip. Clear photos, all four corners visible.

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens, ROUTE_DOT, railGeometry, statusFor } from "@gera/ui";
 import { listTrips, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
@@ -17,6 +18,7 @@ function when(iso: string): string {
 
 export default function Account() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [trips, setTrips] = useState<TripHistoryItem[]>([]);
@@ -53,7 +55,13 @@ export default function Account() {
   }, []);
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
+      ]}
+    >
       <View style={styles.header}>
         <View style={styles.avatar}>
           <Text style={styles.avatarText}>

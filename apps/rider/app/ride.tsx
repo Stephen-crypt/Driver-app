@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens, ROUTE_DOT, railGeometry } from "@gera/ui";
 import {
   requestQuote,
@@ -306,7 +307,7 @@ export default function Ride() {
               <View style={styles.actions}>
                 <Pressable style={styles.action} onPress={onCall} accessibilityRole="button">
                   <View style={styles.actionCircle}>
-                    <Text style={styles.actionGlyph}>call</Text>
+                    <Ionicons name="call" size={20} color={theme.textStrong} />
                   </View>
                   <Text style={styles.actionLabel}>Call</Text>
                 </Pressable>
@@ -318,7 +319,7 @@ export default function Ride() {
                     accessibilityRole="button"
                   >
                     <View style={styles.actionCircle}>
-                      <Text style={styles.actionGlyph}>×</Text>
+                      <Ionicons name="close" size={22} color={theme.danger} />
                     </View>
                     <Text style={styles.actionLabel}>Cancel</Text>
                   </Pressable>
@@ -524,11 +525,6 @@ const styles = StyleSheet.create({
     backgroundColor: theme.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
-  },
-  actionGlyph: {
-    fontSize: tokens.type.label.size,
-    fontWeight: "700",
-    color: theme.textStrong,
   },
   actionLabel: {
     marginTop: tokens.space.xs,

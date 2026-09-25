@@ -24,12 +24,15 @@ describe("sheetHeightFor", () => {
     expect(sheetHeightFor("requested")).toBe(SHEET_HEIGHTS.half);
   });
 
-  it("settles once a driver is assigned", () => {
-    expect(sheetHeightFor("accepted")).toBe(SHEET_HEIGHTS.half);
+  it("makes room for the driver card once a driver is assigned", () => {
+    // accepted and arrived carry a route, a fare, a driver card and an action
+    // row; at half height the actions were clipped with no way to reach them.
+    expect(sheetHeightFor("accepted")).toBe(SHEET_HEIGHTS.tall);
+    expect(sheetHeightFor("arrived")).toBe(SHEET_HEIGHTS.tall);
   });
 
-  it("shrinks once the trip is moving, so the map gets the screen", () => {
-    expect(sheetHeightFor("in_progress")).toBe(SHEET_HEIGHTS.peek);
+  it("shrinks once the trip is moving, so the map gets more of the screen", () => {
+    expect(sheetHeightFor("in_progress")).toBeLessThan(sheetHeightFor("accepted"));
   });
 
   it("uses the tallest sheet for the receipt", () => {

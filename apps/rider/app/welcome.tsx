@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 
 const PROMISES = [
@@ -28,15 +29,21 @@ const PROMISES = [
 
 export default function Welcome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [driverInfo, setDriverInfo] = useState(false);
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* contain, not cover: the illustration is 16:9 and cover was cropping
+            it to its left third, hiding the moto and the hill entirely. */}
         <Image
           source={require("../assets/welcome-hero.jpg")}
           style={styles.hero}
-          resizeMode="cover"
+          resizeMode="contain"
           accessible
           accessibilityLabel="A moto climbing a winding road through the Kigali hills at night"
         />
@@ -61,7 +68,7 @@ export default function Welcome() {
       </ScrollView>
 
       {/* Primary action in the bottom third, within one-handed reach. */}
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + tokens.space.lg }]}>
         <Pressable
           style={styles.cta}
           onPress={() => router.push("/onboarding/phone")}
@@ -117,17 +124,18 @@ const styles = StyleSheet.create({
   content: { paddingBottom: tokens.space.lg },
   hero: {
     width: "100%",
-    // The illustration is 16:9 and its horizon sits low, so the wordmark below
-    // reads as a continuation of the hillside rather than a caption under it.
     aspectRatio: 16 / 9,
+    // Capped so it cannot eat a tall screen and push the wordmark and the
+    // promises below the fold, which is what it was doing.
+    maxHeight: 220,
   },
   brandBlock: {
     paddingHorizontal: tokens.space.xl,
-    marginTop: tokens.space.lg,
-    marginBottom: tokens.space.xl,
+    marginTop: tokens.space.md,
+    marginBottom: tokens.space.lg,
   },
   wordmark: {
-    fontSize: 56,
+    fontSize: 48,
     fontWeight: "700",
     letterSpacing: -2,
     color: theme.textStrong,
@@ -159,7 +167,7 @@ const styles = StyleSheet.create({
     color: theme.textMuted,
   },
   footer: {
-    padding: tokens.space.xl,
+    paddingHorizontal: tokens.space.xl,
     paddingTop: tokens.space.md,
     gap: tokens.space.sm,
   },

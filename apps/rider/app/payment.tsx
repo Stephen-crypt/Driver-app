@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import {
   PAYMENT_KINDS,
@@ -12,6 +13,7 @@ import { supabase } from "../src/lib/supabase";
 
 export default function Payment() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [userId, setUserId] = useState<string | null>(null);
   const [selected, setSelected] = useState<PaymentKind>("cash");
   const [busy, setBusy] = useState(false);
@@ -73,7 +75,13 @@ export default function Payment() {
   }
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
+      ]}
+    >
       <Text style={styles.title}>How you pay</Text>
       <Text style={styles.sub}>
         Cash is how Gera works today. Everything else is on the way — we'd rather

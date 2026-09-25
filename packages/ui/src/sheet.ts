@@ -20,9 +20,11 @@ const HEIGHT_BY_STATE: Record<string, number> = {
   quoted: SHEET_HEIGHTS.half,
   requested: SHEET_HEIGHTS.half,
   offered: SHEET_HEIGHTS.half,
-  accepted: SHEET_HEIGHTS.half,
-  arrived: SHEET_HEIGHTS.half,
-  in_progress: SHEET_HEIGHTS.peek,
+  // These three carry the driver card and the action row, not just a status
+  // line, so they need more than half a screen or the actions get clipped.
+  accepted: SHEET_HEIGHTS.tall,
+  arrived: SHEET_HEIGHTS.tall,
+  in_progress: SHEET_HEIGHTS.half,
   completed: SHEET_HEIGHTS.tall,
   no_drivers: SHEET_HEIGHTS.half,
   cancelled_by_rider: SHEET_HEIGHTS.half,

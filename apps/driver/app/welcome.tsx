@@ -1,5 +1,6 @@
 import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 
 /**
@@ -24,14 +25,18 @@ const TERMS = [
 
 export default function DriverWelcome() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
 
   return (
     <View style={styles.root}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingTop: insets.top }]}
+        showsVerticalScrollIndicator={false}
+      >
         <Image
           source={require("../assets/welcome-hero.jpg")}
           style={styles.hero}
-          resizeMode="cover"
+          resizeMode="contain"
           accessible
           accessibilityLabel="A moto rider in a numbered safety vest looking down a road through the hills at sunrise"
         />
@@ -60,7 +65,7 @@ export default function DriverWelcome() {
         </Text>
       </ScrollView>
 
-      <View style={styles.footer}>
+      <View style={[styles.footer, { paddingBottom: insets.bottom + tokens.space.lg }]}>
         <Pressable
           style={styles.cta}
           onPress={() => router.push("/onboarding/phone")}
@@ -77,7 +82,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: theme.surface },
   flex: { flex: 1 },
   content: { paddingBottom: tokens.space.lg },
-  hero: { width: "100%", aspectRatio: 16 / 9 },
+  hero: { width: "100%", aspectRatio: 16 / 9, maxHeight: 220 },
   brandBlock: {
     paddingHorizontal: tokens.space.xl,
     marginTop: tokens.space.lg,
@@ -125,7 +130,7 @@ const styles = StyleSheet.create({
     lineHeight: tokens.type.body.leading,
     color: theme.textMuted,
   },
-  footer: { padding: tokens.space.xl, paddingTop: tokens.space.md },
+  footer: { paddingHorizontal: tokens.space.xl, paddingTop: tokens.space.md },
   cta: {
     minHeight: tokens.MIN_TOUCH_TARGET + 8,
     backgroundColor: theme.accent,

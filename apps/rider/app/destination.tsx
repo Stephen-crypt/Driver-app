@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import {
   searchLandmarks,
@@ -24,12 +25,14 @@ const KIGALI = { lat: -1.9403, lng: 30.1128 };
 
 export default function Destination() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Place[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pin, setPin] = useState<LatLng | null>(null);
   const [note, setNote] = useState("");
+  const [label, setLabel] = useState("");
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [userId, setUserId] = useState<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -100,7 +103,7 @@ export default function Destination() {
 
   return (
     <View style={styles.root}>
-      <View style={styles.searchBar}>
+      <View style={[styles.searchBar, { paddingTop: insets.top + tokens.space.sm }]}>
         <TextInput
           style={styles.input}
           value={query}
@@ -183,25 +186,38 @@ export default function Destination() {
                 <Text style={styles.ctaText}>Use this spot</Text>
               </Pressable>
               {userId ? (
-                <Pressable
-                  style={styles.saveLink}
-                  onPress={async () => {
-                    try {
-                      await savePlace(supabase, userId, {
-                        label: note.trim() || "Saved place",
-                        lng: pin.lng,
-                        lat: pin.lat,
-                        ...(note.trim() ? { note: note.trim() } : {}),
-                      });
-                      setSaved(await listSavedPlaces(supabase, userId));
-                    } catch {
-                      setError("Could not save that place.");
-                    }
-                  }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.saveLinkText}>Save this place</Text>
-                </Pressable>
+                <View style={styles.saveRow}>
+                  {/* The label used to default to "Saved place", so every chip
+                      came out identical and none of them told you anything. */}
+                  <TextInput
+                    style={styles.labelInput}
+                    value={label}
+                    onChangeText={setLabel}
+                    placeholder="Name it — Home, Work, Mum's"
+                    placeholderTextColor={theme.textMuted}
+                  />
+                  <Pressable
+                    style={[styles.saveButton, !label.trim() && styles.saveButtonOff]}
+                    disabled={!label.trim()}
+                    onPress={async () => {
+                      try {
+                        await savePlace(supabase, userId, {
+                          label: label.trim(),
+                          lng: pin.lng,
+                          lat: pin.lat,
+                          ...(note.trim() ? { note: note.trim() } : {}),
+                        });
+                        setLabel("");
+                        setSaved(await listSavedPlaces(supabase, userId));
+                      } catch {
+                        setError("Could not save that place.");
+                      }
+                    }}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.saveButtonText}>Save</Text>
+                  </Pressable>
+                </View>
               ) : null}
             </View>
           ) : (
@@ -288,12 +304,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: theme.textStrong,
   },
-  saveLink: {
+  saveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: tokens.space.sm,
+    marginTop: tokens.space.sm,
+  },
+  labelInput: {
+    flex: 1,
     minHeight: tokens.MIN_TOUCH_TARGET,
+    paddingHorizontal: tokens.space.md,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceHigh,
+    color: theme.textStrong,
+    fontSize: tokens.type.body.size,
+  },
+  saveButton: {
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    paddingHorizontal: tokens.space.lg,
+    borderRadius: tokens.radius.md,
+    borderWidth: 2,
+    borderColor: theme.accent,
     alignItems: "center",
     justifyContent: "center",
   },
-  saveLinkText: { fontSize: tokens.type.body.size, color: theme.textMuted },
+  saveButtonOff: { opacity: 0.4 },
+  saveButtonText: {
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: theme.accent,
+  },
   pinPanel: {
     position: "absolute",
     left: 0,

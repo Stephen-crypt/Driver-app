@@ -36,7 +36,9 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     paddingBottom: tokens.space.lg,
   },
-  art: { width: "100%", aspectRatio: 16 / 9 },
+  // Capped: at full 16:9 on a tall phone the art filled the viewport and the
+  // title underneath fell below the fold, so the screen read as just a picture.
+  art: { width: "100%", aspectRatio: 16 / 9, maxHeight: 150 },
   title: {
     marginTop: tokens.space.md,
     marginHorizontal: tokens.space.lg,

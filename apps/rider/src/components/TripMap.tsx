@@ -48,17 +48,24 @@ function buildHtml(center: LatLng, markers: readonly MapMarker[]): string {
   return `<!doctype html><html><head>
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<style>html,body,#m{height:100%;margin:0;background:${theme.surface}}</style>
+<style>
+  html,body,#m{height:100%;margin:0;background:${theme.surface}}
+  /* Carto's dark basemap started returning an "API KEY REQUIRED" watermark on
+     every tile, so the map is plain OpenStreetMap - which needs no key and is
+     not going to start needing one - inverted to dark in the browser instead.
+     hue-rotate puts the colours back the right way round after the invert, so
+     water reads blue rather than orange. */
+  .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.9) saturate(.75)}
+  .leaflet-container{background:${theme.surface}}
+</style>
 </head><body><div id="m"></div>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
   var map = L.map('m', {zoomControl:false, attributionControl:false})
               .setView([${center.lat}, ${center.lng}], 14);
-  // Carto's dark basemap rather than standard OSM tiles: a white map inside a
-  // dark app is a torch in the face at night, which is exactly when a rider is
-  // most likely to be looking at it. Free for this use and still OSM data.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-    {maxZoom:20, subdomains:'abcd'}).addTo(map);
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+  // Markers live in the overlay pane, which the filter does not touch, so the
+  // pins keep their real colours over the inverted tiles.
   ${pins}
   map.on('click', function(e){
     if (window.ReactNativeWebView) {

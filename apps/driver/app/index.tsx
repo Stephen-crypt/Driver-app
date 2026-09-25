@@ -11,6 +11,7 @@ import {
   View,
 } from "react-native";
 import { Redirect } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens } from "@gera/ui";
 import {
   setPresence,
@@ -45,6 +46,7 @@ import { EmptyState } from "../src/components/EmptyState";
 const money = (rwf: number) => rwf.toLocaleString("en-US");
 
 export default function Console() {
+  const insets = useSafeAreaInsets();
   const [signedIn, setSignedIn] = useState<boolean | null>(null);
   const [driverId, setDriverId] = useState<string | null>(null);
 
@@ -379,7 +381,13 @@ export default function Console() {
   const left = offer ? secondsLeft(offer.expiresAt) : 0;
 
   return (
-    <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.root}
+      contentContainerStyle={[
+        styles.content,
+        { paddingTop: insets.top + tokens.space.md, paddingBottom: insets.bottom + tokens.space.xl },
+      ]}
+    >
       <View style={styles.statusRow}>
         <View style={styles.flex}>
           <Text style={styles.statusLabel}>{online ? "You're online" : "You're offline"}</Text>
