@@ -8,7 +8,8 @@
     "test:functions": "deno test --allow-read --allow-run --config supabase/functions/deno.json supabase/functions/",
     "verify": "pnpm -r typecheck && pnpm -r test && pnpm test:functions",
     "bundle:core": "node scripts/bundle-core.mjs",
-    "e2e": "node scripts/e2e-trip-loop.mjs"
+    "e2e": "node scripts/e2e-trip-loop.mjs",
+    "simulate": "node scripts/simulate-drivers.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
