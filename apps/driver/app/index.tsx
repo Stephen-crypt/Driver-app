@@ -32,6 +32,9 @@ import {
   startOfToday,
   watchOffers,
   watchDriverTrips,
+  publishTrackPoint,
+  raiseSos,
+  EMERGENCY_NUMBER,
   secondsLeft,
   type LiveOffer,
   type ActiveTrip,
@@ -208,6 +211,33 @@ export default function Console() {
     };
   }, [driverId, online]);
 
+  // Publish position while a trip is live. This is what the rider sees moving
+  // on their map; without it "Driver on the way" is indistinguishable from a
+  // stuck app, which is the single most common reason a rider cancels.
+  useEffect(() => {
+    if (!trip) return;
+    let active = true;
+
+    const send = () => {
+      const at = hereRef.current;
+      if (!at) return;
+      publishTrackPoint(supabase, trip.id, { lng: at.lng, lat: at.lat }).catch(() => {
+        // A dropped point is not a dropped trip; the next tick carries a
+        // fresher position anyway.
+      });
+    };
+
+    send();
+    // Every five seconds. Faster drains a battery that has to last a shift;
+    // slower makes the marker visibly jump between fixes.
+    const id = setInterval(send, 5000);
+    return () => {
+      active = false;
+      void active;
+      clearInterval(id);
+    };
+  }, [trip?.id]);
+
   // Today's earnings. Refreshed when a trip finishes rather than on a timer -
   // that is the only moment the number can change.
   useEffect(() => {
@@ -369,6 +399,39 @@ export default function Console() {
     );
   }, [trip]);
 
+  const onSos = useCallback(() => {
+    Alert.alert(
+      "Emergency",
+      "We'll record where you are and who you're with. If you're in danger, call 112.",
+      [
+        { text: "Close", style: "cancel" },
+        {
+          text: "Record alert",
+          onPress: async () => {
+            const at = hereRef.current;
+            try {
+              await raiseSos(supabase, {
+                ...(trip ? { tripId: trip.id } : {}),
+                ...(at ? { at: { lng: at.lng, lat: at.lat } } : {}),
+              });
+              Alert.alert("Recorded", "Your alert and location have been saved.");
+            } catch {
+              Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
+            }
+          },
+        },
+        {
+          text: `Call ${EMERGENCY_NUMBER}`,
+          style: "destructive",
+          onPress: () => {
+            void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
+            void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+          },
+        },
+      ],
+    );
+  }, [trip]);
+
   if (signedIn === null) {
     return (
       <View style={styles.centre}>
@@ -513,9 +576,24 @@ export default function Console() {
             </Pressable>
           )}
 
-          <Pressable style={styles.call} onPress={onCallRider} accessibilityRole="button">
-            <Text style={styles.callText}>Call rider</Text>
-          </Pressable>
+          <View style={styles.tripActions}>
+            <Pressable style={styles.call} onPress={onCallRider} accessibilityRole="button">
+              <Text style={styles.callText}>Call rider</Text>
+            </Pressable>
+            {/* Hands the coordinates to whatever maps app the driver already
+                uses and trusts, rather than pretending to do navigation. */}
+            <Pressable
+              style={styles.call}
+              onPress={() => {
+                const at = hereRef.current;
+                if (!at) return;
+                void Linking.openURL(`geo:0,0?q=${at.lat},${at.lng}(Pickup)`);
+              }}
+              accessibilityRole="button"
+            >
+              <Text style={styles.callText}>Navigate</Text>
+            </Pressable>
+          </View>
 
           {/* Cancelling is allowed from accepted and arrived, and nowhere else -
               the same window trip_transition_rules defines. */}
@@ -533,6 +611,10 @@ export default function Console() {
           <Text style={styles.waitingText}>Looking for trips near you…</Text>
         </View>
       ) : null}
+
+      <Pressable style={styles.sos} onPress={onSos} accessibilityRole="button">
+        <Text style={styles.sosText}>Emergency</Text>
+      </Pressable>
 
       {/* Offline with nothing running: the screen would otherwise be a toggle
           and a lot of empty space. */}
@@ -672,6 +754,7 @@ const styles = StyleSheet.create({
   },
   ghostText: { fontSize: tokens.type.body.size, color: theme.textMuted },
   call: {
+    flex: 1,
     marginTop: tokens.space.sm,
     minHeight: tokens.MIN_TOUCH_TARGET,
     borderRadius: tokens.radius.md,
@@ -686,6 +769,17 @@ const styles = StyleSheet.create({
     color: theme.textStrong,
   },
   cancelText: { fontSize: tokens.type.body.size, color: theme.danger },
+  tripActions: { flexDirection: "row", gap: tokens.space.sm },
+  sos: {
+    marginTop: tokens.space.lg,
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    borderRadius: tokens.radius.md,
+    borderWidth: 2,
+    borderColor: theme.danger,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sosText: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.danger },
   earnings: {
     marginTop: tokens.space.md,
     padding: tokens.space.md,

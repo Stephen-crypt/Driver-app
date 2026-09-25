@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Alert,
+  Linking,
+  Pressable,
+  Share,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { theme, tokens, ROUTE_DOT, railGeometry } from "@gera/ui";
@@ -13,7 +22,13 @@ import {
   cancelTrip,
   rateTrip,
   watchTrip,
+  getDriverPosition,
+  raiseSos,
+  shareTripText,
+  etaLabel,
+  EMERGENCY_NUMBER,
   isTripLive,
+  type DriverPosition,
   type QuoteResult,
   type TripSnapshot,
   type DriverCard,
@@ -70,6 +85,7 @@ export default function Ride() {
   const [quote, setQuote] = useState<QuoteResult | null>(null);
   const [trip, setTrip] = useState<TripSnapshot | null>(null);
   const [driver, setDriver] = useState<DriverCard | null>(null);
+  const [driverAt, setDriverAt] = useState<DriverPosition | null>(null);
   const [rating, setRating] = useState(0);
   const [rated, setRated] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -152,6 +168,37 @@ export default function Ride() {
     // would tear down the channel exactly when it is doing its job.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trip?.id, trip !== null && isTripLive(trip.state)]);
+
+  // Follow the driver. This is what turns "Driver on the way" from a spinner
+  // into something a rider can believe: the marker moves, and the ETA counts
+  // down. Polled rather than pushed - the track points arrive far faster than
+  // the trip row changes, and a re-read every four seconds is cheaper than a
+  // second realtime channel per trip.
+  useEffect(() => {
+    if (!trip?.driverId || !isTripLive(trip.state)) {
+      setDriverAt(null);
+      return;
+    }
+    const tripId = trip.id;
+    let active = true;
+
+    const read = () => {
+      getDriverPosition(supabase, tripId)
+        .then((p) => {
+          if (active) setDriverAt(p);
+        })
+        .catch(() => {
+          // No fix yet is an ordinary state, not an error.
+        });
+    };
+
+    read();
+    const id = setInterval(read, 4000);
+    return () => {
+      active = false;
+      clearInterval(id);
+    };
+  }, [trip?.id, trip?.driverId, trip?.state]);
 
   // Fetch the driver card once, when a driver is first assigned. It does not
   // change for the life of the trip, so re-fetching it on every poll would be
@@ -243,6 +290,55 @@ export default function Ride() {
     [trip],
   );
 
+  const onShare = useCallback(async () => {
+    if (!trip) return;
+    try {
+      await Share.share({
+        message: shareTripText({
+          pickupLabel: trip.pickupLabel,
+          dropoffLabel: trip.dropoffLabel,
+          driverName: driver?.firstName ?? null,
+          plate: driver?.plate ?? null,
+          etaSeconds: driverAt?.etaSeconds ?? null,
+        }),
+      });
+    } catch {
+      // The rider dismissed the share sheet.
+    }
+  }, [trip, driver, driverAt]);
+
+  const onSos = useCallback(() => {
+    Alert.alert(
+      "Emergency",
+      "We'll record where you are and who you're with. If you're in danger, call 112.",
+      [
+        { text: "Close", style: "cancel" },
+        {
+          text: "Record alert",
+          onPress: async () => {
+            try {
+              await raiseSos(supabase, {
+                ...(trip ? { tripId: trip.id } : {}),
+                ...(driverAt ? { at: { lng: driverAt.lng, lat: driverAt.lat } } : {}),
+              });
+              Alert.alert("Recorded", "Your alert and location have been saved.");
+            } catch {
+              Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
+            }
+          },
+        },
+        {
+          text: `Call ${EMERGENCY_NUMBER}`,
+          style: "destructive",
+          onPress: () => {
+            void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
+            void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+          },
+        },
+      ],
+    );
+  }, [trip, driverAt]);
+
   const state = trip?.state ?? (quote ? "quoted" : "idle");
   // Cancellable exactly where trip_transition_rules says it is, so the button
   // never appears for a transition the server would refuse.
@@ -253,6 +349,16 @@ export default function Ride() {
   const markers: MapMarker[] = [
     { id: "p", at: PICKUP, label: "Pickup", kind: "pickup" },
     ...(haveDropoff ? [{ id: "d", at: { lat, lng }, label, kind: "dropoff" as const }] : []),
+    ...(driverAt
+      ? [
+          {
+            id: "drv",
+            at: { lat: driverAt.lat, lng: driverAt.lng },
+            label: driver?.firstName ? `${driver.firstName} · ${etaLabel(driverAt.etaSeconds)}` : "Your driver",
+            kind: "driver" as const,
+          },
+        ]
+      : []),
   ];
 
   return (
@@ -278,6 +384,14 @@ export default function Ride() {
             {trip.quotedAmountRwf !== null ? (
               <Text style={styles.fare}>{money(trip.quotedAmountRwf)} RWF</Text>
             ) : null}
+            {driverAt && trip.state !== "completed" ? (
+              <Text style={styles.eta}>
+                {trip.state === "in_progress"
+                  ? `About ${etaLabel(driverAt.etaSeconds)} to go`
+                  : `About ${etaLabel(driverAt.etaSeconds)} away`}
+              </Text>
+            ) : null}
+
             <Text style={styles.payNote}>
               {trip.state === "completed"
                 ? "Pay your driver in cash now."
@@ -311,6 +425,20 @@ export default function Ride() {
                   </View>
                   <Text style={styles.actionLabel}>Call</Text>
                 </Pressable>
+                <Pressable style={styles.action} onPress={onShare} accessibilityRole="button">
+                  <View style={styles.actionCircle}>
+                    <Ionicons name="share-social" size={20} color={theme.textStrong} />
+                  </View>
+                  <Text style={styles.actionLabel}>Share</Text>
+                </Pressable>
+
+                <Pressable style={styles.action} onPress={onSos} accessibilityRole="button">
+                  <View style={[styles.actionCircle, styles.actionDanger]}>
+                    <Ionicons name="alert" size={20} color={theme.danger} />
+                  </View>
+                  <Text style={styles.actionLabel}>Help</Text>
+                </Pressable>
+
                 {cancellable ? (
                   <Pressable
                     style={styles.action}
@@ -514,7 +642,7 @@ const styles = StyleSheet.create({
   legLast: { height: undefined },
   actions: {
     flexDirection: "row",
-    gap: tokens.space.xl,
+    gap: tokens.space.lg,
     marginTop: tokens.space.md,
   },
   action: { alignItems: "center" },
@@ -525,6 +653,13 @@ const styles = StyleSheet.create({
     backgroundColor: theme.surfaceHigh,
     alignItems: "center",
     justifyContent: "center",
+  },
+  actionDanger: { borderWidth: 2, borderColor: theme.danger },
+  eta: {
+    marginTop: tokens.space.xs,
+    fontSize: tokens.type.body.size,
+    fontWeight: "700",
+    color: theme.accent,
   },
   actionLabel: {
     marginTop: tokens.space.xs,

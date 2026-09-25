@@ -1,9 +1,15 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { theme, tokens, ROUTE_DOT, railGeometry, statusFor } from "@gera/ui";
-import { listTrips, type TripHistoryItem } from "@gera/data";
+import {
+  listTrips,
+  listSavedPlaces,
+  deleteSavedPlace,
+  type TripHistoryItem,
+  type SavedPlace,
+} from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { EmptyState } from "../src/components/EmptyState";
 
@@ -22,6 +28,7 @@ export default function Account() {
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
   const [trips, setTrips] = useState<TripHistoryItem[]>([]);
+  const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -35,13 +42,15 @@ export default function Account() {
       }
       setPhone(data.user?.phone ?? null);
       try {
-        const [profile, history] = await Promise.all([
+        const [profile, history, saved] = await Promise.all([
           supabase.from("profiles").select("first_name").eq("id", id).maybeSingle(),
           listTrips(supabase, "rider_id", id),
+          listSavedPlaces(supabase, id),
         ]);
         if (!active) return;
         setName((profile.data as { first_name?: string } | null)?.first_name ?? null);
         setTrips(history);
+        setPlaces(saved);
       } catch {
         // An account screen that fails to load history is still an account
         // screen. Nothing here is load-bearing for booking.
@@ -78,6 +87,51 @@ export default function Account() {
         <Text style={styles.linkLabel}>How you pay</Text>
         <Text style={styles.linkChevron}>›</Text>
       </Pressable>
+
+      <Pressable style={styles.link} onPress={() => router.push("/help")}>
+        <Text style={styles.linkLabel}>Help and safety</Text>
+        <Text style={styles.linkChevron}>›</Text>
+      </Pressable>
+
+      {places.length > 0 ? (
+        <>
+          <Text style={styles.section}>Saved places</Text>
+          {places.map((pl) => (
+            <View key={pl.id} style={styles.place}>
+              <View style={styles.flex}>
+                <Text style={styles.placeLabel}>{pl.label}</Text>
+                {pl.note ? <Text style={styles.placeNote}>{pl.note}</Text> : null}
+              </View>
+              {/* Without this a mis-named place was permanent - the first cut
+                  saved everything as "Saved place" and there was no way back. */}
+              <Pressable
+                style={styles.remove}
+                accessibilityRole="button"
+                accessibilityLabel={`Remove ${pl.label}`}
+                onPress={() =>
+                  Alert.alert("Remove this place?", pl.label, [
+                    { text: "Keep", style: "cancel" },
+                    {
+                      text: "Remove",
+                      style: "destructive",
+                      onPress: async () => {
+                        try {
+                          await deleteSavedPlace(supabase, pl.id);
+                          setPlaces((ps) => ps.filter((x) => x.id !== pl.id));
+                        } catch {
+                          Alert.alert("Could not remove that.");
+                        }
+                      },
+                    },
+                  ])
+                }
+              >
+                <Text style={styles.removeText}>Remove</Text>
+              </Pressable>
+            </View>
+          ))}
+        </>
+      ) : null}
 
       <Text style={styles.section}>Your trips</Text>
 
@@ -194,6 +248,22 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     color: theme.textMuted,
   },
+  place: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: tokens.space.md,
+    marginBottom: tokens.space.sm,
+    borderRadius: tokens.radius.md,
+    backgroundColor: theme.surfaceRaised,
+  },
+  placeLabel: { fontSize: tokens.type.body.size, fontWeight: "700", color: theme.textStrong },
+  placeNote: { fontSize: tokens.type.label.size, color: theme.textMuted },
+  remove: {
+    minHeight: tokens.MIN_TOUCH_TARGET,
+    paddingHorizontal: tokens.space.md,
+    justifyContent: "center",
+  },
+  removeText: { fontSize: tokens.type.label.size, fontWeight: "700", color: theme.danger },
   spin: { marginTop: tokens.space.lg },
   empty: { fontSize: tokens.type.body.size, color: theme.textMuted },
   trip: {

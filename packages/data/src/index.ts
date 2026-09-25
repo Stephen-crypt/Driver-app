@@ -7,3 +7,4 @@ export * from "./trip-watch";
 export * from "./driver";
 export * from "./account";
 export * from "./live";
+export * from "./safety";
