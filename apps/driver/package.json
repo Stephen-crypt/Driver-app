@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo/metro-runtime": "~57.0.16",
     "@gera/core": "workspace:*",
     "@gera/data": "workspace:*",
     "@gera/ui": "workspace:*",
