@@ -7,6 +7,7 @@ import {
   createTripFromQuote,
   getTrip,
   getDriverCard,
+  getRoute,
   isTripLive,
   type QuoteResult,
   type TripSnapshot,
@@ -67,9 +68,32 @@ export default function Ride() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const distanceM = haveDropoff ? haversineM(PICKUP, { lat, lng }) : 0;
+  // Straight-line until the server answers with a real road route. Kigali is
+  // built on ridges: two points 2km apart across a valley can be a 5km drive,
+  // so the straight line under-reads badly and the driver would be paid for a
+  // trip nobody made. The fallback exists only so a routing outage still
+  // produces a quote.
+  const fallbackM = haveDropoff ? haversineM(PICKUP, { lat, lng }) : 0;
+  const [road, setRoad] = useState<{ distanceM: number; durationS: number } | null>(null);
+
+  const distanceM = road?.distanceM ?? fallbackM;
   // ~27 km/h through Kigali traffic, in metres per second.
-  const durationS = Math.max(60, Math.round(distanceM / 7.5));
+  const durationS = road?.durationS ?? Math.max(60, Math.round(fallbackM / 7.5));
+
+  useEffect(() => {
+    if (!haveDropoff || trip) return;
+    let active = true;
+    getRoute(supabase, PICKUP, { lat, lng })
+      .then((r) => {
+        if (active && r) setRoad(r);
+      })
+      .catch(() => {
+        // getRoute already returns null on failure; this is belt and braces.
+      });
+    return () => {
+      active = false;
+    };
+  }, [haveDropoff, lat, lng, trip]);
 
   // Re-quote whenever the class changes, so the price on screen is always the
   // price that gets booked. Spec: the quote is locked, not an estimate.

@@ -423,3 +423,15 @@ enabled = true
 # formatted with uppercase keywords, indent 2, max width 180, trailing commas,
 # and column/key alignment. Set to "null" to emit raw, unformatted SQL.
 # format_options = "{\"keywordCase\":\"upper\",\"indent\":2,\"maxWidth\":180,\"commaStyle\":\"trailing\"}"
+
+# GoTrue calls the SMS hook with a standard-webhooks signature, not a user JWT,
+# so platform JWT verification must be off here. The function verifies the
+# signature itself and fails closed when the secret is missing.
+[functions.send-sms]
+verify_jwt = false
+
+# Locally, [auth.sms.test_otp] above short-circuits delivery, so no real SMS is
+# sent and nothing is spent. The hook is configured in the cloud dashboard:
+#   Authentication -> Hooks -> Send SMS -> HTTPS
+#   https://<project-ref>.supabase.co/functions/v1/send-sms
+# and the generated secret goes to the function as SEND_SMS_HOOK_SECRET.

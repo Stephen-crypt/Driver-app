@@ -45,3 +45,34 @@ export async function searchLandmarks(
     lat: Number(r.lat),
   }));
 }
+
+export interface RouteResult {
+  readonly distanceM: number;
+  readonly durationS: number;
+}
+
+/**
+ * Real road distance between two points, measured server-side so the Directions
+ * key never ships in the app bundle.
+ *
+ * Returns null when routing is unavailable rather than throwing: a quote built
+ * on a straight line is worse than one built on a road, but far better than no
+ * quote at all, so the caller falls back rather than failing.
+ */
+export async function getRoute(
+  client: GeraClient,
+  origin: { lat: number; lng: number },
+  destination: { lat: number; lng: number },
+): Promise<RouteResult | null> {
+  try {
+    const { data, error } = await client.functions.invoke("route", {
+      body: { origin, destination },
+    });
+    if (error || !data) return null;
+    const r = data as Partial<RouteResult>;
+    if (typeof r.distanceM !== "number" || typeof r.durationS !== "number") return null;
+    return { distanceM: r.distanceM, durationS: r.durationS };
+  } catch {
+    return null;
+  }
+}
