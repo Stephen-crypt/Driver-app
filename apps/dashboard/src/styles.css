@@ -1,0 +1,302 @@
+/*
+ * Colours come from @gera/ui at startup (main.tsx sets them as custom
+ * properties), so the dashboard and the two apps cannot drift apart. The
+ * fallbacks below are only for the instant before that script runs.
+ */
+:root {
+  --ground: #f2f3f7;
+  --card: #ffffff;
+  --sunken: #edeff4;
+  --hairline: #e2e5ec;
+  --ink: #0b0d12;
+  --ink-soft: #3c4250;
+  --muted: #5e6676;
+  --accent: #0057e7;
+  --accent-soft: #e6edfd;
+  --accent-deep: #0a3a9c;
+  --good: #0e7c4a;
+  --good-soft: #e3f4eb;
+  --bad: #c42419;
+  --bad-soft: #fbe9e8;
+  --warn: #b45309;
+  --warn-soft: #fdf1e3;
+
+  --sans: "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --num: "Barlow Condensed", "Arial Narrow", system-ui, sans-serif;
+  --radius: 14px;
+  color-scheme: light;
+}
+
+* { box-sizing: border-box; }
+html, body, #root { height: 100%; margin: 0; }
+body {
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink);
+  background: var(--ground);
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; color: inherit; }
+a { color: var(--accent); text-decoration: none; }
+:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px; }
+
+/* ---- frame --------------------------------------------------------------- */
+.frame { display: grid; grid-template-columns: 220px 1fr; height: 100%; }
+.nav {
+  background: var(--card);
+  border-right: 1px solid var(--hairline);
+  display: flex;
+  flex-direction: column;
+  padding: 20px 12px;
+  gap: 2px;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 20px; }
+.brand-word { font-family: var(--num); font-weight: 700; font-size: 28px; letter-spacing: -0.5px; }
+.brand-sub { color: var(--muted); font-size: 13px; }
+.nav a {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 10px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+.nav a:hover { background: var(--sunken); }
+.nav a.active { color: var(--ink); font-weight: 600; background: var(--sunken); }
+/* The lane marker from the apps' tab bar, turned on its side. */
+.nav a.active::before {
+  content: "";
+  position: absolute;
+  left: -12px;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+.nav .count {
+  margin-left: auto;
+  min-width: 22px;
+  padding: 0 7px;
+  border-radius: 11px;
+  background: var(--bad);
+  color: #fff;
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: 14px;
+  text-align: center;
+}
+.nav-foot { margin-top: auto; padding: 12px 8px 0; border-top: 1px solid var(--hairline); color: var(--muted); font-size: 13px; }
+.nav-foot strong { display: block; color: var(--ink); font-weight: 600; }
+.link-button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 600; }
+
+.page { overflow: auto; padding: 28px 32px 48px; }
+.page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
+.page-head h1 { margin: 0; font-family: var(--num); font-weight: 700; font-size: 34px; line-height: 1; }
+.page-head .spacer { flex: 1; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+
+/* ---- surfaces ------------------------------------------------------------- */
+.card { background: var(--card); border-radius: var(--radius); padding: 16px; }
+.card h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+.grid { display: grid; gap: 16px; }
+.cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .cols-3, .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+.stat .figure { font-family: var(--num); font-weight: 700; font-size: 38px; line-height: 1; font-variant-numeric: tabular-nums; }
+.stat .figure small { font-family: var(--sans); font-size: 14px; font-weight: 600; color: var(--muted); margin-left: 4px; }
+.stat .label { color: var(--muted); font-size: 13px; font-weight: 500; margin-top: 4px; }
+
+/* ---- tables --------------------------------------------------------------- */
+.table { width: 100%; border-collapse: collapse; }
+.table th {
+  text-align: left;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--muted);
+  padding: 0 10px 8px;
+  border-bottom: 1px solid var(--hairline);
+}
+.table td { padding: 10px; border-bottom: 1px solid var(--hairline); vertical-align: middle; }
+.table tr:last-child td { border-bottom: 0; }
+.table tr.clickable { cursor: pointer; }
+.table tr.clickable:hover td { background: var(--ground); }
+.num { font-family: var(--num); font-weight: 600; font-size: 18px; font-variant-numeric: tabular-nums; }
+.right { text-align: right; }
+.muted { color: var(--muted); }
+.small { font-size: 13px; }
+
+/* ---- controls ------------------------------------------------------------- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 0;
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.btn:hover { filter: brightness(1.08); }
+.btn:disabled { opacity: 0.45; cursor: default; filter: none; }
+.btn.secondary { background: var(--sunken); color: var(--ink); }
+.btn.danger { background: var(--bad-soft); color: var(--bad); }
+.btn.dark { background: var(--ink); }
+.btn.small { height: 32px; padding: 0 12px; font-size: 13.5px; }
+.input, .select, .textarea {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 2px solid transparent;
+  background: var(--sunken);
+  min-width: 0;
+}
+.textarea { height: auto; min-height: 76px; padding: 10px 12px; resize: vertical; }
+.input:focus, .select:focus, .textarea:focus { outline: none; border-color: var(--accent); background: var(--card); }
+.field { display: flex; flex-direction: column; gap: 4px; }
+.field label { font-size: 13px; font-weight: 500; color: var(--muted); }
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.tabs { display: flex; gap: 4px; padding: 4px; background: var(--sunken); border-radius: 999px; }
+.tabs button { border: 0; background: none; padding: 6px 14px; border-radius: 999px; cursor: pointer; color: var(--muted); font-weight: 500; }
+.tabs button.on { background: var(--card); color: var(--ink); box-shadow: 0 1px 3px rgba(11, 13, 18, 0.08); }
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  background: var(--sunken);
+  color: var(--muted);
+  white-space: nowrap;
+}
+.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.bad { background: var(--bad-soft); color: var(--bad); }
+.chip.warn { background: var(--warn-soft); color: var(--warn); }
+.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+.notice { padding: 12px 14px; border-radius: 12px; font-weight: 500; }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
+.notice.good { background: var(--good-soft); color: var(--good); }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+
+/* The vest patch - Gera's one signature, the same shape as on the phones. */
+.vest {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 34px;
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--accent-deep);
+  color: #fff;
+  font-family: var(--num);
+  font-weight: 700;
+  font-size: 21px;
+  font-variant-numeric: tabular-nums;
+  overflow: hidden;
+}
+.vest::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 56%;
+  height: 14%;
+  background: rgba(255, 255, 255, 0.16);
+}
+.vest.lg { min-width: 58px; height: 72px; font-size: 46px; border-radius: 14px; padding: 0 10px; }
+.plate {
+  display: inline-block;
+  padding: 1px 8px;
+  border: 2px solid var(--ink);
+  border-radius: 6px;
+  font-family: var(--num);
+  font-weight: 700;
+  letter-spacing: 1px;
+  background: var(--card);
+}
+
+/* ---- control room --------------------------------------------------------- */
+.control { display: grid; grid-template-columns: 1fr 400px; height: 100%; }
+.control-map { position: relative; }
+.control-map .leaflet-container { position: absolute; inset: 0; background: var(--ground); }
+.control-rail { overflow: auto; border-left: 1px solid var(--hairline); background: var(--ground); padding: 16px; display: flex; flex-direction: column; gap: 16px; }
+.map-legend {
+  position: absolute;
+  z-index: 500;
+  left: 16px;
+  top: 16px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.map-legend .chip { background: var(--card); box-shadow: 0 2px 6px rgba(11, 13, 18, 0.12); }
+
+.alert {
+  border-radius: var(--radius);
+  background: var(--card);
+  border: 2px solid var(--bad);
+  padding: 14px;
+}
+.alert.fresh { animation: alarm 1.2s ease-in-out infinite; }
+@keyframes alarm {
+  50% { box-shadow: 0 0 0 6px var(--bad-soft); }
+}
+@media (prefers-reduced-motion: reduce) { .alert.fresh { animation: none; } }
+.alert h3 { margin: 0; font-size: 17px; color: var(--bad); }
+.alert .who { font-weight: 600; }
+.list { display: flex; flex-direction: column; }
+.list-item { padding: 10px 0; border-bottom: 1px solid var(--hairline); cursor: pointer; }
+.list-item:last-child { border-bottom: 0; }
+.list-item:hover { background: var(--ground); }
+
+/* Leaflet markers drawn in the Gera shapes */
+.m-centre { position: absolute; transform: translate(-50%, -50%); }
+.m-rider {
+  display: flex; align-items: center; justify-content: center;
+  min-width: 30px; height: 34px; padding: 0 4px; white-space: nowrap; border-radius: 8px; border: 2px solid #fff;
+  background: var(--accent-deep); color: #fff;
+  font: 700 16px/1 var(--num);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.m-rider.busy { background: var(--good); }
+.m-rider.stale { background: #8b93a3; }
+.m-pin { width: 14px; height: 14px; border-radius: 50%; border: 3px solid #fff; background: var(--ink); box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+.m-pin.drop { background: var(--good); border-radius: 3px; }
+.m-pin.late { background: var(--warn); }
+.m-sos {
+  width: 26px; height: 26px; border-radius: 50%; background: var(--bad); border: 3px solid #fff;
+  box-shadow: 0 0 0 8px rgba(196, 36, 25, 0.25);
+}
+
+/* ---- login ---------------------------------------------------------------- */
+.login { display: grid; place-items: center; height: 100%; padding: 24px; }
+.login .card { width: min(380px, 100%); padding: 28px; }
+.login h1 { font-family: var(--num); font-size: 44px; margin: 0; line-height: 1; }
+
+.docs { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; }
+.doc img { width: 100%; height: 150px; object-fit: cover; border-radius: 10px; background: var(--sunken); display: block; }
+.doc .placeholder { height: 150px; border-radius: 10px; background: var(--sunken); display: grid; place-items: center; color: var(--muted); }
+.timeline { list-style: none; margin: 0; padding: 0; }
+.timeline li { display: flex; gap: 12px; padding: 6px 0; }
+.timeline time { width: 70px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* Muted like the apps: the markers carry the colour, the city stays quiet. */
+.gera-tiles { filter: saturate(.35) brightness(1.04) contrast(.9); }

@@ -162,3 +162,7 @@ check("and the rider is owed their share of all of it",
   psql(`select public.rider_net_owed_internal('${RIDER}');`), done.body.riderEarningRwf);
 
 console.log("\nAll end-to-end checks passed.");
+
+// Close the fixture rider's shift, so it does not linger on the control room map.
+psql(`update public.shifts set ended_at = now(), vehicle_condition = 'good'
+       where rider_id='${RIDER}' and ended_at is null;`);

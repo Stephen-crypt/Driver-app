@@ -148,7 +148,11 @@ function parkRiders() {
   parked = true;
   psql(`update public.rider_presence set status = 'offline', updated_at = now()
          where rider_id in (${idList});`);
-  console.log("\nriders set offline.");
+  // An open shift keeps a rider on the control room's map as "on shift, not
+  // live" long after the simulation ended.
+  psql(`update public.shifts set ended_at = now(), vehicle_condition = 'good'
+         where rider_id in (${idList}) and ended_at is null;`);
+  console.log("\nriders set offline, shifts closed.");
 }
 
 process.on("SIGINT", () => {

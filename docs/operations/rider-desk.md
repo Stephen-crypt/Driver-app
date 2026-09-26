@@ -56,7 +56,7 @@ Finally:
 pnpm review verify <rider-id>
 ```
 
-This refuses unless all four documents are approved. The check lives in the database, not in the tool, so it cannot be skipped by a reviewer working quickly.
+This refuses unless the national ID and driving licence are both approved. Vehicle registration and insurance are the company's papers for its own vehicles, so riders are not asked for them. The check lives in the database, not in the tool, so it cannot be skipped by a reviewer working quickly.
 
 ### Suspending someone
 
@@ -204,7 +204,7 @@ pnpm review queue                                 everyone waiting
 pnpm review show <rider-id>                       one rider in full
 pnpm review doc <rider-id> <kind> approve         approve a document
 pnpm review doc <rider-id> <kind> reject "<why>"  reject, with a reason they see
-pnpm review verify <rider-id>                     verify (needs all four approved)
+pnpm review verify <rider-id>                     verify (needs ID and licence approved)
 pnpm review suspend <rider-id> "<reason>"         stop them driving, now
 
 pnpm review money <rider-id>                      what they carry, what we owe
@@ -214,7 +214,7 @@ pnpm review bonus <rider-id> <rwf> "<why>"        add a bonus
 pnpm review deduct <rider-id> <rwf> "<why>"       take a deduction
 ```
 
-Kinds: `national_id`, `driving_licence`, `vehicle_registration`, `insurance`
+Kinds: `national_id`, `driving_licence`
 
 Against the cloud rather than your laptop:
 

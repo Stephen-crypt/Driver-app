@@ -68,6 +68,17 @@ function parkRider() {
   try {
     psql(`update public.rider_presence set status='offline', updated_at=now()
            where rider_id='${RIDER}';`);
+    // The booking check stops at "accepted". Left there, the trip sits in the
+    // control room as a rider forever on the way - so the fixture rider cancels
+    // it, through the state machine like anyone else, and ends their shift.
+    psql(`begin;
+          set local role authenticated;
+          set local request.jwt.claims to '{"sub":"${RIDER}","role":"authenticated"}';
+          select public.trip_transition(id, 'cancelled_by_rider', 'e2e-cleanup-' || id)
+            from public.trips where rider_id = '${RIDER}' and state in ('accepted','arrived');
+          commit;`);
+    psql(`update public.shifts set ended_at = now(), vehicle_condition = 'good'
+           where rider_id='${RIDER}' and ended_at is null;`);
   } catch (err) {
     console.error("warning: could not park the fixture rider offline", err.message);
   }

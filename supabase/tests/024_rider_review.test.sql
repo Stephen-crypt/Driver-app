@@ -55,7 +55,7 @@ select throws_ok(
 -- It lives in the database so a reviewer working fast cannot skip it.
 select is(
   public.verify_rider('11111111-1111-1111-1111-111111111111'::uuid),
-  'refused: 0 of 4 documents approved',
+  'refused: 0 of 2 documents approved',
   'a rider with no approved documents cannot be verified');
 
 select * from finish();

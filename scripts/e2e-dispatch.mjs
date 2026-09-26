@@ -169,3 +169,7 @@ check("the rider now carries the fare",
 parkRider();
 
 console.log("\nDispatch end-to-end passed: nobody chose the rider.");
+
+// Close the fixture rider's shift, so it does not linger on the control room map.
+psql(`update public.shifts set ended_at = now(), vehicle_condition = 'good'
+       where rider_id='${RIDER}' and ended_at is null;`);

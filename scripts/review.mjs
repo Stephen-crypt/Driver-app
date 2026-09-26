@@ -37,7 +37,9 @@ function psql(sql) {
 
 const lit = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
-const KINDS = ["national_id", "driving_licence", "vehicle_registration", "insurance"];
+// What a fleet rider supplies (rider_document_kinds() in SQL). Vehicle papers
+// belong to the company's vehicles, not to the rider.
+const KINDS = ["national_id", "driving_licence"];
 
 const [, , command, ...rest] = process.argv;
 
@@ -49,7 +51,7 @@ The Gera rider desk.
   show <rider-id>                       one rider in full
   doc <rider-id> <kind> approve         approve a document
   doc <rider-id> <kind> reject "<why>"  reject it, with a reason the rider sees
-  verify <rider-id>                     verify - refused unless all documents pass
+  verify <rider-id>                     verify - refused unless both documents pass
   suspend <rider-id> "<reason>"         stop them driving, immediately
   remit <rider-id> <rwf> "<ref>"        record cash they handed in
   pay <rider-id> <rwf> "<ref>"          pay them what they are owed
