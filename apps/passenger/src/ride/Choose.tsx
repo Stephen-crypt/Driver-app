@@ -2,7 +2,16 @@ import { Pressable, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Banner, Button, Field, Txt, c, money, radius, space, tap, type IconName } from "@gera/kit";
-import type { QuoteResult } from "@gera/data";
+import { dateLabel, daysLabel, type QuoteResult } from "@gera/data";
+import {
+  LaterPicker,
+  RegularPicker,
+  endDateOf,
+  firstRideDate,
+  type BookingMode,
+  type LaterPlan,
+  type RegularPlan,
+} from "./When";
 
 export type VehicleClass = "moto" | "cab" | "cab_xl";
 
@@ -15,6 +24,11 @@ export const CLASSES: readonly { id: VehicleClass; label: string; blurb: string;
 ];
 
 export function Choose({
+  mode,
+  later,
+  onLater,
+  regular,
+  onRegular,
   destination,
   pickupLabel,
   quotes,
@@ -28,6 +42,11 @@ export function Choose({
   canBook,
   onBook,
 }: {
+  readonly mode: BookingMode;
+  readonly later: LaterPlan;
+  readonly onLater: (p: LaterPlan) => void;
+  readonly regular: RegularPlan;
+  readonly onRegular: (p: RegularPlan) => void;
   readonly destination: string;
   readonly pickupLabel: string;
   readonly quotes: Partial<Record<VehicleClass, QuoteResult>>;
@@ -44,6 +63,22 @@ export function Choose({
   const router = useRouter();
   const quote = quotes[selected];
   const minutes = durationS ? Math.max(1, Math.round(durationS / 60)) : null;
+  const vehicle = CLASSES.find((k) => k.id === selected)?.label.toLowerCase() ?? "ride";
+
+  // What is still missing before this can be booked, said as the button's
+  // label - a disabled button with no reason is a dead end.
+  const first = mode === "regular" ? firstRideDate(regular) : null;
+  const missing =
+    mode === "later" && !later.time
+      ? "Pick a time"
+      : mode === "regular" && regular.days.length === 0
+        ? "Pick at least one day"
+        : mode === "regular" && !regular.time
+          ? "Pick a time"
+          : null;
+  const label =
+    missing ??
+    (mode === "later" ? `Schedule ${vehicle}` : mode === "regular" ? "Set up schedule" : `Book ${vehicle}`);
 
   return (
     <View style={styles.stack}>
@@ -91,6 +126,25 @@ export function Choose({
         })}
       </View>
 
+      {mode === "later" ? (
+        <View style={styles.when}>
+          <Txt v="heading">When?</Txt>
+          <LaterPicker plan={later} onChange={onLater} />
+        </View>
+      ) : null}
+      {mode === "regular" ? (
+        <View style={styles.when}>
+          <Txt v="heading">Which days?</Txt>
+          <RegularPicker plan={regular} onChange={onRegular} />
+          {regular.time && first ? (
+            <Txt v="label" tone="muted">
+              {daysLabel(regular.days)} at {regular.time}, first ride {dateLabel(first)}, until{" "}
+              {dateLabel(endDateOf(regular))}. The price stays {quote ? `${money(quote.amountRwf)} RWF` : "fixed"} for every ride.
+            </Txt>
+          ) : null}
+        </View>
+      ) : null}
+
       <Field
         value={pickupNote}
         onChangeText={onPickupNote}
@@ -113,11 +167,11 @@ export function Choose({
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
 
       <Button
-        label={`Book ${CLASSES.find((k) => k.id === selected)?.label.toLowerCase() ?? "ride"}`}
-        trailing={quote ? `${money(quote.amountRwf)} RWF` : undefined}
+        label={label}
+        trailing={quote && !missing ? `${money(quote.amountRwf)} RWF` : undefined}
         onPress={onBook}
         loading={busy}
-        disabled={!quote || !canBook}
+        disabled={!quote || !canBook || missing !== null}
       />
     </View>
   );
@@ -126,6 +180,7 @@ export function Choose({
 const styles = StyleSheet.create({
   flex: { flex: 1 },
   stack: { gap: space.md },
+  when: { gap: space.sm },
   options: { gap: space.sm },
   option: {
     flexDirection: "row",

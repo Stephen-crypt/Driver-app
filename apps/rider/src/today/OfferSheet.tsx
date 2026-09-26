@@ -18,6 +18,7 @@ import {
   distanceLabel,
   etaLabel,
   getTripPoints,
+  whenLabel,
   secondsLeft,
   type LiveOffer,
   type TripPoints,
@@ -98,7 +99,15 @@ export function OfferSheet({
         <Paper style={styles.paper}>
           <View style={styles.head}>
             <View style={styles.flex}>
-              <Chip label={`New trip · ${offer.vehicleClass === "moto" ? "Moto" : "Cab"}`} tone="accent" />
+              <View style={styles.chips}>
+                <Chip label={`New trip · ${offer.vehicleClass === "moto" ? "Moto" : "Cab"}`} tone="accent" />
+                {/* A booked ride is released ten minutes early. Without the
+                    time, a rider would race to a passenger who is still
+                    finishing breakfast. */}
+                {offer.scheduledFor ? (
+                  <Chip label={`Booked · pickup ${whenLabel(offer.scheduledFor)}`} tone="warn" icon="calendar" />
+                ) : null}
+              </View>
               <View style={styles.fare}>
                 <Txt v="hero" tabularNums>
                   {offer.fareRwf === null ? "—" : money(offer.fareRwf)}
@@ -179,6 +188,7 @@ const styles = StyleSheet.create({
   mapArea: { flex: 1 },
   paper: { gap: space.md },
   head: { flexDirection: "row", alignItems: "center", gap: space.md },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: space.xs },
   fare: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: space.xs },
   unit: { marginBottom: 6 },
   legs: { gap: space.md, paddingVertical: space.xs },

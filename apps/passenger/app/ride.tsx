@@ -1,11 +1,18 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Linking, Pressable, Share, StyleSheet, View } from "react-native";
+import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { GeraMap, Paper, c, notify, shadow, space, type MapMarker } from "@gera/kit";
+import { Button, GeraMap, Paper, Txt, c, notify, shadow, space, type MapMarker } from "@gera/kit";
 import {
   EMERGENCY_NUMBER,
+  addDays,
+  createRecurringSchedule,
+  daysLabel,
+  kigaliInstant,
+  kigaliToday,
+  scheduleTrip,
+  whenLabel,
   cancelTrip,
   createTripFromQuote,
   getRidePin,
@@ -40,6 +47,7 @@ import * as loc from "../src/lib/location";
 import { CLASSES, Choose, type VehicleClass } from "../src/ride/Choose";
 import { Assigned, Ended, Searching } from "../src/ride/Live";
 import { Completed } from "../src/ride/Completed";
+import { endDateOf, type BookingMode, type LaterPlan, type RegularPlan } from "../src/ride/When";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const num = (v: string | string[] | undefined) => {
@@ -51,6 +59,19 @@ export default function Ride() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
+  const { height } = useWindowDimensions();
+  const modeParam = one(params.mode);
+  const mode: BookingMode = modeParam === "later" || modeParam === "regular" ? modeParam : "now";
+  const [later, setLater] = useState<LaterPlan>({ date: addDays(kigaliToday(), 1), time: null });
+  const [regular, setRegular] = useState<RegularPlan>({
+    days: [1, 2, 3, 4, 5],
+    time: null,
+    startDate: addDays(kigaliToday(), 1),
+    weeks: 4,
+  });
+  // Set once a ride is booked ahead: what to tell the passenger instead of a
+  // live trip, because there is not one yet.
+  const [bookedAhead, setBookedAhead] = useState<{ title: string; detail: string } | null>(null);
 
   // Two ways in: a destination to book, or a trip id to resume.
   const resumeId = one(params.trip);
@@ -229,21 +250,49 @@ export default function Ride() {
     setBusy(true);
     setError(null);
     try {
-      const created = await createTripFromQuote(supabase, {
+      const args = {
         quoteId: quote.quoteId,
         pickup,
         pickupLabel,
         ...(pickupNote.trim() ? { pickupNote: pickupNote.trim() } : {}),
         dropoff,
         dropoffLabel: dropLabel,
-      });
-      setTrip(await getTrip(supabase, created.id));
-    } catch {
-      setError("Could not book that ride. The price may have expired - pick again.");
+      };
+      if (mode === "later" && later.time) {
+        const at = kigaliInstant(later.date, later.time);
+        await scheduleTrip(supabase, { ...args, scheduledFor: at });
+        notify("success");
+        setBookedAhead({
+          title: `Booked for ${whenLabel(at.toISOString()).toLowerCase()}`,
+          detail: `We'll start finding your rider ten minutes before. The price is locked at ${quote.amountRwf.toLocaleString("en-US")} RWF.`,
+        });
+      } else if (mode === "regular" && regular.time) {
+        await createRecurringSchedule(supabase, {
+          ...args,
+          days: regular.days,
+          time: regular.time,
+          startDate: regular.startDate,
+          endDate: endDateOf(regular),
+        });
+        notify("success");
+        setBookedAhead({
+          title: `${daysLabel(regular.days)} at ${regular.time}`,
+          detail: `Each ride is booked a week ahead and shows in Activity, where you can skip a day or cancel the lot. Every ride is ${quote.amountRwf.toLocaleString("en-US")} RWF.`,
+        });
+      } else {
+        const created = await createTripFromQuote(supabase, args);
+        setTrip(await getTrip(supabase, created.id));
+      }
+    } catch (e) {
+      setError(
+        e instanceof Error && mode !== "now"
+          ? e.message
+          : "Could not book that ride. The price may have expired - pick again.",
+      );
     } finally {
       setBusy(false);
     }
-  }, [quotes, selected, pickup, dropoff, pickupLabel, pickupNote, dropLabel]);
+  }, [quotes, selected, pickup, dropoff, pickupLabel, pickupNote, dropLabel, mode, later, regular]);
 
   const call = async () => {
     if (!trip) return;
@@ -339,9 +388,28 @@ export default function Ride() {
 
   // ---- sheet ---------------------------------------------------------------------------
   let body;
-  if (!trip) {
+  if (bookedAhead) {
+    body = (
+      <View style={styles.booked}>
+        <Txt v="label" tone="good">
+          {mode === "regular" ? "Schedule set" : "Ride booked"}
+        </Txt>
+        <Txt v="title">{bookedAhead.title}</Txt>
+        <Txt v="body" tone="muted">
+          To {dropLabel}. {bookedAhead.detail}
+        </Txt>
+        <Button label="See upcoming rides" onPress={() => router.replace("/activity")} />
+        <Button label="Done" variant="quiet" compact onPress={() => router.replace("/")} />
+      </View>
+    );
+  } else if (!trip) {
     body = (
       <Choose
+        mode={mode}
+        later={later}
+        onLater={setLater}
+        regular={regular}
+        onRegular={setRegular}
         destination={dropLabel}
         pickupLabel={pickupLabel}
         quotes={quotes}
@@ -417,7 +485,18 @@ export default function Ride() {
         </Pressable>
       ) : null}
       <View style={styles.sheet} onLayout={(e) => setPaperH(e.nativeEvent.layout.height)}>
-        <Paper>{body}</Paper>
+        <Paper>
+          {/* Booking ahead adds a day and time picker; on a short phone the
+              sheet would push the Book button off the screen without this. */}
+          <ScrollView
+            style={{ maxHeight: height * 0.74 }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            bounces={false}
+          >
+            {body}
+          </ScrollView>
+        </Paper>
       </View>
     </View>
   );
@@ -426,6 +505,7 @@ export default function Ride() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.surface },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  booked: { gap: space.md },
   back: {
     position: "absolute",
     left: space.md,

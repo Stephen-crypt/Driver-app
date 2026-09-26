@@ -3,6 +3,8 @@
 // packages/core is the only place fare and commission arithmetic is authored.
 // packages/core/src/trip/states.ts
 var TRIP_STATES = [
+  // Booked for later; released into dispatch shortly before pickup.
+  "scheduled",
   "requested",
   "offered",
   "accepted",
@@ -13,7 +15,8 @@ var TRIP_STATES = [
   "cancelled_by_rider",
   "expired",
   "no_riders",
-  "no_show"
+  "no_show",
+  "skipped"
 ];
 var ACTORS = [
   "passenger",
@@ -27,7 +30,9 @@ var TERMINAL_STATES = [
   "expired",
   "no_riders",
   // The rider waited past the grace period and the passenger never came.
-  "no_show"
+  "no_show",
+  // One occurrence of a recurring schedule, set aside by the passenger.
+  "skipped"
 ];
 function isTerminal(state) {
   return TERMINAL_STATES.includes(state);
@@ -35,6 +40,29 @@ function isTerminal(state) {
 
 // packages/core/src/trip/transitions.ts
 var TRANSITIONS = [
+  // A ride booked for later is released by the system, or called off by the
+  // passenger - cancelled outright, or one day of a schedule skipped.
+  {
+    from: "scheduled",
+    to: "requested",
+    actors: [
+      "system"
+    ]
+  },
+  {
+    from: "scheduled",
+    to: "cancelled_by_passenger",
+    actors: [
+      "passenger"
+    ]
+  },
+  {
+    from: "scheduled",
+    to: "skipped",
+    actors: [
+      "passenger"
+    ]
+  },
   {
     from: "requested",
     to: "offered",

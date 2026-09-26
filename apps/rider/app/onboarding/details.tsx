@@ -1,8 +1,7 @@
 import { useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, Txt, c, radius, space, tap } from "@gera/kit";
-import { VEHICLE_CLASSES, type VehicleClass } from "@gera/core";
+import { Banner, Button, Field, Screen, Txt, space } from "@gera/kit";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 
@@ -15,20 +14,22 @@ function normalisePhone(raw: string | undefined): string | null {
   }
 }
 
-const CLASS_LABEL: Record<VehicleClass, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
-
+/**
+ * Who the rider is - not what they ride. Gera owns the vehicles and assigns one
+ * when it approves the rider, so this screen used to ask for a plate, a vest
+ * and a vehicle class nobody had yet: a marketplace question left over in a
+ * fleet.
+ */
 export default function DetailsScreen() {
   const router = useRouter();
   const [name, setName] = useState("");
   const [licence, setLicence] = useState("");
-  const [plate, setPlate] = useState("");
-  const [vest, setVest] = useState("");
-  // moto is first and default: it is the dominant mode in Kigali.
-  const [vehicleClass, setVehicleClass] = useState<VehicleClass>("moto");
+  const [nationalId, setNationalId] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
-  const ready = Boolean(name.trim() && licence.trim() && plate.trim());
+  const idDigits = nationalId.replace(/\D/g, "");
+  const ready = Boolean(name.trim() && licence.trim() && (idDigits.length === 0 || idDigits.length === 16));
 
   async function submit() {
     setError(null);
@@ -40,24 +41,19 @@ export default function DetailsScreen() {
         return;
       }
 
-      // Supabase Auth stores the phone digits-only (250788123456), but
-      // profiles.phone is E.164 by contract and its unique constraint cannot see
-      // that the two spellings are the same person.
+      // Supabase Auth stores the phone digits-only; profiles.phone is E.164 by
+      // contract and its unique constraint cannot see the two are one person.
       const phone = normalisePhone(auth.user.phone);
       if (!phone) {
         setError("We could not read your phone number. Start again.");
         return;
       }
 
-      // One atomic call. Three separate inserts were not a transaction: a
-      // failure after the first one left the rider wedged.
       const { error: registerError } = await supabase.rpc("register_rider", {
         p_first_name: name.trim(),
         p_phone: phone,
         p_licence: licence.trim(),
-        p_plate: plate.trim().toUpperCase(),
-        p_vest: vest.trim() || null,
-        p_class: vehicleClass,
+        p_national_id: idDigits || null,
       });
 
       if (registerError) {
@@ -80,57 +76,26 @@ export default function DetailsScreen() {
   return (
     <Screen
       title="About you"
-      subtitle="As it appears on your licence."
+      subtitle="As it appears on your licence and ID."
       footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!ready} />}
     >
       <View style={styles.stack}>
         <Field label="First name" value={name} onChangeText={setName} autoCapitalize="words" />
         <Field label="Driving licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters" />
-
-        <View style={styles.group}>
-          <Txt v="label" tone="muted" style={styles.label}>
-            What you ride
-          </Txt>
-          <View style={styles.segments}>
-            {VEHICLE_CLASSES.map((k) => {
-              const on = vehicleClass === k;
-              return (
-                <Pressable
-                  key={k}
-                  onPress={() => {
-                    tap();
-                    setVehicleClass(k);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  style={[styles.segment, on && styles.segmentOn]}
-                >
-                  <Txt v="bodyStrong" tone={on ? "inverse" : "strong"}>
-                    {CLASS_LABEL[k]}
-                  </Txt>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
         <Field
-          label="Plate"
-          value={plate}
-          onChangeText={setPlate}
-          placeholder="RAD 123 B"
-          autoCapitalize="characters"
+          label="National ID number"
+          value={nationalId}
+          onChangeText={setNationalId}
+          keyboardType="number-pad"
+          maxLength={20}
+          hint={idDigits.length > 0 && idDigits.length !== 16 ? "A Rwandan national ID has 16 digits." : "16 digits, on the front of your ID."}
         />
-        {vehicleClass === "moto" ? (
-          <Field
-            label="Vest number"
-            value={vest}
-            onChangeText={setVest}
-            keyboardType="number-pad"
-            hint="The number on the back of your vest. Passengers look for it."
-          />
-        ) : null}
-
+        <View style={styles.note}>
+          <Txt v="label" tone="muted">
+            You don't need a vehicle. Once you're approved, the fleet office assigns you one - with
+            its plate and your vest number.
+          </Txt>
+        </View>
         {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
       </View>
     </Screen>
@@ -139,16 +104,5 @@ export default function DetailsScreen() {
 
 const styles = StyleSheet.create({
   stack: { gap: space.md },
-  group: { gap: 6 },
-  label: { marginLeft: space.xs },
-  segments: { flexDirection: "row", gap: space.sm },
-  segment: {
-    flex: 1,
-    minHeight: 52,
-    borderRadius: radius.md,
-    backgroundColor: c.surfaceRaised,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  segmentOn: { backgroundColor: c.textStrong },
+  note: { paddingHorizontal: space.xs },
 });

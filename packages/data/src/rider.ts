@@ -115,6 +115,8 @@ export interface LiveOffer {
   readonly dropoffLabel: string;
   readonly fareRwf: number | null;
   readonly vehicleClass: string;
+  /** Set when the passenger booked ahead: the time they are expecting you. */
+  readonly scheduledFor: string | null;
 }
 
 interface OfferRow {
@@ -128,6 +130,7 @@ interface OfferRow {
     dropoff_label: string;
     quoted_amount_rwf: number | null;
     vehicle_class: string;
+    scheduled_for: string | null;
   } | null;
 }
 
@@ -146,7 +149,7 @@ export async function getLiveOffer(
   const { data, error } = await client
     .from("trip_offers")
     .select(
-      "id, trip_id, expires_at, eta_seconds, trips(pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, vehicle_class)",
+      "id, trip_id, expires_at, eta_seconds, trips(pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, vehicle_class, scheduled_for)",
     )
     .eq("rider_id", riderId)
     .is("outcome", null)
@@ -169,6 +172,7 @@ export async function getLiveOffer(
     dropoffLabel: r.trips?.dropoff_label ?? "Destination",
     fareRwf: r.trips?.quoted_amount_rwf ?? null,
     vehicleClass: r.trips?.vehicle_class ?? "moto",
+    scheduledFor: r.trips?.scheduled_for ?? null,
   };
 }
 
@@ -201,6 +205,7 @@ export interface ActiveTrip {
   readonly dropoffLabel: string;
   readonly fareRwf: number | null;
   readonly quotedDistanceM: number | null;
+  readonly scheduledFor: string | null;
 }
 
 export async function getActiveTrip(
@@ -210,7 +215,7 @@ export async function getActiveTrip(
   const { data, error } = await client
     .from("trips")
     .select(
-      "id, state, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, quoted_distance_m",
+      "id, state, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, quoted_distance_m, scheduled_for",
     )
     .eq("rider_id", riderId)
     .in("state", ["accepted", "arrived", "in_progress"])
@@ -229,6 +234,7 @@ export async function getActiveTrip(
     dropoff_label: string;
     quoted_amount_rwf: number | null;
     quoted_distance_m: number | null;
+    scheduled_for: string | null;
   };
 
   return {
@@ -239,6 +245,7 @@ export async function getActiveTrip(
     dropoffLabel: r.dropoff_label,
     fareRwf: r.quoted_amount_rwf,
     quotedDistanceM: r.quoted_distance_m,
+    scheduledFor: r.scheduled_for,
   };
 }
 

@@ -18,7 +18,7 @@ set local request.jwt.claims to
 
 select lives_ok(
   $$ select public.register_rider(
-       'Aline', '+250788990006', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
+       'Aline', '+250788990006', 'LIC-001', '1199880012345678') $$,
   'a passenger can register as a rider over their existing profile'
 );
 
@@ -26,7 +26,7 @@ select lives_ok(
 -- is an upsert now, so the identical submission simply succeeds again.
 select lives_ok(
   $$ select public.register_rider(
-       'Aline', '+250788990006', 'LIC-001', 'RAD 123 B', '77', 'moto') $$,
+       'Aline', '+250788990006', 'LIC-001', '1199880012345678') $$,
   're-submitting the same details succeeds instead of wedging'
 );
 
@@ -44,11 +44,14 @@ select is(
   'the profile role flipped from passenger to rider'
 );
 
+-- A fleet rider brings themselves, not a vehicle. The company assigns one on
+-- approval, so registering must not create a vehicle - an inactive stray row
+-- here is what the marketplace version left behind for every applicant.
 select is(
   (select count(*)::int from public.vehicles
     where rider_id = '11111111-1111-1111-1111-111111111111'),
-  1,
-  'the re-submit updated the vehicle rather than duplicating it'
+  0,
+  'registering creates no vehicle - the fleet assigns one'
 );
 
 -- Unverified riders still cannot enter the dispatch index (see 0007).
@@ -62,7 +65,7 @@ select throws_ok(
 
 select ok(
   not has_function_privilege(
-    'anon', 'public.register_rider(text,text,text,text,text,vehicle_class)', 'EXECUTE'),
+    'anon', 'public.register_rider(text,text,text,text)', 'EXECUTE'),
   'anon cannot execute register_rider'
 );
 

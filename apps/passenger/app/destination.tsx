@@ -43,6 +43,7 @@ export default function Destination() {
     plng: one(params.plng),
     plabel: one(params.plabel),
   };
+  const mode = one(params.mode);
 
   const [query, setQuery] = useState(one(params.q) ?? "");
   const [results, setResults] = useState<Place[]>([]);
@@ -93,6 +94,7 @@ export default function Destination() {
         ...(pickup.plat ? { plat: pickup.plat } : {}),
         ...(pickup.plng ? { plng: pickup.plng } : {}),
         ...(pickup.plabel ? { plabel: pickup.plabel } : {}),
+        ...(mode ? { mode } : {}),
       },
     });
   };

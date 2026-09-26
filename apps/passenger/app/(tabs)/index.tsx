@@ -6,6 +6,9 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Banner, Chip, GeraMap, Paper, Txt, c, font, radius, space, tap } from "@gera/kit";
 import {
   getActivePassengerTrip,
+  listUpcoming,
+  whenLabel,
+  type UpcomingRide,
   listSavedPlaces,
   listTrips,
   nearestLandmark,
@@ -27,6 +30,14 @@ function greeting(now = new Date()): string {
   return now.getHours() < 12 ? "Mwaramutse" : "Mwiriwe";
 }
 
+const shadowSoft = {
+  shadowColor: "#0B0D12",
+  shadowOpacity: 0.08,
+  shadowRadius: 4,
+  shadowOffset: { width: 0, height: 1 },
+  elevation: 2,
+} as const;
+
 const LIVE_COPY: Record<string, string> = {
   requested: "Finding you a rider",
   offered: "Finding you a rider",
@@ -47,6 +58,10 @@ export default function Home() {
   const [recent, setRecent] = useState<string[]>([]);
   const [live, setLive] = useState<TripSnapshot | null>(null);
   const [paperH, setPaperH] = useState(300);
+  // NOVA §7: three ways to book, and only three - "later" and "prebook" are
+  // the same idea and a fourth button would only confuse.
+  const [mode, setMode] = useState<"now" | "later" | "regular">("now");
+  const [next, setNext] = useState<UpcomingRide | null>(null);
 
   // Where the passenger actually is. The pickup used to be a constant -
   // Kimironko Market for everyone - which sent every rider to the same place.
@@ -76,12 +91,14 @@ export default function Home() {
       if (!userId) return;
       let active = true;
       (async () => {
-        const [profile, places, history, trip] = await Promise.all([
+        const [profile, places, history, trip, upcoming] = await Promise.all([
           supabase.from("profiles").select("first_name").eq("id", userId).maybeSingle(),
           listSavedPlaces(supabase, userId).catch(() => [] as SavedPlace[]),
           listTrips(supabase, "passenger_id", userId, 20).catch(() => []),
           getActivePassengerTrip(supabase, userId).catch(() => null),
+          listUpcoming(supabase, userId).catch(() => [] as UpcomingRide[]),
         ]);
+        setNext(upcoming[0] ?? null);
         if (!active) return;
         setName((profile.data as { first_name?: string } | null)?.first_name ?? null);
         setSaved(places);
@@ -122,6 +139,7 @@ export default function Home() {
       params: {
         ...(here ? { plat: String(here.lat), plng: String(here.lng) } : {}),
         ...(pickupLabel ? { plabel: pickupLabel } : {}),
+        mode,
         ...params,
       },
     });
@@ -137,6 +155,7 @@ export default function Home() {
         ...(p.note ? { note: p.note } : {}),
         ...(here ? { plat: String(here.lat), plng: String(here.lng) } : {}),
         ...(pickupLabel ? { plabel: pickupLabel } : {}),
+        mode,
       },
     });
 
@@ -176,6 +195,31 @@ export default function Home() {
               {name ? `, ${name}` : ""}
             </Txt>
 
+            <View style={styles.modes} accessibilityRole="radiogroup">
+              {(
+                [
+                  ["now", "Ride now"],
+                  ["later", "Schedule"],
+                  ["regular", "Regular"],
+                ] as const
+              ).map(([k, l]) => (
+                <Pressable
+                  key={k}
+                  onPress={() => {
+                    tap();
+                    setMode(k);
+                  }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: mode === k }}
+                  style={[styles.mode, mode === k && styles.modeOn]}
+                >
+                  <Txt v="label" tone={mode === k ? "strong" : "muted"}>
+                    {l}
+                  </Txt>
+                </Pressable>
+              ))}
+            </View>
+
             {/* The whole of the home screen's job. Set in the condensed face at
                 title size: it is a question, and it should read like one. */}
             <Pressable
@@ -186,7 +230,7 @@ export default function Home() {
             >
               <Ionicons name="search" size={22} color={c.textStrong} />
               <Txt v="title" style={styles.searchText}>
-                Where to?
+                {mode === "now" ? "Where to?" : mode === "later" ? "Where, and when?" : "Your regular trip"}
               </Txt>
             </Pressable>
 
@@ -199,6 +243,16 @@ export default function Home() {
                 </Txt>
               </Txt>
             </View>
+
+            {next ? (
+              <Pressable onPress={() => router.push("/activity")} style={styles.next} accessibilityRole="button">
+                <Ionicons name="calendar-outline" size={18} color={c.accent} />
+                <Txt v="label" lines={1} style={styles.flex}>
+                  Next: {whenLabel(next.scheduledFor)} to {next.dropoffLabel}
+                </Txt>
+                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+              </Pressable>
+            ) : null}
 
             {gpsDenied ? (
               <Banner tone="warn" icon="location">
@@ -268,6 +322,24 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: c.border,
+  },
+  modes: {
+    flexDirection: "row",
+    padding: 4,
+    gap: 4,
+    borderRadius: radius.pill,
+    backgroundColor: c.surfaceHigh,
+  },
+  mode: { flex: 1, height: 36, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
+  modeOn: { backgroundColor: c.surfaceRaised, ...shadowSoft },
+  next: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    paddingVertical: space.sm,
+    paddingHorizontal: space.md,
+    borderRadius: radius.md,
+    backgroundColor: c.accentSoft,
   },
   firstRun: { flexDirection: "row", gap: space.sm, flexWrap: "wrap" },
   live: {

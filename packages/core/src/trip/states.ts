@@ -1,4 +1,6 @@
 export const TRIP_STATES = [
+  // Booked for later; released into dispatch shortly before pickup.
+  "scheduled",
   "requested",
   "offered",
   "accepted",
@@ -10,6 +12,7 @@ export const TRIP_STATES = [
   "expired",
   "no_riders",
   "no_show",
+  "skipped",
 ] as const;
 
 export type TripState = (typeof TRIP_STATES)[number];
@@ -25,6 +28,8 @@ export const TERMINAL_STATES = [
   "no_riders",
   // The rider waited past the grace period and the passenger never came.
   "no_show",
+  // One occurrence of a recurring schedule, set aside by the passenger.
+  "skipped",
 ] as const satisfies readonly TripState[];
 
 export function isTerminal(state: TripState): boolean {

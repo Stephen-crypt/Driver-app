@@ -14,6 +14,7 @@ import {
   type ActiveTrip,
   type TripPoints,
   type WaitStatus,
+  kigaliTime,
 } from "@gera/data";
 import { waitingChargeFor } from "@gera/core";
 import type { Coords } from "../lib/location";
@@ -80,6 +81,11 @@ export function TripPanel(p: TripPanelProps) {
       <View style={styles.panel}>
         <Steps at={0} />
         <Txt v="title">Pick up {p.passengerName}</Txt>
+        {trip.scheduledFor && new Date(trip.scheduledFor).getTime() > p.now ? (
+          <Banner tone="warn" icon="calendar">
+            {`Booked for ${kigaliTime(trip.scheduledFor)}. Be there on time - waiting isn't charged before then.`}
+          </Banner>
+        ) : null}
         <Leg
           kind="pickup"
           title={trip.pickupLabel}

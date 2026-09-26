@@ -12,6 +12,12 @@ export interface TransitionRule {
  * Task 9 proves the two copies agree.
  */
 export const TRANSITIONS: readonly TransitionRule[] = [
+  // A ride booked for later is released by the system, or called off by the
+  // passenger - cancelled outright, or one day of a schedule skipped.
+  { from: "scheduled", to: "requested", actors: ["system"] },
+  { from: "scheduled", to: "cancelled_by_passenger", actors: ["passenger"] },
+  { from: "scheduled", to: "skipped", actors: ["passenger"] },
+
   { from: "requested", to: "offered", actors: ["system"] },
   { from: "requested", to: "no_riders", actors: ["system"] },
   { from: "requested", to: "cancelled_by_passenger", actors: ["passenger"] },

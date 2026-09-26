@@ -91,6 +91,9 @@ describe("the table itself", () => {
   // only assertion that fails if an entry in the table is itself wrong, rather
   // than folding the error into the matrix's own baseline.
   const EXPECTED_EDGES = [
+    "scheduled>requested>system",
+    "scheduled>cancelled_by_passenger>passenger",
+    "scheduled>skipped>passenger",
     "requested>offered>system",
     "requested>no_riders>system",
     "requested>cancelled_by_passenger>passenger",
@@ -110,7 +113,7 @@ describe("the table itself", () => {
     "in_progress>completed>rider",
   ].sort();
 
-  it("contains exactly the seventeen intended edges and no others", () => {
+  it("contains exactly the twenty intended edges and no others", () => {
     const actual = TRANSITIONS.flatMap((r) =>
       r.actors.map((a) => `${r.from}>${r.to}>${a}`),
     ).sort();
