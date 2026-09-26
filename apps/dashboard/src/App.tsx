@@ -43,6 +43,7 @@ export function App() {
   if (!staff) return <NotStaff />;
 
   const allowed = SECTIONS.filter((s) => can(staff.role, ...s.roles));
+  if (allowed.length === 0) return <NoSections />;
   const home = allowed[0]?.to ?? "/";
 
   return (
@@ -81,6 +82,7 @@ const ROLE_NAME: Record<StaffRole, string> = {
   safety: "Safety",
   support: "Support",
   finance: "Finance",
+  inspector: "Inspector",
 };
 
 function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
@@ -164,6 +166,23 @@ function useOpenCaseCount(enabled: boolean): number {
     return () => clearInterval(id);
   }, [enabled]);
   return count;
+}
+
+function NoSections() {
+  return (
+    <div className="login">
+      <div className="card stack">
+        <h1>Inspections are in the app</h1>
+        <p className="muted">
+          Inspectors work from the Gera Rider app: tap Staff sign in on its first screen and use this
+          email and password.
+        </p>
+        <button className="btn secondary" onClick={() => void supabase.auth.signOut()}>
+          Sign out
+        </button>
+      </div>
+    </div>
+  );
 }
 
 function NotStaff() {

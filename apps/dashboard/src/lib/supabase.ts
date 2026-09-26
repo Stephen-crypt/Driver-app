@@ -5,7 +5,7 @@ export const supabase = createClient(import.meta.env.VITE_SUPABASE_URL, import.m
   auth: { persistSession: true, autoRefreshToken: true },
 });
 
-export type StaffRole = "admin" | "operations" | "control_room" | "fleet" | "safety" | "support" | "finance";
+export type StaffRole = "admin" | "operations" | "control_room" | "fleet" | "safety" | "support" | "finance" | "inspector";
 
 export interface Staff {
   readonly role: StaffRole;

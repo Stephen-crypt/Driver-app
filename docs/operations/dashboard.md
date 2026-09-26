@@ -21,6 +21,7 @@ Staff roles can only be granted from the command line, with the service key. The
 ```bash
 pnpm staff add ange@gera.rw admin "Ange"          # prints a password once
 pnpm staff add claudine@gera.rw control_room "Claudine"
+pnpm staff add innocent@gera.rw inspector "Innocent"   # works in the Gera Rider app
 pnpm staff role claudine@gera.rw safety
 pnpm staff disable claudine@gera.rw               # takes effect on their next click
 pnpm staff list
@@ -103,3 +104,15 @@ Alerts come from any rider on shift, whether or not they're on a trip. Riding al
 - **Long detour:** they've travelled more than one and a half times the quoted distance, plus the margin.
 
 The margin is 1,500 m to start with (Prices & settings → Route alert margin). A block the wrong way round a one-way system never trips it. Like speed alerts, these are for someone to look at and mark reviewed; nothing happens to the rider automatically.
+
+## Inspections
+
+Inspectors work from the **Gera Rider app**: on its first screen, tap **Staff sign in** and use the email and password from the staff script. An inspector account opens straight onto the inspection screens. It has nothing to open on this dashboard.
+
+- **Finding who to check:** scan the QR on the rider's phone (Me → My QR code) or the sticker on the vehicle, or type a vest number or plate.
+- **The check:** identity, documents, vest and helmets, then brakes, lights, tyres, mirrors, bodywork and safety kit. An optional alcohol test records negative, positive (with the reading) or refused, plus the device. Add photos and notes.
+- **The result:** pass, advisory or fail. A pass can't be recorded over a failed item or a positive or refused test.
+- **What happens next:** a failed inspection, or a positive or refused alcohol test, opens a case for the safety desk. Nothing is done to the rider automatically (NOVA §48). A person reviews the case and decides.
+- **Where results show:** inspections appear on the rider's page, with photos, and the rider can see what was recorded about them. Every lookup is in the audit log.
+
+**Vehicle stickers:** on the Fleet page, **Sticker** opens a print-sized sticker with the QR, plate and vest number. **Replace** prints one with a new code and retires the old one. Use it when a sticker is lost or might have been copied.

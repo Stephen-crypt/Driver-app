@@ -91,6 +91,7 @@ export default function RiderWelcome() {
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         <Button label="Get started" onPress={() => router.push("/onboarding/phone")} />
+        <Button label="Staff sign in" variant="quiet" compact onPress={() => router.push("/staff-login")} />
       </View>
     </View>
   );
@@ -121,6 +122,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceRaised,
   },
   footer: {
+    gap: 4,
     paddingHorizontal: space.lg,
     paddingTop: space.md,
     backgroundColor: c.surface,

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import QRCode from "qrcode";
 import { can, rpc, type Staff } from "../lib/supabase";
 
 interface Vehicle {
@@ -18,6 +19,32 @@ const CLASSES = [
   ["cab", "Cab"],
   ["cab_xl", "Cab XL"],
 ] as const;
+
+/**
+ * NOVA §32. A sticker for the vehicle: the QR inspectors scan, with the plate
+ * and vest printed large so a person can check it without a phone. Opens a
+ * page sized for printing; reprinting issues a new code and retires the old.
+ */
+async function printSticker(v: Vehicle, reissue: boolean) {
+  const code = await rpc<string>("staff_vehicle_qr", { p_vehicle_id: v.vehicle_id, p_reissue: reissue });
+  const svg = await QRCode.toString(code, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+  const w = window.open("", "_blank", "width=480,height=640");
+  if (!w) throw new Error("Allow pop-ups for this page to print stickers.");
+  const esc = (t: string) => t.replace(/[&<>"]/g, (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[ch]!);
+  w.document.write(`<!doctype html><title>${esc(v.plate)} sticker</title>
+<style>
+  @page { size: 80mm 110mm; margin: 0 }
+  body { margin: 0; font-family: Barlow, system-ui, sans-serif; display: grid; place-items: center; height: 100vh; }
+  .s { width: 72mm; border: 2px solid #0b0d12; border-radius: 6mm; padding: 5mm; text-align: center; }
+  .q svg { width: 56mm; height: 56mm; }
+  .p { font: 700 9mm/1 "Barlow Condensed", "Arial Narrow", sans-serif; letter-spacing: .5mm; margin-top: 2mm; }
+  .v { display: inline-block; background: #0057e7; color: #fff; font: 700 7mm/1 "Barlow Condensed", sans-serif; padding: 1.5mm 3mm; border-radius: 2mm; margin-top: 2mm; }
+  .t { font-size: 3.2mm; color: #5e6676; margin-top: 2mm; }
+</style>
+<div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Gera · inspectors scan to verify</div></div>
+<script>setTimeout(() => print(), 300)</script>`);
+  w.document.close();
+}
 
 export function Fleet({ staff }: { staff: Staff }) {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
@@ -110,6 +137,21 @@ export function Fleet({ staff }: { staff: Staff }) {
                   </td>
                   <td className="small muted">{v.class}</td>
                   <td>
+                    <button className="link-button small" onClick={() => void act(`Sticker for ${v.plate} opened for printing.`, () => printSticker(v, false))}>
+                      Sticker
+                    </button>
+                    {" · "}
+                    <button
+                      className="link-button small"
+                      onClick={() => {
+                        if (window.confirm(`Reprint ${v.plate}'s sticker with a new code? The old sticker stops working.`))
+                          void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
+                      }}
+                    >
+                      Replace
+                    </button>
+                  </td>
+                  <td>
                     <Link to={`/riders/${v.rider_id}`}>{v.rider_name}</Link>
                   </td>
                   <td className="right">
@@ -145,6 +187,21 @@ export function Fleet({ staff }: { staff: Staff }) {
                     </div>
                   </td>
                   <td className="small muted">{v.class}</td>
+                  <td>
+                    <button className="link-button small" onClick={() => void act(`Sticker for ${v.plate} opened for printing.`, () => printSticker(v, false))}>
+                      Sticker
+                    </button>
+                    {" · "}
+                    <button
+                      className="link-button small"
+                      onClick={() => {
+                        if (window.confirm(`Reprint ${v.plate}'s sticker with a new code? The old sticker stops working.`))
+                          void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
+                      }}
+                    >
+                      Replace
+                    </button>
+                  </td>
                   <td className="right small muted">Assign from the rider's page</td>
                 </tr>
               ))}

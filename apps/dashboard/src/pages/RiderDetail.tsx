@@ -292,6 +292,8 @@ export function RiderDetail({ staff }: { staff: Staff }) {
               </div>
             </section>
           ) : null}
+
+          {can(staff.role, "safety", "operations", "fleet", "inspector") && id ? <Inspections riderId={id} /> : null}
         </div>
       </div>
     </div>
@@ -494,5 +496,89 @@ function MoneyForms({
             : "Changes what they are owed. The two numbers are never netted."}
       </div>
     </div>
+  );
+}
+
+interface InspectionRow {
+  id: string;
+  created_at: string;
+  inspector_name: string | null;
+  plate: string | null;
+  kind: "routine" | "random";
+  result: "pass" | "advisory" | "fail";
+  checks: Record<string, "pass" | "fail" | "na">;
+  alcohol_result: string | null;
+  alcohol_reading: number | null;
+  notes: string | null;
+  photos: string[];
+  case_id: string | null;
+}
+
+const RESULT_CHIP = { pass: ["Passed", "good"], advisory: ["Advisory", "warn"], fail: ["Failed", "bad"] } as const;
+
+/** NOVA §47, §48: what inspectors recorded, with the photos they took. */
+function Inspections({ riderId }: { riderId: string }) {
+  const [rows, setRows] = useState<InspectionRow[] | null>(null);
+  const [photoUrls, setPhotoUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    rpc<InspectionRow[]>("staff_inspections", { p_rider_id: riderId, p_limit: 20 })
+      .then(async (r) => {
+        setRows(r);
+        const paths = r.flatMap((x) => x.photos);
+        if (paths.length === 0) return;
+        const { data } = await supabase.storage.from("inspection-photos").createSignedUrls(paths, 300);
+        setPhotoUrls(Object.fromEntries((data ?? []).flatMap((u) => (u.signedUrl && u.path ? [[u.path, u.signedUrl] as const] : []))));
+      })
+      .catch(() => setRows([]));
+  }, [riderId]);
+
+  if (!rows || rows.length === 0) return null;
+  return (
+    <section className="card">
+      <h2>Inspections</h2>
+      <div className="list">
+        {rows.map((r) => {
+          const failed = Object.entries(r.checks).filter(([, v]) => v === "fail").map(([k]) => k.replace("_", " "));
+          return (
+            <div key={r.id} className="list-item" style={{ cursor: "default" }}>
+              <div className="row" style={{ justifyContent: "space-between" }}>
+                <span className="row" style={{ gap: 8 }}>
+                  <span className={`chip ${RESULT_CHIP[r.result][1]}`}>{RESULT_CHIP[r.result][0]}</span>
+                  <strong>{r.kind === "random" ? "Random check" : "Routine"}</strong>
+                  {r.plate ? <span className="plate">{r.plate}</span> : null}
+                </span>
+                <span className="small muted">{kigaliDateTime(r.created_at)}</span>
+              </div>
+              <div className="small">
+                {failed.length ? `Failed: ${failed.join(", ")}. ` : ""}
+                {r.alcohol_result ? `Alcohol ${r.alcohol_result}${r.alcohol_reading !== null ? ` (${r.alcohol_reading} mg/L)` : ""}. ` : "No alcohol test. "}
+                {r.notes ?? ""}
+              </div>
+              <div className="small muted">
+                By {r.inspector_name ?? "an inspector"}
+                {r.case_id ? (
+                  <>
+                    {" · "}
+                    <Link to={`/cases/${r.case_id}`}>open the case</Link>
+                  </>
+                ) : null}
+              </div>
+              {r.photos.length > 0 ? (
+                <div className="row" style={{ marginTop: 6 }}>
+                  {r.photos.map((p) =>
+                    photoUrls[p] ? (
+                      <a key={p} href={photoUrls[p]} target="_blank" rel="noreferrer">
+                        <img src={photoUrls[p]} alt="Inspection photo" className="thumb" />
+                      </a>
+                    ) : null,
+                  )}
+                </div>
+              ) : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
   );
 }

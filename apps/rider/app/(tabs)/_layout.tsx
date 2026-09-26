@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
 import { TabBar, c, type TabBarProps } from "@gera/kit";
+import { myStaffRole } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
@@ -12,7 +13,7 @@ const ICONS = {
   me: { on: "person", off: "person-outline" },
 } as const;
 
-type Gate = "loading" | "welcome" | "details" | "pending" | "ok";
+type Gate = "loading" | "welcome" | "details" | "pending" | "ok" | "inspector";
 
 /**
  * The tabs are the working app, and only an approved rider reaches them. The
@@ -41,7 +42,12 @@ export default function TabsLayout() {
         // refuse the shift if it has to.
         if (error) return setGate("ok");
         const v = (data as { verification?: string } | null)?.verification;
-        setGate(!v ? "details" : v === "verified" ? "ok" : "pending");
+        if (v) return setGate(v === "verified" ? "ok" : "pending");
+        // Not a rider: an inspector signed in with a staff account goes to
+        // their own screens; anyone else is a rider who hasn't finished.
+        void myStaffRole(supabase).then((s) => {
+          if (active) setGate(s && ["inspector", "safety", "admin"].includes(s.role) ? "inspector" : "details");
+        });
       });
     return () => {
       active = false;
@@ -52,6 +58,7 @@ export default function TabsLayout() {
   if (gate === "welcome") return <Redirect href="/welcome" />;
   if (gate === "details") return <Redirect href="/onboarding/details" />;
   if (gate === "pending") return <Redirect href="/onboarding/pending" />;
+  if (gate === "inspector") return <Redirect href="/inspect" />;
 
   return (
     <Tabs

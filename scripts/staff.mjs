@@ -17,7 +17,7 @@
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const ROLES = ["admin", "operations", "control_room", "fleet", "safety", "support", "finance"];
+const ROLES = ["admin", "operations", "control_room", "fleet", "safety", "support", "finance", "inspector"];
 const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
 const DB_URL = process.env.GERA_DB_URL ?? "";
 

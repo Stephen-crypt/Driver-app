@@ -54,6 +54,13 @@
         {
           "color": "#0057E7"
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Gera Rider uses the camera to scan rider and vehicle QR codes during safety inspections.",
+          "recordAudioAndroid": false
+        }
       ]
     ]
   }

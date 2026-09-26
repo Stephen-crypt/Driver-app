@@ -343,3 +343,4 @@ a { color: var(--accent); text-decoration: none; }
 .split-detail .page-head { justify-content: space-between; align-items: flex-start; }
 .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .control-map.drawing .leaflet-container { cursor: crosshair; }
+.thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--hairline); }
