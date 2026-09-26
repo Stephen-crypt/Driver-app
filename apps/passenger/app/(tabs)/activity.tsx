@@ -87,6 +87,17 @@ export default function Activity() {
       },
     ]);
 
+  // NOVA §53, §54: what people come back to a past trip for.
+  const aboutTrip = (t: TripHistoryItem) => {
+    const report = (kind: "lost_property" | "complaint") =>
+      router.push({ pathname: "/report", params: { trip: t.id, to: t.dropoffLabel, kind } });
+    Alert.alert(`To ${t.dropoffLabel}`, new Date(t.createdAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), [
+      { text: "I left something behind", onPress: () => report("lost_property") },
+      { text: "Report a problem", onPress: () => report("complaint") },
+      { text: "Close", style: "cancel" },
+    ]);
+  };
+
   const completed = (trips ?? []).filter((t) => t.state === "completed");
   const spent = completed.reduce((s, t) => s + (t.fareRwf ?? 0), 0);
 
@@ -190,7 +201,11 @@ export default function Activity() {
                       icon={going ? "navigate" : done ? "checkmark" : "close"}
                       iconTone={going ? "accent" : done ? "good" : "neutral"}
                       value={done && t.fareRwf !== null ? money(t.fareRwf) : undefined}
-                      onPress={going ? () => router.push({ pathname: "/ride", params: { trip: t.id } }) : undefined}
+                      onPress={
+                        going
+                          ? () => router.push({ pathname: "/ride", params: { trip: t.id } })
+                          : () => aboutTrip(t)
+                      }
                     />
                   </View>
                 );

@@ -107,6 +107,8 @@ export default function Account() {
         <Group title="Help">
           <Row title="Help and safety" subtitle="Staying safe, prices, common questions" icon="shield-checkmark" onPress={() => router.push("/help")} />
           <Divider inset={70} />
+          <Row title="Your reports" subtitle="Lost property, problems, and our answers" icon="document-text" onPress={() => router.push("/reports")} />
+          <Divider inset={70} />
           <Row
             title={`Call ${EMERGENCY_NUMBER}`}
             subtitle="Police, ambulance and fire"

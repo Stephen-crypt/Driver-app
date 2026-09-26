@@ -93,7 +93,7 @@ a { color: var(--accent); text-decoration: none; }
 .nav-foot strong { display: block; color: var(--ink); font-weight: 600; }
 .link-button { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; font-weight: 600; }
 
-.page { overflow: auto; padding: 28px 32px 48px; }
+.page { height: 100%; overflow: auto; padding: 28px 32px 48px; }
 .page-head { display: flex; align-items: flex-end; gap: 16px; margin-bottom: 20px; flex-wrap: wrap; }
 .page-head h1 { margin: 0; font-family: var(--num); font-weight: 700; font-size: 34px; line-height: 1; }
 .page-head .spacer { flex: 1; }
@@ -300,3 +300,44 @@ a { color: var(--accent); text-decoration: none; }
 
 /* Muted like the apps: the markers carry the colour, the city stays quiet. */
 .gera-tiles { filter: saturate(.35) brightness(1.04) contrast(.9); }
+
+/* ---- cases: the queue beside the open case ----------------------------------- */
+.nav .count.quiet { background: var(--ink-soft); }
+.split { display: grid; grid-template-columns: minmax(340px, 420px) 1fr; height: 100%; }
+.split-list { overflow: auto; padding: 28px 20px 32px 32px; border-right: 1px solid var(--hairline); }
+.split-list .page-head { justify-content: space-between; }
+.split-detail { overflow: auto; padding: 28px 32px 48px; }
+.empty-detail { display: grid; place-items: center; height: 60%; }
+.case-list { display: flex; flex-direction: column; gap: 6px; }
+.case-item {
+  text-align: left; border: 1px solid transparent; background: var(--card); border-radius: 12px;
+  padding: 12px 14px; cursor: pointer; display: flex; flex-direction: column; gap: 6px;
+}
+.case-item:hover { border-color: var(--hairline); }
+.case-item.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+/* An open incident is the one thing in this list that might be someone hurt. */
+.case-item.urgent { border-left: 4px solid var(--bad); }
+.case-no { font-family: var(--num); font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.case-no.lg { font-size: 34px; line-height: 1; }
+.case-desc { color: var(--ink-soft); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.case-body { font-size: 17px; line-height: 1.5; margin: 0; white-space: pre-wrap; max-width: 70ch; }
+
+/* ---- prices & settings ------------------------------------------------------ */
+.price-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.input.num { font-family: var(--num); font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.input.changed { border-color: var(--warn); background: var(--warn-soft); }
+.delta { margin-left: 6px; font-size: 13px; font-weight: 600; }
+.delta.up { color: var(--bad); }
+.delta.down { color: var(--good); }
+.setting { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--hairline); }
+.setting:last-child { border-bottom: 0; }
+.switch { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font-weight: 600; }
+.switch input { width: 18px; height: 18px; accent-color: var(--accent); }
+
+@media (max-width: 1100px) {
+  .price-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .split { grid-template-columns: 1fr; }
+  .split-list { border-right: 0; }
+}
+.list-item.flagged { border-left: 3px solid var(--warn); padding-left: 10px; }
+.split-detail .page-head { justify-content: space-between; align-items: flex-start; }

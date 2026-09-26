@@ -10,6 +10,8 @@ import { Trips } from "./pages/Trips";
 import { TripDetail } from "./pages/TripDetail";
 import { Reports } from "./pages/Reports";
 import { Audit } from "./pages/Audit";
+import { Cases } from "./pages/Cases";
+import { Pricing } from "./pages/Pricing";
 
 interface Section {
   readonly to: string;
@@ -25,7 +27,9 @@ const SECTIONS: Section[] = [
   { to: "/riders", label: "Riders", roles: ["operations", "fleet", "safety", "finance", "support"] },
   { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"] },
   { to: "/trips", label: "Trips & people", roles: ["support", "operations", "control_room", "safety"] },
+  { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"] },
   { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"] },
+  { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"] },
   { to: "/audit", label: "Audit log", roles: ["operations", "safety", "finance"] },
 ];
 
@@ -50,8 +54,11 @@ export function App() {
           <Route path="/fleet" element={guard(staff, SECTIONS[2]!, <Fleet staff={staff} />, home)} />
           <Route path="/trips" element={guard(staff, SECTIONS[3]!, <Trips />, home)} />
           <Route path="/trips/:id" element={guard(staff, SECTIONS[3]!, <TripDetail />, home)} />
-          <Route path="/reports" element={guard(staff, SECTIONS[4]!, <Reports />, home)} />
-          <Route path="/audit" element={guard(staff, SECTIONS[5]!, <Audit />, home)} />
+          <Route path="/cases" element={guard(staff, SECTIONS[4]!, <Cases staff={staff} />, home)} />
+          <Route path="/cases/:id" element={guard(staff, SECTIONS[4]!, <Cases staff={staff} />, home)} />
+          <Route path="/reports" element={guard(staff, SECTIONS[5]!, <Reports />, home)} />
+          <Route path="/pricing" element={guard(staff, SECTIONS[6]!, <Pricing staff={staff} />, home)} />
+          <Route path="/audit" element={guard(staff, SECTIONS[7]!, <Audit />, home)} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>
@@ -75,6 +82,7 @@ const ROLE_NAME: Record<StaffRole, string> = {
 
 function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
   const alerts = useOpenAlertCount(can(staff.role, "control_room", "operations", "safety"));
+  const cases = useOpenCaseCount(can(staff.role, "support", "operations", "safety", "control_room", "fleet"));
   return (
     <nav className="nav" aria-label="Sections">
       <div className="brand">
@@ -90,6 +98,11 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
           {s.to === "/" && alerts > 0 ? (
             <span className="count" aria-label={`${alerts} open emergency alerts`}>
               {alerts}
+            </span>
+          ) : null}
+          {s.to === "/cases" && cases > 0 ? (
+            <span className="count quiet" aria-label={`${cases} open cases`}>
+              {cases}
             </span>
           ) : null}
         </NavLink>
@@ -128,6 +141,24 @@ function useOpenAlertCount(enabled: boolean): number {
       void supabase.removeChannel(channel);
       clearInterval(id);
     };
+  }, [enabled]);
+  return count;
+}
+
+/** Cases nobody has resolved yet. Polled - a case is not an emergency. */
+function useOpenCaseCount(enabled: boolean): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    if (!enabled) return;
+    const read = () =>
+      supabase
+        .from("support_cases")
+        .select("id", { count: "exact", head: true })
+        .neq("status", "resolved")
+        .then(({ count: n }) => setCount(n ?? 0));
+    void read();
+    const id = setInterval(read, 30_000);
+    return () => clearInterval(id);
   }, [enabled]);
   return count;
 }

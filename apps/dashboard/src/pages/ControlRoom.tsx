@@ -322,12 +322,31 @@ export function ControlRoom({ staff }: { staff: Staff }) {
             <h2>Last 12 hours</h2>
             <div className="list">
               {events.slice(0, 15).map((e) => (
-                <div key={`${e.kind}-${e.ref_id}`} className="list-item" onClick={() => e.trip_id && navigate(`/trips/${e.trip_id}`)}>
+                <div
+                  key={`${e.kind}-${e.ref_id}`}
+                  className={`list-item${e.kind === "speed" || e.kind === "case:incident" ? " flagged" : ""}`}
+                  onClick={() => (e.kind.startsWith("case:") ? navigate(`/cases/${e.ref_id}`) : e.trip_id && navigate(`/trips/${e.trip_id}`))}
+                >
                   <div className="row" style={{ justifyContent: "space-between" }}>
                     <strong>{e.title}</strong>
                     <span className="small muted">{ago(e.at, now)}</span>
                   </div>
                   {e.detail ? <div className="small muted">{e.detail}</div> : null}
+                  {e.kind === "speed" ? (
+                    <button
+                      className="link-button small"
+                      onClick={(ev) => {
+                        ev.stopPropagation();
+                        const note = window.prompt("What was done? (optional)") ?? null;
+                        if (note === null) return;
+                        void rpc("staff_review_speed_alert", { p_alert_id: e.ref_id, p_note: note })
+                          .then(() => setEvents((all) => all.filter((x) => x.ref_id !== e.ref_id)))
+                          .catch((err: Error) => window.alert(err.message));
+                      }}
+                    >
+                      Mark reviewed
+                    </button>
+                  ) : null}
                 </div>
               ))}
             </div>

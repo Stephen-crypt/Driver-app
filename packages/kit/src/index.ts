@@ -7,3 +7,4 @@ export * from "./motion";
 export * from "./GeraMap";
 export * from "./TabBar";
 export * from "./Field";
+export * from "./CaseCard";

@@ -41,6 +41,12 @@ Against the cloud project, set `GERA_API_URL`, `GERA_SERVICE_KEY` and `GERA_DB_U
 | Record cash handed in | | ✓ | | ✓ | | |
 | Pay riders, bonuses, deductions | | | | ✓ | | |
 | Search people and trips | ✓ | ✓ | | ✓ | ✓ | ✓ |
+| Work cases: take, note, resolve | ✓ | ✓ | read | | ✓ | ✓ |
+| Log a phone call as a case | ✓ | ✓ | | | ✓ | ✓ |
+| Change prices | | read | | ✓ | | |
+| Waiting, PIN attempts, booking-ahead settings | | ✓ | | read | read | |
+| Cash limit, waiting charge | | read | | ✓ | read | |
+| Ride PIN on/off, speed alert limit | | read | | read | ✓ | |
 | Reports | | ✓ | | ✓ | ✓ | |
 | Audit log | | ✓ | | ✓ | ✓ | |
 
@@ -57,3 +63,23 @@ Against the cloud project, set `GERA_API_URL`, `GERA_SERVICE_KEY` and `GERA_DB_U
 ## The audit log
 
 Every action taken from the dashboard or the staff script is recorded with who took it, when, and the details. Nothing can edit or delete it.
+
+## Cases
+
+Anything that happened and needs someone to own it: an incident, a complaint, lost property, a vehicle fault.
+
+- **Passengers** report from a past trip in Activity (*I left something behind*, *Report a problem*) or from Account → Your reports. The trip - and so the rider and the vehicle - is attached for them.
+- **Riders' reports** from the rider app become cases automatically.
+- **Log a call** turns a phone call into a case, owned by whoever took the call.
+- Every case has a number people can read down the phone. Open incidents are marked red at the top of the queue.
+- **Notes** are for staff only. The **resolution** is written to the person who reported it: they see it in the app and get a notification.
+
+## Prices and settings
+
+A price change is a new price, never an edit: it applies to trips quoted after it starts, and every trip already quoted keeps the price its passenger saw. A price can start now or at a set time, never in the past. Before saving, the page shows what three ordinary trips cost now and after the change, and what the rider earns from each.
+
+Operating settings (free waiting time, the cash limit, the ride PIN, the speed alert and the booking-ahead limits) each belong to one desk, and each change goes in the audit log.
+
+## Speed alerts
+
+While a trip is live, the server works out speed from the rider's GPS, using points at least ten seconds apart and only fixes the phone reports as accurate to 40 m. A trip faster than the speed limit set on the settings page (60 km/h to start with) shows up in the control room's *Last 12 hours* rail, at most once every five minutes per trip. An alert is for review: mark it reviewed with a note. Nothing is sent to the rider automatically.

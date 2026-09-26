@@ -77,7 +77,9 @@ export default function Me() {
           <Divider inset={70} />
           <Row title="Report a problem" subtitle="Vehicle, safety, an accident" icon="construct" iconTone="warn" onPress={() => router.push("/report")} />
           <Divider inset={70} />
-          <Row title="My documents" subtitle="Licence, insurance, ID" icon="document-text" onPress={() => router.push("/onboarding/documents")} />
+          <Row title="Your reports" subtitle="What you reported and the office's answer" icon="documents" onPress={() => router.push("/reports")} />
+          <Divider inset={70} />
+          <Row title="My documents" subtitle="Driving licence and national ID" icon="document-text" onPress={() => router.push("/onboarding/documents")} />
         </Group>
 
         <Group title="Safety">
