@@ -54,6 +54,7 @@ const SETTINGS: { group: string; items: SettingDef[] }[] = [
     group: "Riders",
     items: [
       { key: "max_cash_held_rwf", label: "Cash limit", help: "A rider holding more cash than this cannot go online until they hand it in.", role: "finance", unit: "RWF" },
+      { key: "route_deviation_m", label: "Route alert margin", help: "How far off course a trip must go before it raises an alert. Small detours never do.", role: "safety", unit: "m" },
       { key: "speed_alert_kmh", label: "Speed alert", help: "A trip moving faster than this raises an alert in the control room.", role: "safety", unit: "km/h" },
     ],
   },

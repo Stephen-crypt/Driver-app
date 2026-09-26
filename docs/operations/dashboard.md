@@ -43,6 +43,7 @@ Against the cloud project, set `GERA_API_URL`, `GERA_SERVICE_KEY` and `GERA_DB_U
 | Search people and trips | ✓ | ✓ | | ✓ | ✓ | ✓ |
 | Work cases: take, note, resolve | ✓ | ✓ | read | | ✓ | ✓ |
 | Log a phone call as a case | ✓ | ✓ | | | ✓ | ✓ |
+| Draw and change zones | read | ✓ | read | | ✓ | |
 | Change prices | | read | | ✓ | | |
 | Waiting, PIN attempts, booking-ahead settings | | ✓ | | read | read | |
 | Cash limit, waiting charge | | read | | ✓ | read | |
@@ -83,3 +84,22 @@ Operating settings (free waiting time, the cash limit, the ride PIN, the speed a
 ## Speed alerts
 
 While a trip is live, the server works out speed from the rider's GPS, using points at least ten seconds apart and only fixes the phone reports as accurate to 40 m. A trip faster than the speed limit set on the settings page (60 km/h to start with) shows up in the control room's *Last 12 hours* rail, at most once every five minutes per trip. An alert is for review: mark it reviewed with a note. Nothing is sent to the rider automatically.
+
+## Zones and route alerts
+
+**Zones** are drawn on the map on the Zones page: click each corner, name it, pick a kind. Each kind comes with sensible alerts that you can change:
+
+| Kind | For | Alerts by default |
+|---|---|---|
+| Restricted | Closed roads, road works, secure sites | when a rider goes in |
+| Service area | Where Gera operates | when a rider leaves |
+| Operating | A team's or shift's area | when a rider leaves |
+| Parking, Pickup | Waiting areas, marked pickup points | none |
+
+Alerts come from any rider on shift, whether or not they're on a trip. Riding along an edge raises at most one alert per rider, zone and direction every ten minutes. Rough GPS fixes (worse than 50 m) are ignored. A zone that's no longer needed is switched off rather than deleted, so its past alerts still make sense.
+
+**Route alerts** appear during a trip in two cases:
+- **Moving away from the drop-off:** the rider is now well over the margin further from the drop-off than the closest they've been.
+- **Long detour:** they've travelled more than one and a half times the quoted distance, plus the margin.
+
+The margin is 1,500 m to start with (Prices & settings → Route alert margin). A block the wrong way round a one-way system never trips it. Like speed alerts, these are for someone to look at and mark reviewed; nothing happens to the rider automatically.

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { LiveMap, type MapLine, type MapPoint } from "../components/LiveMap";
+import { LiveMap, type MapLine, type MapPoint, type MapZone } from "../components/LiveMap";
 import { ago, can, kigaliTime, money, rpc, supabase, type Staff } from "../lib/supabase";
 
 interface Rider {
@@ -110,6 +110,26 @@ export function ControlRoom({ staff }: { staff: Staff }) {
   const [trips, setTrips] = useState<Trip[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
+  const [zones, setZones] = useState<MapZone[]>([]);
+
+  // Zones change rarely; read once, drawn faintly under the riders.
+  useEffect(() => {
+    rpc<{ id: string; name: string; kind: string; active: boolean; area: { coordinates: [number, number][][] } }[]>("staff_zones")
+      .then((zs) =>
+        setZones(
+          zs
+            .filter((z) => z.active)
+            .map((z) => ({
+              id: z.id,
+              ring: z.area.coordinates[0]!.slice(0, -1).map(([lng, lat]) => [lat, lng] as [number, number]),
+              color: z.kind === "restricted" ? "#c42419" : "#0057e7",
+              label: z.name,
+              muted: z.kind !== "restricted",
+            })),
+        ),
+      )
+      .catch(() => setZones([]));
+  }, []);
   const [error, setError] = useState<string | null>(null);
   const [focus, setFocus] = useState<{ lat: number; lng: number; key: string } | null>(null);
   const [now, setNow] = useState(Date.now());
@@ -225,7 +245,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
   return (
     <div className="control">
       <div className="control-map">
-        <LiveMap points={points} lines={lines} focus={focus} />
+        <LiveMap points={points} lines={lines} focus={focus} zones={zones} />
         <div className="map-legend">
           <span className="chip accent">
             <span className="dot" /> {online.length - busy.length} available
@@ -324,7 +344,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
               {events.slice(0, 15).map((e) => (
                 <div
                   key={`${e.kind}-${e.ref_id}`}
-                  className={`list-item${e.kind === "speed" || e.kind === "case:incident" ? " flagged" : ""}`}
+                  className={`list-item${e.kind === "speed" || e.kind.startsWith("geo:") || e.kind === "case:incident" ? " flagged" : ""}`}
                   onClick={() => (e.kind.startsWith("case:") ? navigate(`/cases/${e.ref_id}`) : e.trip_id && navigate(`/trips/${e.trip_id}`))}
                 >
                   <div className="row" style={{ justifyContent: "space-between" }}>
@@ -332,14 +352,14 @@ export function ControlRoom({ staff }: { staff: Staff }) {
                     <span className="small muted">{ago(e.at, now)}</span>
                   </div>
                   {e.detail ? <div className="small muted">{e.detail}</div> : null}
-                  {e.kind === "speed" ? (
+                  {e.kind === "speed" || e.kind.startsWith("geo:") ? (
                     <button
                       className="link-button small"
                       onClick={(ev) => {
                         ev.stopPropagation();
                         const note = window.prompt("What was done? (optional)") ?? null;
                         if (note === null) return;
-                        void rpc("staff_review_speed_alert", { p_alert_id: e.ref_id, p_note: note })
+                        void rpc(e.kind === "speed" ? "staff_review_speed_alert" : "staff_review_geo_alert", { p_alert_id: e.ref_id, p_note: note })
                           .then(() => setEvents((all) => all.filter((x) => x.ref_id !== e.ref_id)))
                           .catch((err: Error) => window.alert(err.message));
                       }}

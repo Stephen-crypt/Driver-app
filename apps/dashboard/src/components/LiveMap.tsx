@@ -18,6 +18,16 @@ export interface MapLine {
   readonly color: string;
 }
 
+export interface MapZone {
+  readonly id: string;
+  /** Outer ring as [lat, lng] corners. */
+  readonly ring: readonly [number, number][];
+  readonly color: string;
+  readonly label: string;
+  readonly muted?: boolean;
+  readonly onClick?: () => void;
+}
+
 const KIGALI: [number, number] = [-1.9441, 30.0619];
 
 /**
@@ -29,16 +39,27 @@ export function LiveMap({
   points,
   lines = [],
   focus,
+  zones = [],
+  draft = null,
+  onMapClick,
 }: {
   readonly points: readonly MapPoint[];
   readonly lines?: readonly MapLine[];
   readonly focus?: { lat: number; lng: number; key: string } | null;
+  readonly zones?: readonly MapZone[];
+  /** A shape being drawn, corner by corner. */
+  readonly draft?: readonly [number, number][] | null;
+  readonly onMapClick?: (lat: number, lng: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<L.Map | null>(null);
   const markers = useRef(new Map<string, { marker: L.Marker; html: string }>());
   const paths = useRef(new Map<string, L.Polyline>());
   const fitted = useRef(false);
+  const zoneLayer = useRef<L.LayerGroup | null>(null);
+  const draftLayer = useRef<L.LayerGroup | null>(null);
+  const clickRef = useRef(onMapClick);
+  clickRef.current = onMapClick;
 
   useEffect(() => {
     if (!host.current || map.current) return;
@@ -50,6 +71,9 @@ export function LiveMap({
       attribution: "© OpenStreetMap",
       className: "gera-tiles",
     }).addTo(m);
+    zoneLayer.current = L.layerGroup().addTo(m);
+    draftLayer.current = L.layerGroup().addTo(m);
+    m.on("click", (e: L.LeafletMouseEvent) => clickRef.current?.(e.latlng.lat, e.latlng.lng));
     map.current = m;
     return () => {
       m.remove();
@@ -110,6 +134,35 @@ export function LiveMap({
       m.fitBounds(L.latLngBounds(points.map((p) => [p.lat, p.lng] as [number, number])), { padding: [60, 60], maxZoom: 15 });
     }
   }, [points, lines]);
+
+  // Zones sit under everything, drawn faintly: they are context, not news.
+  useEffect(() => {
+    const g = zoneLayer.current;
+    if (!g) return;
+    g.clearLayers();
+    for (const z of zones) {
+      const poly = L.polygon(z.ring as [number, number][], {
+        color: z.color,
+        weight: 2,
+        opacity: z.muted ? 0.35 : 0.9,
+        fillOpacity: z.muted ? 0.03 : 0.1,
+        dashArray: z.muted ? "4 6" : undefined,
+        bubblingMouseEvents: false,
+      }).bindTooltip(z.label, { sticky: true });
+      if (z.onClick) poly.on("click", z.onClick);
+      poly.addTo(g);
+    }
+  }, [zones]);
+
+  useEffect(() => {
+    const g = draftLayer.current;
+    if (!g) return;
+    g.clearLayers();
+    if (!draft || draft.length === 0) return;
+    const pts = draft as [number, number][];
+    (pts.length >= 3 ? L.polygon(pts, { color: "#0057e7", weight: 2, dashArray: "6 4", fillOpacity: 0.12 }) : L.polyline(pts, { color: "#0057e7", weight: 2, dashArray: "6 4" })).addTo(g);
+    for (const p of pts) L.circleMarker(p, { radius: 5, color: "#0057e7", fillColor: "#fff", fillOpacity: 1, weight: 2 }).addTo(g);
+  }, [draft]);
 
   useEffect(() => {
     if (focus && map.current) map.current.setView([focus.lat, focus.lng], 16, { animate: true });

@@ -73,6 +73,10 @@ const WORDS: Record<string, string> = {
   bad_value: "Enter a whole number.",
   describe_it: "Say what happened - a few words at least.",
   case_not_found_or_resolved: "That case is already resolved.",
+  zone_crosses_itself: "The shape crosses itself. Place the corners in order around the edge.",
+  zone_needs_points: "Place at least three corners on the map.",
+  zone_too_large: "That zone is bigger than Kigali - check the corners.",
+  name_required: "Give it a name.",
   alert_not_found_or_reviewed: "Someone already reviewed that alert.",
 };
 

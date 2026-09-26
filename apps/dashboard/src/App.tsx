@@ -12,6 +12,7 @@ import { Reports } from "./pages/Reports";
 import { Audit } from "./pages/Audit";
 import { Cases } from "./pages/Cases";
 import { Pricing } from "./pages/Pricing";
+import { Zones } from "./pages/Zones";
 
 interface Section {
   readonly to: string;
@@ -27,6 +28,7 @@ const SECTIONS: Section[] = [
   { to: "/riders", label: "Riders", roles: ["operations", "fleet", "safety", "finance", "support"] },
   { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"] },
   { to: "/trips", label: "Trips & people", roles: ["support", "operations", "control_room", "safety"] },
+  { to: "/zones", label: "Zones", roles: ["control_room", "operations", "safety", "fleet"] },
   { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"] },
   { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"] },
   { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"] },
@@ -54,11 +56,12 @@ export function App() {
           <Route path="/fleet" element={guard(staff, SECTIONS[2]!, <Fleet staff={staff} />, home)} />
           <Route path="/trips" element={guard(staff, SECTIONS[3]!, <Trips />, home)} />
           <Route path="/trips/:id" element={guard(staff, SECTIONS[3]!, <TripDetail />, home)} />
-          <Route path="/cases" element={guard(staff, SECTIONS[4]!, <Cases staff={staff} />, home)} />
-          <Route path="/cases/:id" element={guard(staff, SECTIONS[4]!, <Cases staff={staff} />, home)} />
-          <Route path="/reports" element={guard(staff, SECTIONS[5]!, <Reports />, home)} />
-          <Route path="/pricing" element={guard(staff, SECTIONS[6]!, <Pricing staff={staff} />, home)} />
-          <Route path="/audit" element={guard(staff, SECTIONS[7]!, <Audit />, home)} />
+          <Route path="/zones" element={guard(staff, SECTIONS[4]!, <Zones staff={staff} />, home)} />
+          <Route path="/cases" element={guard(staff, SECTIONS[5]!, <Cases staff={staff} />, home)} />
+          <Route path="/cases/:id" element={guard(staff, SECTIONS[5]!, <Cases staff={staff} />, home)} />
+          <Route path="/reports" element={guard(staff, SECTIONS[6]!, <Reports />, home)} />
+          <Route path="/pricing" element={guard(staff, SECTIONS[7]!, <Pricing staff={staff} />, home)} />
+          <Route path="/audit" element={guard(staff, SECTIONS[8]!, <Audit />, home)} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>
