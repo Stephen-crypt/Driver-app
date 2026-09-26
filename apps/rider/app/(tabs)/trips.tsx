@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Divider, Group, Row, Screen, Txt, c, money, space } from "@gera/kit";
 import { statusFor } from "@gera/ui";
-import { listTrips, type TripHistoryItem } from "@gera/data";
+import { listPlannedRides, listTrips, whenLabel, type PlannedRide, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
@@ -20,6 +20,7 @@ function dayKey(iso: string): string {
 export default function Trips() {
   const { riderId } = useSession();
   const [trips, setTrips] = useState<TripHistoryItem[] | null>(null);
+  const [planned, setPlanned] = useState<PlannedRide[]>([]);
 
   useFocusEffect(
     useCallback(() => {
@@ -28,6 +29,9 @@ export default function Trips() {
       listTrips(supabase, "rider_id", riderId, 60)
         .then((t) => active && setTrips(t))
         .catch(() => active && setTrips([]));
+      listPlannedRides(supabase)
+        .then((p) => active && setPlanned(p))
+        .catch(() => {});
       return () => {
         active = false;
       };
@@ -44,8 +48,26 @@ export default function Trips() {
     else groups.push({ day: k, items: [t] });
   }
 
+  // NOVA §13: rides operations has planned for this rider. They still arrive
+  // as offers - being planned is not being booked.
+  const bookedForYou =
+    planned.length > 0 ? (
+      <Group title="Planned for you">
+        {planned.map((p, i) => (
+          <View key={p.id}>
+            {i > 0 ? <Divider inset={70} /> : null}
+            <Row title={whenLabel(p.scheduledFor)} subtitle={`${p.passengerName} · ${p.pickupLabel} to ${p.dropoffLabel}`} icon="calendar" />
+          </View>
+        ))}
+        <Txt v="caption" tone="muted" style={styles.note}>
+          Be online around then: the ride comes to you first as an offer. If you can't take it, it goes to another rider.
+        </Txt>
+      </Group>
+    ) : null;
+
   return (
     <Screen title="Trips">
+      {bookedForYou}
       {trips === null ? (
         <ActivityIndicator color={c.accent} />
       ) : trips.length === 0 ? (
@@ -87,6 +109,7 @@ export default function Trips() {
 }
 
 const styles = StyleSheet.create({
+  note: { paddingHorizontal: 16, paddingBottom: 12 },
   stack: { gap: space.lg },
   empty: { gap: space.xs, paddingVertical: space.xl },
 });

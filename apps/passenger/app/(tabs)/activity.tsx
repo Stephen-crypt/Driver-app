@@ -1,10 +1,9 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, Pressable, StyleSheet, View } from "react-native";
+import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Button, Divider, Group, Row, Screen, Txt, c, money, space } from "@gera/kit";
 import { statusFor } from "@gera/ui";
 import {
-  cancelSchedule,
   cancelTrip,
   daysLabel,
   isTripLive,
@@ -67,6 +66,14 @@ export default function Activity() {
   const manage = (r: UpcomingRide) =>
     Alert.alert(`${whenLabel(r.scheduledFor)}`, `To ${r.dropoffLabel}`, [
       { text: "Keep it", style: "cancel" },
+      {
+        text: "Change the time",
+        onPress: () =>
+          router.push({
+            pathname: "/change-ride",
+            params: { trip: r.id, at: r.scheduledFor, to: r.dropoffLabel, ...(r.scheduleId ? { regular: "1" } : {}) },
+          }),
+      },
       ...(r.scheduleId
         ? [{ text: "Skip this day", onPress: () => void skipOccurrence(supabase, r.id).then(refresh).catch(() => {}) }]
         : []),
@@ -74,16 +81,6 @@ export default function Activity() {
         text: r.scheduleId ? "Cancel this ride" : "Cancel ride",
         style: "destructive" as const,
         onPress: () => void cancelTrip(supabase, r.id, "passenger").then(refresh).catch(() => {}),
-      },
-    ]);
-
-  const stopSchedule = (s: RecurringSchedule) =>
-    Alert.alert("Cancel this schedule?", `${daysLabel(s.days)} at ${s.timeOfDay} to ${s.dropoffLabel}. Every ride still to come is cancelled.`, [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Cancel schedule",
-        style: "destructive",
-        onPress: () => void cancelSchedule(supabase, s.id).then(refresh).catch(() => {}),
       },
     ]);
 
@@ -132,13 +129,7 @@ export default function Activity() {
                     title={`${daysLabel(s.days)} at ${s.timeOfDay}`}
                     subtitle={`To ${s.dropoffLabel} · until ${new Date(`${s.endDate}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ${money(s.amountRwf)} RWF`}
                     icon="repeat"
-                    trailing={
-                      <Pressable onPress={() => stopSchedule(s)} hitSlop={10} accessibilityRole="button" accessibilityLabel="Cancel schedule">
-                        <Txt v="label" tone="bad">
-                          Cancel
-                        </Txt>
-                      </Pressable>
-                    }
+                    onPress={() => router.push({ pathname: "/change-regular", params: { id: s.id } })}
                   />
                 </View>
               ))}
@@ -152,7 +143,7 @@ export default function Activity() {
                   {i > 0 ? <Divider inset={70} /> : null}
                   <Row
                     title={whenLabel(r.scheduledFor)}
-                    subtitle={`To ${r.dropoffLabel}${r.scheduleId ? " · regular" : ""}`}
+                    subtitle={`To ${r.dropoffLabel}${r.scheduleId ? " · regular" : ""}${r.moved ? " · moved" : ""}${r.riderName ? ` · ${r.riderName} planned` : ""}`}
                     icon={r.scheduleId ? "repeat" : "calendar"}
                     value={r.fareRwf !== null ? money(r.fareRwf) : undefined}
                     onPress={() => manage(r)}

@@ -44,6 +44,7 @@ Against the cloud project, set `GERA_API_URL`, `GERA_SERVICE_KEY` and `GERA_DB_U
 | Search people and trips | ✓ | ✓ | | ✓ | ✓ | ✓ |
 | Work cases: take, note, resolve | ✓ | ✓ | read | | ✓ | ✓ |
 | Log a phone call as a case | ✓ | ✓ | | | ✓ | ✓ |
+| Plan riders for regular trips | ✓ | ✓ | | | | |
 | Draw and change zones | read | ✓ | read | | ✓ | |
 | Change prices | | read | | ✓ | | |
 | Waiting, PIN attempts, booking-ahead settings | | ✓ | | read | read | |
@@ -116,3 +117,20 @@ Inspectors work from the **Gera Rider app**: on its first screen, tap **Staff si
 - **Where results show:** inspections appear on the rider's page, with photos, and the rider can see what was recorded about them. Every lookup is in the audit log.
 
 **Vehicle stickers:** on the Fleet page, **Sticker** opens a print-sized sticker with the QR, plate and vest number. **Replace** prints one with a new code and retires the old one. Use it when a sticker is lost or might have been copied.
+
+## Regular trips
+
+Passengers change their own regular trips in the app: they can move one ride to another time that day, or change the days, time and end date from now on. A ride they moved by hand keeps its time when the schedule changes. Prices don't change.
+
+On the **Regular trips** page, operations plans who takes each one:
+
+- **Primary rider:** planned for every ride, and the passenger sees their name ("Aline planned"). Changing the primary sends the passenger one notification.
+- **Preferred** and **backup:** offered the ride next, in that order.
+- **One ride:** under *Next rides*, hand a single ride to someone else, or to *Nearest available*. The passenger is notified, and that ride keeps its rider when the primary changes later.
+
+This is a plan, not a promise (NOVA §13):
+
+- When a ride is released, dispatch offers it to the planned riders first, if they're online, on shift and free, in the order above.
+- If they don't take it, it goes to the nearest riders as usual. Planned riders never use up the ordinary search.
+- A rider only takes a ride by accepting the offer. Riders see the rides planned for them under Trips → *Planned for you*.
+- A ride that's already looking for a rider can't be moved by the passenger. A ride a rider has accepted can't be reassigned; cancel it instead.

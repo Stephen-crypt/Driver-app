@@ -13,6 +13,7 @@ import { Audit } from "./pages/Audit";
 import { Cases } from "./pages/Cases";
 import { Pricing } from "./pages/Pricing";
 import { Zones } from "./pages/Zones";
+import { Regular } from "./pages/Regular";
 
 interface Section {
   readonly to: string;
@@ -28,12 +29,16 @@ const SECTIONS: Section[] = [
   { to: "/riders", label: "Riders", roles: ["operations", "fleet", "safety", "finance", "support"] },
   { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"] },
   { to: "/trips", label: "Trips & people", roles: ["support", "operations", "control_room", "safety"] },
+  { to: "/regular", label: "Regular trips", roles: ["operations", "control_room"] },
   { to: "/zones", label: "Zones", roles: ["control_room", "operations", "safety", "fleet"] },
   { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"] },
   { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"] },
   { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"] },
   { to: "/audit", label: "Audit log", roles: ["operations", "safety", "finance"] },
 ];
+
+/** The section for a path, so a route's guard can't drift when sections are added. */
+const sec = (to: string): Section => SECTIONS.find((s) => s.to === to)!;
 
 export function App() {
   const { loading, session, staff } = useStaff();
@@ -51,18 +56,19 @@ export function App() {
       <Nav staff={staff} sections={allowed} />
       <main style={{ overflow: "hidden", height: "100%" }}>
         <Routes>
-          <Route path="/" element={guard(staff, SECTIONS[0]!, <ControlRoom staff={staff} />, home)} />
-          <Route path="/riders" element={guard(staff, SECTIONS[1]!, <Riders />, home)} />
-          <Route path="/riders/:id" element={guard(staff, SECTIONS[1]!, <RiderDetail staff={staff} />, home)} />
-          <Route path="/fleet" element={guard(staff, SECTIONS[2]!, <Fleet staff={staff} />, home)} />
-          <Route path="/trips" element={guard(staff, SECTIONS[3]!, <Trips />, home)} />
-          <Route path="/trips/:id" element={guard(staff, SECTIONS[3]!, <TripDetail />, home)} />
-          <Route path="/zones" element={guard(staff, SECTIONS[4]!, <Zones staff={staff} />, home)} />
-          <Route path="/cases" element={guard(staff, SECTIONS[5]!, <Cases staff={staff} />, home)} />
-          <Route path="/cases/:id" element={guard(staff, SECTIONS[5]!, <Cases staff={staff} />, home)} />
-          <Route path="/reports" element={guard(staff, SECTIONS[6]!, <Reports />, home)} />
-          <Route path="/pricing" element={guard(staff, SECTIONS[7]!, <Pricing staff={staff} />, home)} />
-          <Route path="/audit" element={guard(staff, SECTIONS[8]!, <Audit />, home)} />
+          <Route path="/" element={guard(staff, sec("/"), <ControlRoom staff={staff} />, home)} />
+          <Route path="/riders" element={guard(staff, sec("/riders"), <Riders />, home)} />
+          <Route path="/riders/:id" element={guard(staff, sec("/riders"), <RiderDetail staff={staff} />, home)} />
+          <Route path="/fleet" element={guard(staff, sec("/fleet"), <Fleet staff={staff} />, home)} />
+          <Route path="/trips" element={guard(staff, sec("/trips"), <Trips />, home)} />
+          <Route path="/trips/:id" element={guard(staff, sec("/trips"), <TripDetail />, home)} />
+          <Route path="/regular" element={guard(staff, sec("/regular"), <Regular staff={staff} />, home)} />
+          <Route path="/zones" element={guard(staff, sec("/zones"), <Zones staff={staff} />, home)} />
+          <Route path="/cases" element={guard(staff, sec("/cases"), <Cases staff={staff} />, home)} />
+          <Route path="/cases/:id" element={guard(staff, sec("/cases"), <Cases staff={staff} />, home)} />
+          <Route path="/reports" element={guard(staff, sec("/reports"), <Reports />, home)} />
+          <Route path="/pricing" element={guard(staff, sec("/pricing"), <Pricing staff={staff} />, home)} />
+          <Route path="/audit" element={guard(staff, sec("/audit"), <Audit />, home)} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
       </main>

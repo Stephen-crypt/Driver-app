@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import { Txt, c, radius, space, tap } from "@gera/kit";
 import { addDays, dayLabel, isoWeekday, kigaliToday, timeSlots } from "@gera/data";
@@ -25,19 +25,22 @@ const DURATIONS = [
   { weeks: 13, label: "3 months" },
 ];
 
-function Pill({
+export function Pill({
   label,
   on,
   onPress,
   wide,
+  onLayout,
 }: {
   readonly label: string;
   readonly on: boolean;
   readonly onPress: () => void;
   readonly wide?: boolean;
+  readonly onLayout?: (x: number) => void;
 }) {
   return (
     <Pressable
+      onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.x) : undefined}
       onPress={() => {
         tap();
         onPress();
@@ -53,7 +56,7 @@ function Pill({
   );
 }
 
-function Times({
+export function Times({
   slots,
   time,
   onTime,
@@ -62,6 +65,7 @@ function Times({
   readonly time: string | null;
   readonly onTime: (t: string) => void;
 }) {
+  const scroller = useRef<ScrollView>(null);
   if (slots.length === 0) {
     return (
       <Txt v="label" tone="muted">
@@ -70,9 +74,16 @@ function Times({
     );
   }
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
+    <ScrollView ref={scroller} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
       {slots.map((t) => (
-        <Pill key={t} label={t} on={time === t} onPress={() => onTime(t)} />
+        <Pill
+          key={t}
+          label={t}
+          on={time === t}
+          onPress={() => onTime(t)}
+          // Opens on the time already chosen rather than at dawn.
+          onLayout={time === t ? (x) => scroller.current?.scrollTo({ x: Math.max(0, x - 80), animated: false }) : undefined}
+        />
       ))}
     </ScrollView>
   );
@@ -122,37 +133,9 @@ export function RegularPicker({
   const slots = useMemo(() => timeSlots(addDays(today, 1)), [today]);
   const starts = useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(today, i + 1)), [today]);
 
-  const toggle = (d: number) =>
-    onChange({
-      ...plan,
-      days: plan.days.includes(d) ? plan.days.filter((x) => x !== d) : [...plan.days, d].sort(),
-    });
-
   return (
     <View style={styles.block}>
-      <View style={styles.week}>
-        {DAY_LETTER.map((l, i) => {
-          const d = i + 1;
-          const on = plan.days.includes(d);
-          return (
-            <Pressable
-              key={d}
-              onPress={() => {
-                tap();
-                toggle(d);
-              }}
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: on }}
-              accessibilityLabel={DAY_NAME[i]}
-              style={[styles.dayDot, on && styles.pillOn]}
-            >
-              <Txt v="bodyStrong" tone={on ? "inverse" : "strong"}>
-                {l}
-              </Txt>
-            </Pressable>
-          );
-        })}
-      </View>
+      <Weekdays days={plan.days} onChange={(days) => onChange({ ...plan, days })} />
       <Times slots={slots} time={plan.time} onTime={(t) => onChange({ ...plan, time: t })} />
       <View style={styles.split}>
         <Txt v="label" tone="muted">
@@ -180,6 +163,42 @@ export function RegularPicker({
           ))}
         </View>
       </View>
+    </View>
+  );
+}
+
+/** Seven day dots, Monday first. ISO weekdays: 1 is Monday. */
+export function Weekdays({
+  days,
+  onChange,
+}: {
+  readonly days: readonly number[];
+  readonly onChange: (days: number[]) => void;
+}) {
+  const toggle = (d: number) => onChange(days.includes(d) ? days.filter((x) => x !== d) : [...days, d].sort());
+  return (
+    <View style={styles.week}>
+      {DAY_LETTER.map((l, i) => {
+        const d = i + 1;
+        const on = days.includes(d);
+        return (
+          <Pressable
+            key={d}
+            onPress={() => {
+              tap();
+              toggle(d);
+            }}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: on }}
+            accessibilityLabel={DAY_NAME[i]}
+            style={[styles.dayDot, on && styles.pillOn]}
+          >
+            <Txt v="bodyStrong" tone={on ? "inverse" : "strong"}>
+              {l}
+            </Txt>
+          </Pressable>
+        );
+      })}
     </View>
   );
 }

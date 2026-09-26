@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   addDays,
   dateLabel,
@@ -57,5 +57,21 @@ describe("timeSlots", () => {
     const slots = timeSlots("2026-09-26", 30, new Date("2026-09-25T20:00:00Z"));
     expect(slots[0]).toBe("05:00");
     expect(slots).toHaveLength(18 * 4);
+  });
+});
+
+describe("changing booked rides", () => {
+  it("explains a ride that has already gone out", async () => {
+    const { changeRideTime } = await import("../src/schedule");
+    const rpc = vi.fn(() => Promise.resolve({ data: null, error: { message: "ride_already_released" } }));
+    await expect(changeRideTime({ rpc } as never, "t1", "08:15")).rejects.toThrow(/already looking for a rider/);
+  });
+
+  it("sends the new days, time and end date", async () => {
+    const { changeSchedule } = await import("../src/schedule");
+    const rpc = vi.fn(() => Promise.resolve({ data: { moved: 3, cancelled: 2, added: 0 }, error: null }));
+    const r = await changeSchedule({ rpc } as never, "s1", { days: [1, 2, 3, 4, 5], time: "07:00", endDate: "2026-10-20" });
+    expect(r.cancelled).toBe(2);
+    expect(rpc).toHaveBeenCalledWith("change_recurring_schedule", { p_schedule_id: "s1", p_days: [1, 2, 3, 4, 5], p_time: "07:00", p_end: "2026-10-20" });
   });
 });

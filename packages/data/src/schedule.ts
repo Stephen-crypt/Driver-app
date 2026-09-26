@@ -82,6 +82,10 @@ export function scheduleErrorMessage(raw: string): string {
   if (raw.includes("schedule_too_long")) return "A schedule can run for up to three months.";
   if (raw.includes("starts_in_the_past")) return "Pick a start date from today onwards.";
   if (raw.includes("quote_expired")) return "That price has expired. Go back and pick again.";
+  if (raw.includes("ride_already_released")) return "This ride is already looking for a rider, so it can't be moved now.";
+  if (raw.includes("pick_a_day")) return "Pick at least one day.";
+  if (raw.includes("ends_in_the_past")) return "Pick an end date from today onwards.";
+  if (raw.includes("schedule_not_active")) return "This regular trip has been cancelled.";
   return raw;
 }
 
@@ -137,16 +141,17 @@ export interface UpcomingRide {
   readonly fareRwf: number | null;
   readonly vehicleClass: string;
   readonly scheduleId: string | null;
+  /** Moved by the passenger from the schedule's usual time. */
+  readonly moved: boolean;
+  /** Who is planned to take it. A plan, not a promise. */
+  readonly riderName: string | null;
+  readonly riderVest: string | null;
 }
 
-export async function listUpcoming(client: GeraClient, passengerId: string): Promise<UpcomingRide[]> {
-  const { data, error } = await client
-    .from("trips")
-    .select("id, scheduled_for, pickup_label, dropoff_label, quoted_amount_rwf, vehicle_class, recurring_schedule_id")
-    .eq("passenger_id", passengerId)
-    .eq("state", "scheduled")
-    .order("scheduled_for", { ascending: true })
-    .limit(50);
+export async function listUpcoming(client: GeraClient, _passengerId: string): Promise<UpcomingRide[]> {
+  // The function reads the signed-in passenger's own rides; it adds the rider
+  // planned for each, whom the passenger cannot read from profiles directly.
+  const { data, error } = await client.rpc("my_upcoming_rides");
   if (error) throw new Error(error.message);
   return ((data ?? []) as {
     id: string;
@@ -156,6 +161,9 @@ export async function listUpcoming(client: GeraClient, passengerId: string): Pro
     quoted_amount_rwf: number | null;
     vehicle_class: string;
     recurring_schedule_id: string | null;
+    moved: boolean;
+    rider_name: string | null;
+    rider_vest: string | null;
   }[]).map((r) => ({
     id: r.id,
     scheduledFor: r.scheduled_for,
@@ -164,6 +172,53 @@ export async function listUpcoming(client: GeraClient, passengerId: string): Pro
     fareRwf: r.quoted_amount_rwf,
     vehicleClass: r.vehicle_class,
     scheduleId: r.recurring_schedule_id,
+    moved: r.moved,
+    riderName: r.rider_name,
+    riderVest: r.rider_vest,
+  }));
+}
+
+/** Moves one booked ride to another time the same day. */
+export async function changeRideTime(client: GeraClient, tripId: string, time: string): Promise<string> {
+  const { data, error } = await client.rpc("change_ride_time", { p_trip_id: tripId, p_time: time });
+  if (error) throw new Error(scheduleErrorMessage(error.message));
+  return data as string;
+}
+
+/** Changes a regular trip from now on. Rides moved one by one keep their time. */
+export async function changeSchedule(
+  client: GeraClient,
+  scheduleId: string,
+  change: { days: readonly number[]; time: string; endDate: string },
+): Promise<{ moved: number; cancelled: number; added: number }> {
+  const { data, error } = await client.rpc("change_recurring_schedule", {
+    p_schedule_id: scheduleId,
+    p_days: change.days,
+    p_time: change.time,
+    p_end: change.endDate,
+  });
+  if (error) throw new Error(scheduleErrorMessage(error.message));
+  return data as { moved: number; cancelled: number; added: number };
+}
+
+export interface PlannedRide {
+  readonly id: string;
+  readonly scheduledFor: string;
+  readonly pickupLabel: string;
+  readonly dropoffLabel: string;
+  readonly passengerName: string;
+}
+
+/** Rides operations has planned for the signed-in rider, the next seven days. */
+export async function listPlannedRides(client: GeraClient): Promise<PlannedRide[]> {
+  const { data, error } = await client.rpc("my_planned_rides");
+  if (error) throw new Error(error.message);
+  return ((data ?? []) as { id: string; scheduled_for: string; pickup_label: string; dropoff_label: string; passenger_name: string }[]).map((r) => ({
+    id: r.id,
+    scheduledFor: r.scheduled_for,
+    pickupLabel: r.pickup_label,
+    dropoffLabel: r.dropoff_label,
+    passengerName: r.passenger_name,
   }));
 }
 

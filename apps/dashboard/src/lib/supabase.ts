@@ -73,6 +73,8 @@ const WORDS: Record<string, string> = {
   bad_value: "Enter a whole number.",
   describe_it: "Say what happened - a few words at least.",
   case_not_found_or_resolved: "That case is already resolved.",
+  rider_cannot_take_this: "That rider isn't approved, or doesn't have a vehicle of this class.",
+  ride_already_assigned: "A rider already has this ride. Cancel it to change who takes it.",
   zone_crosses_itself: "The shape crosses itself. Place the corners in order around the edge.",
   zone_needs_points: "Place at least three corners on the map.",
   zone_too_large: "That zone is bigger than Kigali - check the corners.",

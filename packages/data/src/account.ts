@@ -163,6 +163,9 @@ export async function listTrips(
     .from("trips")
     .select("id, state, pickup_label, dropoff_label, quoted_amount_rwf, created_at")
     .eq(column, userId)
+    // A booked ride replaced when the passenger changed their regular trip
+    // was never a ride anyone took or cancelled; it has no place in history.
+    .eq("superseded", false)
     .order("created_at", { ascending: false })
     .limit(limit);
   if (error) throw new Error(error.message);
