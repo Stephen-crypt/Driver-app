@@ -13,6 +13,7 @@ import {
   skipOccurrence,
   whenLabel,
   type RecurringSchedule,
+  tripTime,
   type TripHistoryItem,
   type UpcomingRide,
 } from "@gera/data";
@@ -88,7 +89,7 @@ export default function Activity() {
   const aboutTrip = (t: TripHistoryItem) => {
     const report = (kind: "lost_property" | "complaint") =>
       router.push({ pathname: "/report", params: { trip: t.id, to: t.dropoffLabel, kind } });
-    Alert.alert(`To ${t.dropoffLabel}`, new Date(t.createdAt).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), [
+    Alert.alert(`To ${t.dropoffLabel}`, new Date(tripTime(t)).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), [
       { text: "I left something behind", onPress: () => report("lost_property") },
       { text: "Report a problem", onPress: () => report("complaint") },
       { text: "Close", style: "cancel" },
@@ -100,7 +101,7 @@ export default function Activity() {
 
   const groups: { day: string; items: TripHistoryItem[] }[] = [];
   for (const t of trips ?? []) {
-    const k = dayKey(t.createdAt);
+    const k = dayKey(tripTime(t));
     const last = groups[groups.length - 1];
     if (last && last.day === k) last.items.push(t);
     else groups.push({ day: k, items: [t] });
@@ -185,7 +186,7 @@ export default function Activity() {
                     {i > 0 ? <Divider inset={70} /> : null}
                     <Row
                       title={t.dropoffLabel}
-                      subtitle={`From ${t.pickupLabel} · ${new Date(t.createdAt).toLocaleTimeString(undefined, {
+                      subtitle={`From ${t.pickupLabel} · ${new Date(tripTime(t)).toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}${done ? "" : ` · ${s.label}`}`}
@@ -195,7 +196,10 @@ export default function Activity() {
                       onPress={
                         going
                           ? () => router.push({ pathname: "/ride", params: { trip: t.id } })
-                          : () => aboutTrip(t)
+                          : // Lost property and complaints are about rides that happened.
+                            done
+                            ? () => aboutTrip(t)
+                            : undefined
                       }
                     />
                   </View>

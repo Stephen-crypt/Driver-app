@@ -130,7 +130,7 @@ async function main() {
 
   console.log("\nQuote — the number on the vehicle card");
   const quote = await call("/functions/v1/quote", passengerJwt, {
-    vehicleClass: "moto", distanceM: 4000, durationS: 720,
+    vehicleClass: "moto", distanceM: 4000, durationS: 720, pickup: PICKUP, dropoff: DROPOFF,
   });
   check("the passenger gets a quote", quote.status === 200, `got ${quote.status}`);
   check("the quote is a whole hundred of RWF",

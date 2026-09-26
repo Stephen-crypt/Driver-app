@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export interface Place {
   readonly id: string;
@@ -34,7 +35,7 @@ export async function searchLandmarks(
     p_limit: limit,
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return [];
 
   return (data as LandmarkRow[]).map((r) => ({
@@ -102,7 +103,7 @@ export async function listSavedPlaces(
   // search_landmarks already does, and runs security invoker so RLS still
   // filters to this passenger.
   const { data, error } = await client.rpc("list_saved_places");
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   return ((data ?? []) as {
     id: string;
@@ -130,10 +131,10 @@ export async function savePlace(
     note: place.note ?? null,
     position: `POINT(${place.lng} ${place.lat})`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 export async function deleteSavedPlace(client: GeraClient, id: string): Promise<void> {
   const { error } = await client.from("saved_places").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }

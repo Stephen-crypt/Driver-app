@@ -1,5 +1,5 @@
 import { forwardRef, useState, type ReactNode } from "react";
-import { StyleSheet, TextInput, View, type TextInputProps } from "react-native";
+import { Platform, StyleSheet, TextInput, View, type TextInputProps } from "react-native";
 import { c, font, radius, space, tabular } from "./theme";
 import { Txt } from "./Txt";
 
@@ -80,7 +80,17 @@ const styles = StyleSheet.create({
   focused: { borderColor: c.accent },
   // minWidth 0: a text input will not shrink below its intrinsic width on the
   // web without it, and the overflow scrolled the whole screen sideways.
-  input: { flex: 1, minWidth: 0, fontFamily: font.medium, fontSize: 17, color: c.textStrong, paddingVertical: space.sm },
+  // The box draws the focus ring (styles.focused); on the web the browser would
+  // draw a second one inside it.
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: font.medium,
+    fontSize: 17,
+    color: c.textStrong,
+    paddingVertical: space.sm,
+    ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null),
+  },
   inputBig: { fontFamily: font.num, fontSize: 34, letterSpacing: 1, ...tabular },
   prefixBig: { fontSize: 30 },
   hint: { marginLeft: space.xs },

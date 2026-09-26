@@ -61,6 +61,14 @@ set local role authenticated;
 set local request.jwt.claims to
   '{"sub":"ffffffff-0000-0000-0000-000000000002","role":"authenticated"}';
 
+-- The server measured this ride at 3.9 km from the rider's GPS (0047, 0055).
+reset role;
+insert into public.trip_progress (trip_id, min_to_dropoff_m, travelled_m, last_position)
+values ('bbbbbbbb-0000-0000-0000-000000000001', 0, 3900, st_point(30.0588, -1.9536)::geography);
+set local role authenticated;
+set local request.jwt.claims to
+  '{"sub":"ffffffff-0000-0000-0000-000000000002","role":"authenticated"}';
+
 -- Three arguments, not five. The caller supplies what happened (the distance),
 -- never what it costs.
 select lives_ok(
@@ -78,7 +86,7 @@ select is(
 select is(
   (select actual_distance_m from public.trips where id='bbbbbbbb-0000-0000-0000-000000000001'),
   4100,
-  'the actual distance is recorded'
+  'the distance the phone reported is billed when the server''s own measurement backs it'
 );
 
 -- Two rows, not one. A completed cash trip puts the fare in the rider's pocket

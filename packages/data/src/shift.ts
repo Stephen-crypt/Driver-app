@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 import type { Coords } from "./rider";
 
 // ---------------------------------------------------------------------------
@@ -31,7 +32,7 @@ export async function getOpenShift(client: GeraClient, riderId: string): Promise
     .eq("rider_id", riderId)
     .is("ended_at", null)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as { id: string; vehicle_id: string; started_at: string };
   return { id: r.id, vehicleId: r.vehicle_id, startedAt: r.started_at };
@@ -122,7 +123,7 @@ export async function startTrip(
     // retried wrong PIN followed by the right one must not replay the failure.
     p_idempotency_key: `start-${tripId}-${pin}`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   const r = data as { started: boolean; reason?: string; attempts_left?: number };
   if (r.started) return { started: true };
   return {
@@ -135,7 +136,7 @@ export async function startTrip(
 /** The passenger's PIN, once a rider is assigned. Null before that. */
 export async function getRidePin(client: GeraClient, tripId: string): Promise<string | null> {
   const { data, error } = await client.rpc("trip_ride_pin", { p_trip_id: tripId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return (data as string | null) ?? null;
 }
 
@@ -155,7 +156,7 @@ export async function getWaitStatus(client: GeraClient, tripId: string): Promise
   const { data, error } = await client
     .rpc("trip_wait_status", { p_trip_id: tripId })
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as {
     arrived_at: string | null;
@@ -199,7 +200,7 @@ export async function reportNoShow(
     if (error.message.includes("grace_not_elapsed")) {
       throw new Error("You can report this once the free waiting time is over.");
     }
-    throw new Error(error.message);
+    throw dataError(error.message);
   }
 }
 
@@ -214,7 +215,7 @@ export async function getTripTotal(client: GeraClient, tripId: string): Promise<
   const { data, error } = await client
     .rpc("trip_total_rwf", { p_trip_id: tripId })
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as { total_rwf: number; fare_rwf: number; waiting_charge_rwf: number };
   return { totalRwf: r.total_rwf, fareRwf: r.fare_rwf, waitingChargeRwf: r.waiting_charge_rwf };
@@ -247,5 +248,5 @@ export async function reportIssue(
     p_lng: at?.lng ?? null,
     p_lat: at?.lat ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }

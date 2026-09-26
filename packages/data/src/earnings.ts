@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export type LedgerKind =
   | "fare_collected"
@@ -29,7 +30,7 @@ export async function listLedger(
     .eq("rider_id", riderId)
     .gte("created_at", since.toISOString())
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as {
     id: number;
     kind: string;

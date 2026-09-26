@@ -2,6 +2,7 @@ import { quoteFare, VEHICLE_CLASSES } from "../_shared/core.ts";
 import type { VehicleClass } from "../_shared/core.ts";
 import { policyFromRow, type FarePolicyRow } from "../_shared/policy.ts";
 import { callerClient, serviceClient, json } from "../_shared/supabase.ts";
+import { MAX_DISTANCE_M, inServiceArea, isPoint, pricedRoute } from "./route.ts";
 
 const QUOTE_TTL_SECONDS = 120;
 
@@ -12,23 +13,28 @@ Deno.serve(async (req: Request) => {
   const { data: auth } = await caller.auth.getUser();
   if (!auth.user) return json({ error: "unauthenticated" }, 401);
 
-  let body: { vehicleClass?: string; distanceM?: number; durationS?: number };
+  let body: { vehicleClass?: string; distanceM?: number; durationS?: number; pickup?: unknown; dropoff?: unknown };
   try {
     body = await req.json();
   } catch {
     return json({ error: "invalid_json" }, 400);
   }
 
-  const { vehicleClass, distanceM, durationS } = body;
+  const { vehicleClass, pickup, dropoff } = body;
 
   if (!VEHICLE_CLASSES.includes(vehicleClass as VehicleClass)) {
     return json({ error: "unknown_vehicle_class" }, 400);
   }
-  if (typeof distanceM !== "number" || distanceM < 0 || !Number.isFinite(distanceM)) {
-    return json({ error: "invalid_distance" }, 400);
+  // The route is the server's to price, not the app's: see route.ts.
+  if (!isPoint(pickup) || !isPoint(dropoff)) {
+    return json({ error: "route_required" }, 400);
   }
-  if (typeof durationS !== "number" || durationS < 0 || !Number.isFinite(durationS)) {
-    return json({ error: "invalid_duration" }, 400);
+  if (!inServiceArea(pickup) || !inServiceArea(dropoff)) {
+    return json({ error: "outside_service_area" }, 400);
+  }
+  const { distanceM, durationS } = pricedRoute(pickup, dropoff, body);
+  if (distanceM > MAX_DISTANCE_M) {
+    return json({ error: "too_far" }, 400);
   }
 
   const svc = serviceClient();
@@ -55,10 +61,12 @@ Deno.serve(async (req: Request) => {
       passenger_id: auth.user.id,
       policy_id: policyRow.id,
       vehicle_class: vehicleClass,
-      distance_m: Math.round(distanceM),
-      duration_s: Math.round(durationS),
+      distance_m: distanceM,
+      duration_s: durationS,
       amount_rwf: amountRwf,
       expires_at: expiresAt,
+      pickup: `SRID=4326;POINT(${pickup.lng} ${pickup.lat})`,
+      dropoff: `SRID=4326;POINT(${dropoff.lng} ${dropoff.lat})`,
     })
     .select("id")
     .single();
@@ -70,7 +78,7 @@ Deno.serve(async (req: Request) => {
     amountRwf,
     expiresAt,
     vehicleClass,
-    distanceM: Math.round(distanceM),
-    durationS: Math.round(durationS),
+    distanceM,
+    durationS,
   });
 });

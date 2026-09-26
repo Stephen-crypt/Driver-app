@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 /** Same keys, same order, as public.inspection_items(). */
 export const INSPECTION_ITEMS = [
@@ -99,7 +100,7 @@ export async function uploadInspectionPhoto(
 
 export async function myRiderQr(client: GeraClient): Promise<string | null> {
   const { data, error } = await client.rpc("my_rider_qr");
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return (data as string | null) ?? null;
 }
 

@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export interface RiderPosition {
   readonly lng: number;
@@ -18,7 +19,7 @@ export async function getRiderPosition(
   tripId: string,
 ): Promise<RiderPosition | null> {
   const { data, error } = await client.rpc("trip_rider_position", { p_trip_id: tripId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   const rows = (data ?? []) as {
     lng: number;
@@ -52,7 +53,7 @@ export async function publishTrackPoint(
     p_lat: at.lat,
     p_accuracy_m: accuracyM ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 /**
@@ -76,7 +77,7 @@ export async function raiseSos(
     p_lat: args.at?.lat ?? null,
     p_note: args.note ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return String(data);
 }
 

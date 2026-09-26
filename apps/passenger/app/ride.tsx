@@ -156,7 +156,7 @@ export default function Ride() {
     setError(null);
     Promise.all(
       CLASSES.map((k) =>
-        requestQuote(supabase, { vehicleClass: k.id, distanceM, durationS })
+        requestQuote(supabase, { vehicleClass: k.id, distanceM, durationS, pickup, dropoff })
           .then((q) => [k.id, q] as const)
           .catch(() => null),
       ),

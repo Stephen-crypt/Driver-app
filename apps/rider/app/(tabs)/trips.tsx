@@ -3,7 +3,7 @@ import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useFocusEffect } from "expo-router";
 import { Divider, Group, Row, Screen, Txt, c, money, space } from "@gera/kit";
 import { statusFor } from "@gera/ui";
-import { listPlannedRides, listTrips, whenLabel, type PlannedRide, type TripHistoryItem } from "@gera/data";
+import { listPlannedRides, listTrips, whenLabel, type PlannedRide, tripTime, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
@@ -42,7 +42,7 @@ export default function Trips() {
   // endless list.
   const groups: { day: string; items: TripHistoryItem[] }[] = [];
   for (const t of trips ?? []) {
-    const k = dayKey(t.createdAt);
+    const k = dayKey(tripTime(t));
     const last = groups[groups.length - 1];
     if (last && last.day === k) last.items.push(t);
     else groups.push({ day: k, items: [t] });
@@ -89,7 +89,7 @@ export default function Trips() {
                     {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
                     <Row
                       title={`${t.pickupLabel} → ${t.dropoffLabel}`}
-                      subtitle={`${new Date(t.createdAt).toLocaleTimeString(undefined, {
+                      subtitle={`${new Date(tripTime(t)).toLocaleTimeString(undefined, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })} · ${s.label}`}

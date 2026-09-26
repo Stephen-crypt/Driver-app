@@ -106,7 +106,7 @@ const call = async (path, jwt, body) => {
 };
 
 const quote = await call("/functions/v1/quote", passengerJwt, {
-  vehicleClass: "moto", distanceM: 4000, durationS: 720,
+  vehicleClass: "moto", distanceM: 4000, durationS: 720, pickup: PICKUP, dropoff: DROPOFF,
 });
 check("quote returns 200", quote.status, 200);
 

@@ -38,6 +38,8 @@ interface RowProps {
   readonly onPress?: () => void;
   readonly trailing?: ReactNode;
   readonly leading?: ReactNode;
+  /** Show the whole subtitle - for advice that must be read, not skimmed. */
+  readonly full?: boolean;
 }
 
 export function Row({
@@ -50,6 +52,7 @@ export function Row({
   onPress,
   trailing,
   leading,
+  full,
 }: RowProps) {
   const body = (
     <>
@@ -60,11 +63,11 @@ export function Row({
           </View>
         ) : null)}
       <View style={styles.rowText}>
-        <Txt v="bodyStrong" lines={1}>
+        <Txt v="bodyStrong" lines={full ? undefined : 1}>
           {title}
         </Txt>
         {subtitle ? (
-          <Txt v="label" tone="muted" lines={2}>
+          <Txt v="label" tone="muted" lines={full ? undefined : 2}>
             {subtitle}
           </Txt>
         ) : null}

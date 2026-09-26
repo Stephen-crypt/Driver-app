@@ -74,7 +74,7 @@ const call = async (path, jwt, body) => {
 
 // Pickup a few hundred metres from the rider, drop-off at Kigali Heights.
 const pickup = { lng: Number(lng) + 0.004, lat: Number(lat) - 0.002 };
-const quote = await call("/functions/v1/quote", passengerJwt, { vehicleClass: "moto", distanceM: 5200, durationS: 900 });
+const quote = await call("/functions/v1/quote", passengerJwt, { vehicleClass: "moto", distanceM: 5200, durationS: 900, pickup, dropoff: { lng: 30.0936, lat: -1.9536 } });
 if (quote.status !== 200) throw new Error(`quote: ${JSON.stringify(quote.body)}`);
 
 const trip = await call("/rest/v1/rpc/create_trip_from_quote", passengerJwt, {

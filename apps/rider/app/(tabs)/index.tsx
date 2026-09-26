@@ -177,6 +177,9 @@ export default function Today() {
       const first = await loc.getCurrent();
       if (active && first) setHere(first);
       sub = await loc.watch((p) => active && setHere(p));
+      // Left the screen while the watcher was starting: cleanup has already
+      // run, so stop it here or it runs - and drains the battery - for good.
+      if (!active) sub.remove();
     })();
     return () => {
       active = false;

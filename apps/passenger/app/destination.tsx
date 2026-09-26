@@ -211,7 +211,7 @@ export default function Destination() {
               returnKeyType="search"
             />
             {query ? (
-              <Pressable onPress={() => setQuery("")} hitSlop={10} accessibilityLabel="Clear">
+              <Pressable onPress={() => setQuery("")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear the search">
                 <Ionicons name="close-circle" size={20} color={c.textMuted} />
               </Pressable>
             ) : null}

@@ -74,14 +74,6 @@ Deno.serve(async (req: Request) => {
     .single();
   const waitingChargeRwf = Number((wait as { charge_rwf?: number } | null)?.charge_rwf ?? 0);
 
-  const receipt = buildReceipt(
-    policy,
-    trip.quoted_amount_rwf,
-    trip.quoted_distance_m ?? 0,
-    distanceM,
-    waitingChargeRwf,
-  );
-
   // No amounts are passed. complete_trip() derives the total and the commission
   // itself, from the trip's locked quote and that quote's policy: this function
   // is not a trust boundary (complete_trip is granted to `authenticated`, so any
@@ -98,7 +90,18 @@ Deno.serve(async (req: Request) => {
 
   if (completeError) return json({ error: completeError.message }, 400);
 
-  const completedTrip = completed as { state?: string } | null;
+  const completedTrip = completed as { state?: string; actual_distance_m?: number | null } | null;
+
+  // Built from the distance complete_trip actually billed, which it caps by
+  // the server's own measurement of the ride (0055) - not the one this phone
+  // sent - so the receipt and the ledger say the same thing.
+  const receipt = buildReceipt(
+    policy,
+    trip.quoted_amount_rwf,
+    trip.quoted_distance_m ?? 0,
+    completedTrip?.actual_distance_m ?? distanceM,
+    waitingChargeRwf,
+  );
 
   // complete_trip() returns the trip row, which carries no amounts, so the body
   // reports the receipt built above. The two are now derived independently - by

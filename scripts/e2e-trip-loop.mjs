@@ -92,6 +92,7 @@ const call = async (path, jwt, body) => {
 // --- 1. quote ---------------------------------------------------------------
 const quote = await call("/functions/v1/quote", passengerJwt, {
   vehicleClass: "moto", distanceM: 4000, durationS: 720,
+  pickup: { lng: 30.0619, lat: -1.9441 }, dropoff: { lng: 30.0588, lat: -1.9536 },
 });
 check("quote returns 200", quote.status, 200);
 check("quote is 1700 RWF", quote.body.amountRwf, 1700);

@@ -8,11 +8,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "backgroundColor": "#F2F3F7",
-    "splash": {
-      "backgroundColor": "#F2F3F7",
-      "resizeMode": "contain",
-      "image": "./assets/splash-icon.png"
-    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "rw.gera.rider",
@@ -60,6 +55,15 @@
         {
           "cameraPermission": "Gera Rider uses the camera to scan rider and vehicle QR codes during safety inspections.",
           "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F2F3F7"
         }
       ]
     ]

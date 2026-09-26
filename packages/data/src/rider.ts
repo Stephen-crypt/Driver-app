@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export type VehicleClass = "moto" | "cab" | "cab_xl";
 export type PresenceStatus = "online" | "offline" | "on_trip";
@@ -34,7 +35,7 @@ export async function setPresence(
     },
     { onConflict: "rider_id" },
   );
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 /**
@@ -51,7 +52,7 @@ export async function heartbeat(
     .from("rider_presence")
     .update({ position: point(at), heartbeat_at: new Date().toISOString() })
     .eq("rider_id", riderId);
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 export async function getPresence(
@@ -63,7 +64,7 @@ export async function getPresence(
     .select("status, vehicle_class")
     .eq("rider_id", riderId)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const row = data as { status: PresenceStatus; vehicle_class: VehicleClass };
   return { status: row.status, vehicleClass: row.vehicle_class };
@@ -76,7 +77,7 @@ export async function getPresence(
  */
 export async function getCashHeld(client: GeraClient, riderId: string): Promise<number> {
   const { data, error } = await client.rpc("rider_cash_held", { p_rider_id: riderId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return Number(data ?? 0);
 }
 
@@ -90,7 +91,7 @@ export async function getCashHeld(client: GeraClient, riderId: string): Promise<
  */
 export async function getNetOwed(client: GeraClient, riderId: string): Promise<number> {
   const { data, error } = await client.rpc("rider_net_owed", { p_rider_id: riderId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return Number(data ?? 0);
 }
 
@@ -101,7 +102,7 @@ export async function getNetOwed(client: GeraClient, riderId: string): Promise<n
  */
 export async function canGoOnline(client: GeraClient, riderId: string): Promise<boolean> {
   const { data, error } = await client.rpc("can_go_online", { p_rider_id: riderId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return data === true;
 }
 
@@ -158,7 +159,7 @@ export async function getLiveOffer(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
 
   const r = data as unknown as OfferRow;
@@ -186,13 +187,13 @@ export async function acceptOffer(
     // land on the same key or the rider accepts twice.
     p_idempotency_key: `accept-${offerId}`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return data as { id: string; state: string };
 }
 
 export async function declineOffer(client: GeraClient, offerId: string): Promise<void> {
   const { error } = await client.rpc("decline_offer", { p_offer_id: offerId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 export type RiderTripState = "accepted" | "arrived" | "in_progress";
@@ -223,7 +224,7 @@ export async function getActiveTrip(
     .limit(1)
     .maybeSingle();
 
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
 
   const r = data as {
@@ -263,7 +264,7 @@ export async function advanceTrip(
     p_to: to,
     p_idempotency_key: `${to}-${tripId}`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return data as { id: string; state: string };
 }
 
@@ -302,7 +303,7 @@ export async function getEarningsSince(
     .in("kind", ["fare_collected", "trip_earning"])
     .gte("created_at", since.toISOString());
 
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   const rows = (data ?? []) as {
     amount_rwf: number;
@@ -363,7 +364,7 @@ export const DOCUMENT_LABELS: Record<DocumentKind, string> = {
  */
 export async function listMyDocuments(client: GeraClient): Promise<RiderDocument[]> {
   const { data, error } = await client.rpc("my_documents");
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as RiderDocument[]).map((r) => ({
     kind: r.kind,
     status: r.status,
@@ -400,7 +401,7 @@ export async function uploadDocument(
     contentType: file.mimeType,
     upsert: true,
   });
-  if (up.error) throw new Error(up.error.message);
+  if (up.error) throw dataError(up.error.message);
 
   // Re-submitting resets nothing the rider controls; a reviewer decides the
   // status, so the row only ever carries where the file is.
@@ -410,5 +411,5 @@ export async function uploadDocument(
       { rider_id: riderId, kind, storage_path: path, updated_at: new Date().toISOString() },
       { onConflict: "rider_id,kind" },
     );
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }

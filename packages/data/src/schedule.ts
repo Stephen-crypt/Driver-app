@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 import type { CreateTripArgs } from "./trips";
 
 /**
@@ -152,7 +153,7 @@ export async function listUpcoming(client: GeraClient, _passengerId: string): Pr
   // The function reads the signed-in passenger's own rides; it adds the rider
   // planned for each, whom the passenger cannot read from profiles directly.
   const { data, error } = await client.rpc("my_upcoming_rides");
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as {
     id: string;
     scheduled_for: string;
@@ -212,7 +213,7 @@ export interface PlannedRide {
 /** Rides operations has planned for the signed-in rider, the next seven days. */
 export async function listPlannedRides(client: GeraClient): Promise<PlannedRide[]> {
   const { data, error } = await client.rpc("my_planned_rides");
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as { id: string; scheduled_for: string; pickup_label: string; dropoff_label: string; passenger_name: string }[]).map((r) => ({
     id: r.id,
     scheduledFor: r.scheduled_for,
@@ -243,7 +244,7 @@ export async function listSchedules(client: GeraClient, passengerId: string): Pr
     .eq("status", "active")
     .gte("end_date", kigaliToday())
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as {
     id: string;
     days: number[];
@@ -272,7 +273,7 @@ export async function listSchedules(client: GeraClient, passengerId: string): Pr
 /** Cancels the schedule and every ride of it still to come. Returns how many. */
 export async function cancelSchedule(client: GeraClient, scheduleId: string): Promise<number> {
   const { data, error } = await client.rpc("cancel_recurring_schedule", { p_schedule_id: scheduleId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return (data as number | null) ?? 0;
 }
 
@@ -283,7 +284,7 @@ export async function skipOccurrence(client: GeraClient, tripId: string): Promis
     p_to: "skipped",
     p_idempotency_key: `skip-${tripId}`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 /** "07:30" in Kigali time from an instant. */

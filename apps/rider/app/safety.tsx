@@ -41,7 +41,7 @@ export default function Safety() {
           {RULES.map((r, i) => (
             <View key={r.title}>
               {i > 0 ? <Divider inset={70} /> : null}
-              <Row title={r.title} subtitle={r.body} icon={r.icon} iconTone="good" />
+              <Row title={r.title} subtitle={r.body} icon={r.icon} iconTone="good" full />
             </View>
           ))}
         </Group>

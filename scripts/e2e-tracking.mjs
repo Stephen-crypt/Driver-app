@@ -76,7 +76,7 @@ async function main() {
   const passengerJwt = mint(PASSENGER);
 
   const quote = await call("/functions/v1/quote", passengerJwt, {
-    vehicleClass: "moto", distanceM: 4000, durationS: 720,
+    vehicleClass: "moto", distanceM: 4000, durationS: 720, pickup: PICKUP, dropoff: DROPOFF,
   });
   const created = await call("/rest/v1/rpc/create_trip_from_quote", passengerJwt, {
     p_quote_id: quote.body.quoteId,

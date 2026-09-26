@@ -38,7 +38,7 @@ insert into public.vehicles (rider_id, class, plate, is_active) values
   ('a0000000-0000-4000-8000-000000000002','moto','RAC 002A',true),
   ('a0000000-0000-4000-8000-000000000003','moto','RAC 003A',true),
   ('a0000000-0000-4000-8000-000000000004','moto','RAC 004A',true),
-  ('a0000000-0000-4000-8000-000000000005','moto','RAC 005A',true);
+  ('a0000000-0000-4000-8000-000000000005','cab','RAC 005A',true);
 
 -- A rider works inside an open shift (0037). Opened directly here, so the
 -- tests that follow are about what they test, not about the checklist.

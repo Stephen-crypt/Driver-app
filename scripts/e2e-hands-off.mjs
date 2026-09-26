@@ -74,7 +74,7 @@ async function main() {
   const passengerJwt = mint(PASSENGER);
 
   const quote = await call("/functions/v1/quote", passengerJwt, {
-    vehicleClass: "moto", distanceM: 4000, durationS: 720,
+    vehicleClass: "moto", distanceM: 4000, durationS: 720, pickup: PICKUP, dropoff: DROPOFF,
   });
   if (quote.status !== 200) throw new Error(`quote failed: ${quote.status}`);
   console.log(`quoted ${quote.body.amountRwf} RWF`);

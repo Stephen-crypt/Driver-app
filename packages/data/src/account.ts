@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export type PaymentKind = "cash" | "mtn_momo" | "airtel_money" | "card";
 
@@ -36,7 +37,7 @@ export async function listPaymentMethods(
     .from("payment_methods")
     .select("id, kind, label, is_default")
     .eq("user_id", userId);
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   return ((data ?? []) as { id: string; kind: PaymentKind; label: string | null; is_default: boolean }[])
     .map((r) => ({ id: r.id, kind: r.kind, label: r.label, isDefault: r.is_default }));
@@ -66,7 +67,7 @@ export async function setDefaultPaymentMethod(
       { user_id: userId, kind, is_default: true },
       { onConflict: "user_id,kind" },
     );
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 /** Registers this install for push. The token is the key, so re-registering
@@ -81,7 +82,7 @@ export async function registerDeviceToken(
     { token, user_id: userId, platform, updated_at: new Date().toISOString() },
     { onConflict: "token" },
   );
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 export async function rateTrip(
@@ -95,7 +96,7 @@ export async function rateTrip(
     p_rating: rating,
     p_comment: comment ?? null,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 /**
@@ -113,7 +114,7 @@ export async function cancelTrip(
     p_to: as === "passenger" ? "cancelled_by_passenger" : "cancelled_by_rider",
     p_idempotency_key: `cancel-${as}-${tripId}`,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 }
 
 export interface Contact {
@@ -132,7 +133,7 @@ export async function getTripContact(
   tripId: string,
 ): Promise<Contact | null> {
   const { data, error } = await client.rpc("trip_contact", { p_trip_id: tripId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   const rows = (data ?? []) as {
     counterparty: "passenger" | "rider";
@@ -149,40 +150,44 @@ export interface TripHistoryItem {
   readonly state: string;
   readonly pickupLabel: string;
   readonly dropoffLabel: string;
+  /** What was paid for a completed ride (waiting included); the quote otherwise. */
   readonly fareRwf: number | null;
   readonly createdAt: string;
+  /** For a booked ride, the time it was for. */
+  readonly scheduledFor: string | null;
 }
+
+/** When a ride happened, for grouping and display: its pickup time if booked. */
+export const tripTime = (t: Pick<TripHistoryItem, "createdAt" | "scheduledFor">): string => t.scheduledFor ?? t.createdAt;
 
 export async function listTrips(
   client: GeraClient,
   column: "passenger_id" | "rider_id",
-  userId: string,
+  _userId: string,
   limit = 30,
 ): Promise<TripHistoryItem[]> {
-  const { data, error } = await client
-    .from("trips")
-    .select("id, state, pickup_label, dropoff_label, quoted_amount_rwf, created_at")
-    .eq(column, userId)
-    // A booked ride replaced when the passenger changed their regular trip
-    // was never a ride anyone took or cancelled; it has no place in history.
-    .eq("superseded", false)
-    .order("created_at", { ascending: false })
-    .limit(limit);
-  if (error) throw new Error(error.message);
+  // my_trip_history reads the caller's own trips; see 0052 for what it leaves out.
+  const { data, error } = await client.rpc("my_trip_history", {
+    p_as: column === "rider_id" ? "rider" : "passenger",
+    p_limit: limit,
+  });
+  if (error) throw dataError(error.message);
 
   return ((data ?? []) as {
     id: string;
     state: string;
     pickup_label: string;
     dropoff_label: string;
-    quoted_amount_rwf: number | null;
+    amount_rwf: number | null;
     created_at: string;
+    scheduled_for: string | null;
   }[]).map((r) => ({
     id: r.id,
     state: r.state,
     pickupLabel: r.pickup_label,
     dropoffLabel: r.dropoff_label,
-    fareRwf: r.quoted_amount_rwf,
+    fareRwf: r.amount_rwf,
     createdAt: r.created_at,
+    scheduledFor: r.scheduled_for,
   }));
 }

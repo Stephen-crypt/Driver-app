@@ -32,7 +32,7 @@ select ok(
   'but they can replace the file they uploaded');
 
 select ok(
-  has_table_privilege('authenticated', 'public.rider_documents', 'INSERT'),
+  has_column_privilege('authenticated', 'public.rider_documents', 'storage_path', 'INSERT'),
   'and submit one in the first place');
 
 select ok(

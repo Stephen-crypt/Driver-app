@@ -1,9 +1,14 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export interface QuoteRequest {
   readonly vehicleClass: "moto" | "cab" | "cab_xl";
+  /** The road distance and time from the route function. The server prices at least the straight line. */
   readonly distanceM: number;
   readonly durationS: number;
+  /** The route being priced; booking must use the same one. */
+  readonly pickup: { readonly lat: number; readonly lng: number };
+  readonly dropoff: { readonly lat: number; readonly lng: number };
 }
 
 export interface QuoteResult {
@@ -37,7 +42,7 @@ export async function requestQuote(
   req: QuoteRequest,
 ): Promise<QuoteResult> {
   const { data, error } = await client.functions.invoke("quote", { body: req });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) throw new Error("quote failed");
   return data as QuoteResult;
 }
@@ -63,7 +68,7 @@ export async function createTripFromQuote(
     p_dropoff: `POINT(${args.dropoff.lng} ${args.dropoff.lat})`,
     p_dropoff_label: args.dropoffLabel,
   });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) throw new Error("trip creation failed");
   return data as { id: string; state: string };
 }
@@ -80,7 +85,7 @@ export async function completeTrip(
 ): Promise<CompleteTripResult> {
   if (!args.idempotencyKey) throw new Error("idempotencyKey is required");
   const { data, error } = await client.functions.invoke("complete-trip", { body: args });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) throw new Error("completion failed");
   return data as CompleteTripResult;
 }

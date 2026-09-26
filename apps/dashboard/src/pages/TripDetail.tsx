@@ -66,11 +66,12 @@ export function TripDetail() {
           </p>
         </div>
         <div className="spacer" />
-        <Link className="btn secondary" to={`/cases?trip=${d.id}`}>
-          Open a case
-        </Link>
-        <div className="spacer" />
-        <span className={`chip ${d.state === "completed" ? "good" : ["no_show", "no_riders", "cancelled_by_rider"].includes(d.state) ? "bad" : "accent"}`}>{WORDS[d.state] ?? d.state}</span>
+        <div className="row">
+          <span className={`chip ${d.state === "completed" ? "good" : ["no_show", "no_riders", "cancelled_by_rider"].includes(d.state) ? "bad" : "accent"}`}>{WORDS[d.state] ?? d.state}</span>
+          <Link className="btn secondary" to={`/cases?trip=${d.id}`}>
+            Open a case
+          </Link>
+        </div>
       </div>
 
       <div className="grid cols-3" style={{ marginBottom: 16 }}>

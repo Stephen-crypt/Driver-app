@@ -11,6 +11,7 @@ import {
   type DocumentKind,
 } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
+import { goBack } from "../../src/lib/nav";
 
 function extensionFor(uri: string, mime: string): string {
   const fromUri = uri.split("?")[0]?.split(".").pop()?.toLowerCase();
@@ -107,6 +108,8 @@ export default function Documents() {
     <Screen
       title="Your documents"
       subtitle="We check these before your first shift. Clear photos, all four corners in view."
+      // Reached from Me as well as from sign-up; from Me there has to be a way back.
+      onBack={router.canGoBack() ? () => goBack(router) : undefined}
       footer={
         <Button
           label={outstanding === 0 ? "Send for review" : `${outstanding} still to upload`}

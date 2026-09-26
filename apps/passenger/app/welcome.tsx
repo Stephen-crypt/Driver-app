@@ -85,8 +85,9 @@ export default function Welcome() {
       </View>
 
       <Modal visible={riderInfo} transparent animationType="slide" onRequestClose={() => setRiderInfo(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setRiderInfo(false)}>
-          <Pressable>
+        <Pressable style={styles.backdrop} onPress={() => setRiderInfo(false)} accessibilityRole="button" accessibilityLabel="Close">
+          {/* Swallows taps on the sheet so they don't close it. */}
+          <Pressable accessible={false}>
             <Paper>
               <View style={styles.sheet}>
                 <Txt v="title">Ride for Gera</Txt>

@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 export interface TripPoints {
   readonly pickup: { readonly lat: number; readonly lng: number };
@@ -8,7 +9,7 @@ export interface TripPoints {
 /** Both ends of a trip, for the map. The server decides who may see them. */
 export async function getTripPoints(client: GeraClient, tripId: string): Promise<TripPoints | null> {
   const { data, error } = await client.rpc("trip_points", { p_trip_id: tripId }).maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as { pickup_lng: number; pickup_lat: number; dropoff_lng: number; dropoff_lat: number };
   return {
@@ -34,7 +35,7 @@ export async function nearestLandmark(
   const { data, error } = await client
     .rpc("nearest_landmark", { p_lng: at.lng, p_lat: at.lat })
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as { name: string; sector: string | null; distance_m: number };
   return { name: r.name, sector: r.sector, distanceM: r.distance_m };

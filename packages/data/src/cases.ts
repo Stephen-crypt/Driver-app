@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 /** What a passenger can report. Vehicle faults are the rider app's. */
 export type PassengerCaseKind = "lost_property" | "complaint" | "incident" | "other";
@@ -84,7 +85,7 @@ export async function listMyCases(client: GeraClient, userId: string, limit = 30
     .eq("reported_by", userId)
     .order("created_at", { ascending: false })
     .limit(limit);
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   return ((data ?? []) as CaseRow[]).map(toCase);
 }
 

@@ -8,6 +8,9 @@ function fakeClient(invokeResult: unknown, error: unknown = null): GeraClient {
   } as unknown as GeraClient;
 }
 
+// The route is part of every quote request: the server prices it.
+const ROUTE = { pickup: { lat: -1.9441, lng: 30.1127 }, dropoff: { lat: -1.9536, lng: 30.0588 } };
+
 describe("requestQuote", () => {
   it("returns the quote the edge function issued", async () => {
     const client = fakeClient({
@@ -15,7 +18,7 @@ describe("requestQuote", () => {
       vehicleClass: "moto", distanceM: 4000, durationS: 720,
     });
     const q = await requestQuote(client, {
-      vehicleClass: "moto", distanceM: 4000, durationS: 720,
+      vehicleClass: "moto", distanceM: 4000, durationS: 720, ...ROUTE,
     });
     expect(q.amountRwf).toBe(1700);
     expect(q.quoteId).toBe("q1");
@@ -24,14 +27,14 @@ describe("requestQuote", () => {
   it("throws when the edge function reports an error", async () => {
     const client = fakeClient(null, { message: "no_fare_policy" });
     await expect(
-      requestQuote(client, { vehicleClass: "moto", distanceM: 4000, durationS: 720 }),
+      requestQuote(client, { vehicleClass: "moto", distanceM: 4000, durationS: 720, ...ROUTE }),
     ).rejects.toThrow("no_fare_policy");
   });
 
   it("throws when the response is empty", async () => {
     const client = fakeClient(null);
     await expect(
-      requestQuote(client, { vehicleClass: "moto", distanceM: 4000, durationS: 720 }),
+      requestQuote(client, { vehicleClass: "moto", distanceM: 4000, durationS: 720, ...ROUTE }),
     ).rejects.toThrow("quote failed");
   });
 });

@@ -89,11 +89,18 @@ export default function Earnings() {
             </Txt>
           </View>
 
+          {/* A week of nothing is one line, not 150 points of empty chart. */}
+          {days.some((d) => d.earnedRwf > 0) ? null : (
+            <Txt v="label" tone="muted">
+              No trips in the last 7 days. Each day's earnings show here as you ride.
+            </Txt>
+          )}
           <Bars
             values={days.map((d) => d.earnedRwf)}
             labels={days.map((d) => DAY[d.day.getDay()] ?? "")}
             highlight={days.length - 1}
             format={money}
+            height={days.some((d) => d.earnedRwf > 0) ? 150 : 40}
           />
 
           <View style={styles.card}>

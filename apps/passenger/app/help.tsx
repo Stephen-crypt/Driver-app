@@ -24,8 +24,8 @@ const SAFETY: readonly { icon: IconName; title: string; body: string }[] = [
   },
   {
     icon: "pricetag",
-    title: "The price doesn't change",
-    body: "What you agreed before booking is what you pay, plus waiting time if you kept your rider waiting. If a rider asks for more, tell us.",
+    title: "The price is agreed before you go",
+    body: "What you agreed is what you pay. It only goes up if you kept your rider waiting, or if the ride went well past the route you booked - a stop you asked for, measured by GPS. If a rider asks for more, tell us.",
   },
 ];
 
@@ -88,7 +88,7 @@ export default function Help() {
           {SAFETY.map((s, i) => (
             <View key={s.title}>
               {i > 0 ? <Divider inset={70} /> : null}
-              <Row title={s.title} subtitle={s.body} icon={s.icon} iconTone="good" />
+              <Row title={s.title} subtitle={s.body} icon={s.icon} iconTone="good" full />
             </View>
           ))}
         </Group>

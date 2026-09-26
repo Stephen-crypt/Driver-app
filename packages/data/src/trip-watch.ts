@@ -1,4 +1,5 @@
 import type { GeraClient } from "./client";
+import { dataError } from "./client";
 
 /**
  * Every state before the trip reaches an end. The passenger screen polls while the
@@ -42,7 +43,7 @@ export async function getTrip(client: GeraClient, tripId: string): Promise<TripS
     .eq("id", tripId)
     .single();
 
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) throw new Error("trip not found");
 
   const r = data as TripRow;
@@ -85,7 +86,7 @@ export async function getRiderCard(
   tripId: string,
 ): Promise<RiderCard | null> {
   const { data, error } = await client.rpc("trip_rider_card", { p_trip_id: tripId });
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
 
   const rows = (data ?? []) as RiderCardRow[];
   const r = rows[0];
@@ -118,7 +119,7 @@ export async function getActivePassengerTrip(
     .order("created_at", { ascending: false })
     .limit(1)
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) throw dataError(error.message);
   if (!data) return null;
   const r = data as TripRow;
   return {

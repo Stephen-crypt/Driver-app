@@ -131,7 +131,7 @@ export function Cases({ staff }: { staff: Staff }) {
               <div className="row small muted" style={{ gap: 8 }}>
                 <span className={`chip ${STATUS[c.status][1]}`}>{STATUS[c.status][0]}</span>
                 <span>
-                  {c.reporter_name ?? "Unknown caller"} ({c.reporter_role})
+                  {c.reporter_name ?? (c.reporter_role === "staff" ? "Staff" : "Unknown caller")} ({c.reporter_role})
                 </span>
                 {c.assigned_name ? <span>· {c.assigned_name}</span> : null}
               </div>
