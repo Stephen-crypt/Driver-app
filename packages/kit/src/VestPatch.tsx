@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { c, font, tabular } from "./theme";
 import { Txt } from "./Txt";
+import { Odometer } from "./Odometer";
 
 type Size = "sm" | "md" | "lg" | "xl";
 
@@ -12,11 +13,17 @@ const SIZE: Record<Size, { w: number; h: number; fs: number; r: number }> = {
 };
 
 interface Props {
-  /** One to three characters. Longer than that is not a patch, it is a label. */
+  /** One to five characters. Longer than that is not a patch, it is a label. */
   readonly value: string;
   readonly size?: Size;
-  /** Wider patches for two- and three-digit numbers are sized automatically. */
   readonly label?: string;
+  /**
+   * Roll the number in, like a board turning to the right platform. For the
+   * moment a passenger learns which vest to look for - not for a patch that is
+   * just sitting in a list.
+   */
+  readonly roll?: boolean;
+  readonly delay?: number;
 }
 
 /**
@@ -27,9 +34,10 @@ interface Props {
  * The pale band across the middle is the vest's reflective strip. It sits
  * behind the numeral, not over it - the number must stay the clearest thing.
  */
-export function VestPatch({ value, size = "md", label }: Props) {
+export function VestPatch({ value, size = "md", label, roll, delay = 0 }: Props) {
   const s = SIZE[size];
   const width = s.w + Math.max(0, value.length - 1) * s.fs * 0.5;
+  const numeral = { fontSize: s.fs, lineHeight: Math.round(s.fs * 1.02) };
   return (
     <View
       style={[styles.patch, { width, height: s.h, borderRadius: s.r }]}
@@ -37,13 +45,13 @@ export function VestPatch({ value, size = "md", label }: Props) {
       accessibilityLabel={label ?? value.split("").join(" ")}
     >
       <View style={[styles.strip, { top: s.h * 0.56, height: s.h * 0.14 }]} />
-      <Txt
-        tone="inverse"
-        tabularNums
-        style={[styles.numeral, { fontSize: s.fs, lineHeight: s.fs * 1.02 }]}
-      >
-        {value}
-      </Txt>
+      {roll ? (
+        <Odometer value={value} v="hero" tone="inverse" delay={delay} style={[styles.numeral, numeral]} />
+      ) : (
+        <Txt tone="inverse" tabularNums style={[styles.numeral, numeral]}>
+          {value}
+        </Txt>
+      )}
     </View>
   );
 }
@@ -52,15 +60,11 @@ export function VestPatch({ value, size = "md", label }: Props) {
  * A PIN as a row of patches. Spaced so it can be read out one digit at a time,
  * which is how it is actually used: "four, eight, two, one".
  */
-export function PinPatches({ pin, size = "lg" }: { readonly pin: string; readonly size?: Size }) {
+export function PinPatches({ pin, size = "lg", roll }: { readonly pin: string; readonly size?: Size; readonly roll?: boolean }) {
   return (
-    <View
-      style={styles.row}
-      accessible
-      accessibilityLabel={`Ride PIN ${pin.split("").join(" ")}`}
-    >
+    <View style={styles.row} accessible accessibilityLabel={`Ride PIN ${pin.split("").join(" ")}`}>
       {pin.split("").map((d, i) => (
-        <VestPatch key={i} value={d} size={size} />
+        <VestPatch key={i} value={d} size={size} roll={roll} delay={i * 90} />
       ))}
     </View>
   );

@@ -1,12 +1,27 @@
-import { Modal, StyleSheet, View } from "react-native";
+import { Modal, ScrollView, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Divider, Txt, c, money, space } from "@gera/kit";
+import {
+  Button,
+  Divider,
+  Enter,
+  ImigongoBand,
+  Odometer,
+  SuccessMark,
+  Txt,
+  ZigzagEdge,
+  c,
+  money,
+  radius,
+  space,
+} from "@gera/kit";
 import type { CompleteTripResult } from "@gera/data";
 
 /**
  * The moment money changes hands, so it gets the whole screen. The number to
  * collect is the biggest thing the rider sees all day, because collecting the
- * wrong amount is the one mistake here that costs someone real money.
+ * wrong amount is the one mistake here that costs someone real money. It is set
+ * on the same torn-off receipt the passenger is looking at, so the two screens
+ * can be held side by side at the kerb.
  */
 export function ReceiptSheet({
   result,
@@ -17,48 +32,72 @@ export function ReceiptSheet({
 }) {
   const insets = useSafeAreaInsets();
   if (!result) return null;
+  const total = result.receipt.totalRwf;
   return (
     <Modal visible animationType="fade" onRequestClose={onDone} statusBarTranslucent>
-      <View style={[styles.root, { paddingTop: insets.top + space.xxl, paddingBottom: insets.bottom + space.lg }]}>
-        <View style={styles.flex}>
-          <Txt v="heading" tone="muted">
-            Collect in cash
-          </Txt>
-          <View style={styles.total}>
-            <Txt v="hero" tabularNums style={styles.big}>
-              {money(result.receipt.totalRwf)}
-            </Txt>
-            <Txt v="title" tone="muted">
-              RWF
-            </Txt>
-          </View>
-
-          <View style={styles.lines}>
-            {result.receipt.lines.map((l) => (
-              <View key={l.label} style={styles.line}>
-                <Txt v="body" tone="default">
-                  {l.label}
-                </Txt>
-                <Txt v="bodyStrong" tabularNums>
-                  {money(l.amountRwf)}
-                </Txt>
-              </View>
-            ))}
-            <Divider />
-            <View style={styles.line}>
-              <Txt v="bodyStrong" tone="good">
-                You earned
-              </Txt>
-              <Txt v="figure" tone="good" tabularNums>
-                {money(result.riderEarningRwf)} RWF
+      <View style={[styles.root, { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.lg }]}>
+        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+          <View style={styles.head}>
+            <SuccessMark size={52} />
+            <View style={styles.flex}>
+              <Txt v="h2">Trip complete</Txt>
+              <Txt v="label" tone="muted">
+                Collect the fare before your passenger goes.
               </Txt>
             </View>
           </View>
 
-          <Txt v="label" tone="muted" style={styles.small}>
-            The cash is handed in at the end of your shift. Your share is paid to you separately.
-          </Txt>
-        </View>
+          <Enter i={1}>
+            <View style={styles.receipt}>
+              <Txt v="label" tone="muted">
+                Collect in cash
+              </Txt>
+              <View style={styles.total}>
+                <Odometer value={money(total)} v="hero" style={styles.big} delay={200} accessibilityLabel={`${money(total)} Rwandan francs`} />
+                <Txt v="title" tone="muted">
+                  RWF
+                </Txt>
+              </View>
+              <View style={styles.lines}>
+                {result.receipt.lines.map((l) => (
+                  <View key={l.label} style={styles.line}>
+                    <Txt v="body" tone="muted">
+                      {l.label}
+                    </Txt>
+                    <Txt v="bodyStrong" tabularNums>
+                      {money(l.amountRwf)}
+                    </Txt>
+                  </View>
+                ))}
+              </View>
+              <ImigongoBand height={18} opacity={0.16} style={styles.band} />
+            </View>
+            <ZigzagEdge colour={c.surfaceRaised} />
+          </Enter>
+
+          <Enter i={2}>
+            <View style={styles.earned}>
+              <View style={styles.flex}>
+                <Txt v="bodyStrong" tone="good">
+                  You earned
+                </Txt>
+                <Txt v="caption" tone="muted">
+                  Paid to you separately
+                </Txt>
+              </View>
+              <View style={styles.amount}>
+                <Odometer value={money(result.riderEarningRwf)} v="figure" tone="good" delay={520} />
+                <Txt v="label" tone="good">
+                  RWF
+                </Txt>
+              </View>
+            </View>
+            <Divider />
+            <Txt v="label" tone="muted" style={styles.small}>
+              The cash is company money. Hand it in at the end of your shift.
+            </Txt>
+          </Enter>
+        </ScrollView>
         <Button label="Cash collected" onPress={onDone} icon="checkmark" />
       </View>
     </Modal>
@@ -66,17 +105,24 @@ export function ReceiptSheet({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   root: { flex: 1, backgroundColor: c.surface, paddingHorizontal: space.lg },
-  total: { flexDirection: "row", alignItems: "baseline", gap: space.sm, marginTop: space.xs },
-  big: { fontSize: 88, lineHeight: 92 },
-  lines: {
-    marginTop: space.xl,
-    padding: space.md,
-    gap: space.md,
-    borderRadius: 20,
+  scroll: { gap: space.lg, paddingBottom: space.lg },
+  head: { flexDirection: "row", alignItems: "center", gap: space.md, paddingTop: space.md },
+  receipt: {
     backgroundColor: c.surfaceRaised,
+    borderTopLeftRadius: radius.lg,
+    borderTopRightRadius: radius.lg,
+    paddingHorizontal: space.md,
+    paddingTop: space.md,
+    gap: space.xs,
   },
+  total: { flexDirection: "row", alignItems: "baseline", gap: space.sm },
+  big: { fontSize: 84, lineHeight: 88 },
+  lines: { marginTop: space.sm, gap: space.sm },
   line: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  band: { marginTop: space.md, marginHorizontal: -space.md },
+  earned: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: space.md },
+  amount: { flexDirection: "row", alignItems: "baseline", gap: 4 },
   small: { marginTop: space.md },
 });

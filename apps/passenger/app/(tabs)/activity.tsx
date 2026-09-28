@@ -1,7 +1,21 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, Alert, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Button, Divider, Group, Row, Screen, Txt, c, money, space } from "@gera/kit";
+import {
+  Divider,
+  EmptyState,
+  Group,
+  Row,
+  Screen,
+  SkeletonRows,
+  Stat,
+  StatRow,
+  c,
+  money,
+  radius,
+  space,
+  useOverlay,
+} from "@gera/kit";
 import { statusFor } from "@gera/ui";
 import {
   cancelTrip,
@@ -11,9 +25,9 @@ import {
   listTrips,
   listUpcoming,
   skipOccurrence,
+  tripTime,
   whenLabel,
   type RecurringSchedule,
-  tripTime,
   type TripHistoryItem,
   type UpcomingRide,
 } from "@gera/data";
@@ -30,8 +44,11 @@ function dayKey(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
 
+const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+
 export default function Activity() {
   const router = useRouter();
+  const overlay = useOverlay();
   const { userId } = useSession();
   const [trips, setTrips] = useState<TripHistoryItem[] | null>(null);
   const [upcoming, setUpcoming] = useState<UpcomingRide[]>([]);
@@ -63,38 +80,53 @@ export default function Activity() {
 
   const refresh = () => setReload((n) => n + 1);
 
-  // NOVA §12: one day can be skipped or cancelled without touching the rest.
+  // NOVA §12: one day can be moved, skipped or cancelled without touching the rest.
   const manage = (r: UpcomingRide) =>
-    Alert.alert(`${whenLabel(r.scheduledFor)}`, `To ${r.dropoffLabel}`, [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Change the time",
-        onPress: () =>
-          router.push({
-            pathname: "/change-ride",
-            params: { trip: r.id, at: r.scheduledFor, to: r.dropoffLabel, ...(r.scheduleId ? { regular: "1" } : {}) },
-          }),
-      },
-      ...(r.scheduleId
-        ? [{ text: "Skip this day", onPress: () => void skipOccurrence(supabase, r.id).then(refresh).catch(() => {}) }]
-        : []),
-      {
-        text: r.scheduleId ? "Cancel this ride" : "Cancel ride",
-        style: "destructive" as const,
-        onPress: () => void cancelTrip(supabase, r.id, "passenger").then(refresh).catch(() => {}),
-      },
-    ]);
-
-  // NOVA §53, §54: what people come back to a past trip for.
-  const aboutTrip = (t: TripHistoryItem) => {
-    const report = (kind: "lost_property" | "complaint") =>
-      router.push({ pathname: "/report", params: { trip: t.id, to: t.dropoffLabel, kind } });
-    Alert.alert(`To ${t.dropoffLabel}`, new Date(tripTime(t)).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }), [
-      { text: "I left something behind", onPress: () => report("lost_property") },
-      { text: "Report a problem", onPress: () => report("complaint") },
-      { text: "Close", style: "cancel" },
-    ]);
-  };
+    overlay.actions({
+      title: whenLabel(r.scheduledFor),
+      message: `To ${r.dropoffLabel}${r.riderName ? `. ${r.riderName} is planned to take you.` : ""}`,
+      options: [
+        {
+          label: "Change the time",
+          hint: "Same day, same price",
+          icon: "time",
+          onPress: () =>
+            router.push({
+              pathname: "/change-ride",
+              params: { trip: r.id, at: r.scheduledFor, to: r.dropoffLabel, ...(r.scheduleId ? { regular: "1" } : {}) },
+            }),
+        },
+        ...(r.scheduleId
+          ? [
+              {
+                label: "Skip this day",
+                hint: "The rest of your regular trip carries on",
+                icon: "play-skip-forward" as const,
+                onPress: () =>
+                  void skipOccurrence(supabase, r.id)
+                    .then(() => {
+                      overlay.toast({ message: "Skipped. The rest of your rides are unchanged.", tone: "good" });
+                      refresh();
+                    })
+                    .catch(() => overlay.toast({ message: "Couldn't skip that ride. Try again.", tone: "bad" })),
+              },
+            ]
+          : []),
+        {
+          label: r.scheduleId ? "Cancel this ride" : "Cancel ride",
+          icon: "close-circle",
+          tone: "danger",
+          onPress: () =>
+            void cancelTrip(supabase, r.id, "passenger")
+              .then(() => {
+                overlay.toast({ message: "Ride cancelled. You haven't been charged.", tone: "good" });
+                refresh();
+              })
+              .catch(() => overlay.toast({ message: "Couldn't cancel that ride. Try again.", tone: "bad" })),
+        },
+      ],
+      cancelLabel: "Keep it",
+    });
 
   const completed = (trips ?? []).filter((t) => t.state === "completed");
   const spent = completed.reduce((s, t) => s + (t.fareRwf ?? 0), 0);
@@ -107,18 +139,19 @@ export default function Activity() {
     else groups.push({ day: k, items: [t] });
   }
 
+  const nothing = trips !== null && trips.length === 0 && upcoming.length === 0 && schedules.length === 0;
+
   return (
     <Screen title="Activity">
       {trips === null ? (
-        <ActivityIndicator color={c.accent} />
-      ) : trips.length === 0 && upcoming.length === 0 && schedules.length === 0 ? (
-        <View style={styles.empty}>
-          <Txt v="heading">No trips yet</Txt>
-          <Txt v="body" tone="muted">
-            Your rides will show up here, with what you paid and who took you.
-          </Txt>
-          <Button label="Book a ride" onPress={() => router.push("/")} />
-        </View>
+        <SkeletonRows count={5} />
+      ) : nothing ? (
+        <EmptyState
+          icon="navigate"
+          title="No trips yet"
+          body="Your rides will show up here, with what you paid and who took you."
+          action={{ label: "Book a ride", onPress: () => router.push("/") }}
+        />
       ) : (
         <View style={styles.stack}>
           {schedules.length > 0 ? (
@@ -128,8 +161,10 @@ export default function Activity() {
                   {i > 0 ? <Divider inset={70} /> : null}
                   <Row
                     title={`${daysLabel(s.days)} at ${s.timeOfDay}`}
-                    subtitle={`To ${s.dropoffLabel} · until ${new Date(`${s.endDate}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short" })} · ${money(s.amountRwf)} RWF`}
+                    subtitle={`To ${s.dropoffLabel}, until ${new Date(`${s.endDate}T12:00:00Z`).toLocaleDateString(undefined, { day: "numeric", month: "short" })}`}
                     icon="repeat"
+                    value={money(s.amountRwf)}
+                    valueNote="each ride"
                     onPress={() => router.push({ pathname: "/change-regular", params: { id: s.id } })}
                   />
                 </View>
@@ -138,15 +173,20 @@ export default function Activity() {
           ) : null}
 
           {upcoming.length > 0 ? (
-            <Group title="Upcoming">
+            <Group title="Coming up">
               {upcoming.map((r, i) => (
                 <View key={r.id}>
                   {i > 0 ? <Divider inset={70} /> : null}
                   <Row
                     title={whenLabel(r.scheduledFor)}
-                    subtitle={`To ${r.dropoffLabel}${r.scheduleId ? " · regular" : ""}${r.moved ? " · moved" : ""}${r.riderName ? ` · ${r.riderName} planned` : ""}`}
+                    subtitle={
+                      r.riderName
+                        ? `To ${r.dropoffLabel}\n${r.riderName} planned${r.moved ? ", time changed by you" : ""}`
+                        : `To ${r.dropoffLabel}${r.moved ? "\nTime changed by you" : ""}`
+                    }
                     icon={r.scheduleId ? "repeat" : "calendar"}
                     value={r.fareRwf !== null ? money(r.fareRwf) : undefined}
+                    valueNote={r.fareRwf !== null ? "RWF" : undefined}
                     onPress={() => manage(r)}
                   />
                 </View>
@@ -154,25 +194,13 @@ export default function Activity() {
             </Group>
           ) : null}
 
-          {trips.length > 0 ? (
-          <View style={styles.summary}>
-            <View style={styles.cell}>
-              <Txt v="display" tabularNums>
-                {completed.length}
-              </Txt>
-              <Txt v="label" tone="muted">
-                {completed.length === 1 ? "trip taken" : "trips taken"}
-              </Txt>
+          {completed.length > 0 ? (
+            <View style={styles.summary}>
+              <StatRow>
+                <Stat label={completed.length === 1 ? "trip taken" : "trips taken"} value={String(completed.length)} roll />
+                <Stat label="RWF spent" value={money(spent)} roll />
+              </StatRow>
             </View>
-            <View style={styles.cell}>
-              <Txt v="display" tabularNums>
-                {money(spent)}
-              </Txt>
-              <Txt v="label" tone="muted">
-                RWF spent
-              </Txt>
-            </View>
-          </View>
           ) : null}
 
           {groups.map((g) => (
@@ -186,20 +214,15 @@ export default function Activity() {
                     {i > 0 ? <Divider inset={70} /> : null}
                     <Row
                       title={t.dropoffLabel}
-                      subtitle={`From ${t.pickupLabel} · ${new Date(tripTime(t)).toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}${done ? "" : ` · ${s.label}`}`}
+                      subtitle={done ? `From ${t.pickupLabel}` : `${s.label}\nFrom ${t.pickupLabel}`}
                       icon={going ? "navigate" : done ? "checkmark" : "close"}
                       iconTone={going ? "accent" : done ? "good" : "neutral"}
                       value={done && t.fareRwf !== null ? money(t.fareRwf) : undefined}
-                      onPress={
+                      valueNote={time(tripTime(t))}
+                      onPress={() =>
                         going
-                          ? () => router.push({ pathname: "/ride", params: { trip: t.id } })
-                          : // Lost property and complaints are about rides that happened.
-                            done
-                            ? () => aboutTrip(t)
-                            : undefined
+                          ? router.push({ pathname: "/ride", params: { trip: t.id } })
+                          : router.push({ pathname: "/trip/[id]", params: { id: t.id } })
                       }
                     />
                   </View>
@@ -215,7 +238,5 @@ export default function Activity() {
 
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
-  empty: { gap: space.md, paddingVertical: space.xl },
-  summary: { flexDirection: "row", gap: space.md },
-  cell: { flex: 1, backgroundColor: c.surfaceRaised, borderRadius: 20, padding: space.md },
+  summary: { backgroundColor: c.surfaceRaised, borderRadius: radius.lg, padding: space.md },
 });

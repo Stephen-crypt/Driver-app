@@ -1,8 +1,20 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { Divider, Group, Row, Screen, Txt, c, money, space } from "@gera/kit";
-import { statusFor } from "@gera/ui";
+import {
+  Chip,
+  Divider,
+  EmptyState,
+  Group,
+  Row,
+  RouteRail,
+  Screen,
+  SkeletonRows,
+  Txt,
+  money,
+  space,
+  type ChipTone,
+} from "@gera/kit";
 import { listPlannedRides, listTrips, whenLabel, type PlannedRide, tripTime, type TripHistoryItem } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
@@ -16,6 +28,18 @@ function dayKey(iso: string): string {
   if (d.toDateString() === yesterday.toDateString()) return "Yesterday";
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
+
+// Told from the rider's side. The shared labels are the passenger's ("You
+// cancelled"), which on this screen would blame the rider for the passenger's
+// cancellation.
+const STATUS: Record<string, { label: string; tone: ChipTone }> = {
+  cancelled_by_passenger: { label: "Passenger cancelled", tone: "neutral" },
+  cancelled_by_rider: { label: "You cancelled", tone: "bad" },
+  no_show: { label: "Passenger didn't come", tone: "warn" },
+  accepted: { label: "In progress", tone: "accent" },
+  arrived: { label: "In progress", tone: "accent" },
+  in_progress: { label: "In progress", tone: "accent" },
+};
 
 export default function Trips() {
   const { riderId } = useSession();
@@ -52,11 +76,11 @@ export default function Trips() {
   // as offers - being planned is not being booked.
   const bookedForYou =
     planned.length > 0 ? (
-      <Group title="Planned for you">
+      <Group key="planned" title="Planned for you">
         {planned.map((p, i) => (
           <View key={p.id}>
-            {i > 0 ? <Divider inset={70} /> : null}
-            <Row title={whenLabel(p.scheduledFor)} subtitle={`${p.passengerName} · ${p.pickupLabel} to ${p.dropoffLabel}`} icon="calendar" />
+            {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+            <Row title={whenLabel(p.scheduledFor)} subtitle={`${p.passengerName}, ${p.pickupLabel} to ${p.dropoffLabel}`} icon="calendar" />
           </View>
         ))}
         <Txt v="caption" tone="muted" style={styles.note}>
@@ -66,50 +90,74 @@ export default function Trips() {
     ) : null;
 
   return (
-    <Screen title="Trips">
+    <Screen title="Trips" gap={space.lg}>
       {bookedForYou}
       {trips === null ? (
-        <ActivityIndicator color={c.accent} />
+        <SkeletonRows key="loading" count={4} />
       ) : trips.length === 0 ? (
-        <View style={styles.empty}>
-          <Txt v="heading">No trips yet</Txt>
-          <Txt v="body" tone="muted">
-            Start a shift and go online. Every trip you take lands here.
-          </Txt>
-        </View>
+        <EmptyState key="empty" icon="navigate" title="No trips yet" body="Start a shift and go online. Every trip you take lands here." />
       ) : (
-        <View style={styles.stack}>
-          {groups.map((g) => (
-            <Group key={g.day} title={g.day}>
-              {g.items.map((t, i) => {
-                const s = statusFor(t.state);
-                const done = t.state === "completed";
-                return (
-                  <View key={t.id}>
-                    {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
-                    <Row
-                      title={`${t.pickupLabel} → ${t.dropoffLabel}`}
-                      subtitle={`${new Date(tripTime(t)).toLocaleTimeString(undefined, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })} · ${s.label}`}
-                      icon={done ? "checkmark" : s.tone === "danger" ? "close" : "time-outline"}
-                      iconTone={done ? "good" : s.tone === "danger" ? "bad" : "neutral"}
-                      value={done && t.fareRwf !== null ? money(t.fareRwf) : undefined}
-                    />
-                  </View>
-                );
-              })}
+        groups.map((g) => {
+          const done = g.items.filter((t) => t.state === "completed");
+          const fares = done.reduce((sum, t) => sum + (t.fareRwf ?? 0), 0);
+          return (
+            <Group
+              key={g.day}
+              title={g.day}
+              meta={`${done.length} ${done.length === 1 ? "trip" : "trips"}, ${money(fares)} RWF`}
+            >
+              {g.items.map((t, i) => (
+                <View key={t.id}>
+                  {i > 0 ? <Divider inset={space.md} /> : null}
+                  <TripItem trip={t} />
+                </View>
+              ))}
             </Group>
-          ))}
-        </View>
+          );
+        })
       )}
     </Screen>
   );
 }
 
+function TripItem({ trip }: { readonly trip: TripHistoryItem }) {
+  const time = new Date(tripTime(trip)).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const done = trip.state === "completed";
+  const status = STATUS[trip.state] ?? { label: "Ended", tone: "neutral" as ChipTone };
+  return (
+    <View
+      style={styles.item}
+      accessible
+      accessibilityLabel={`${time}, ${trip.pickupLabel} to ${trip.dropoffLabel}. ${done && trip.fareRwf !== null ? `${money(trip.fareRwf)} Rwandan francs` : status.label}`}
+    >
+      <Txt v="bodyStrong" tone="muted" tabularNums style={styles.time}>
+        {time}
+      </Txt>
+      <View style={styles.route}>
+        <RouteRail dense from={{ label: trip.pickupLabel }} to={{ label: trip.dropoffLabel }} />
+      </View>
+      <View style={styles.end}>
+        {done ? (
+          <>
+            <Txt v="bodyStrong" tabularNums>
+              {trip.fareRwf === null ? "-" : money(trip.fareRwf)}
+            </Txt>
+            <Txt v="caption" tone="muted">
+              RWF
+            </Txt>
+          </>
+        ) : (
+          <Chip label={status.label} tone={status.tone} />
+        )}
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  note: { paddingHorizontal: 16, paddingBottom: 12 },
-  stack: { gap: space.lg },
-  empty: { gap: space.xs, paddingVertical: space.xl },
+  note: { paddingHorizontal: space.md, paddingBottom: space.md },
+  item: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm + 2 },
+  time: { width: 48 },
+  route: { flex: 1, minWidth: 0 },
+  end: { alignItems: "flex-end", maxWidth: 120 },
 });

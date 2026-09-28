@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { kigaliDateTime, kigaliTime, money, rpc } from "../lib/supabase";
+import { Odometer, SkeletonPage } from "../components/ui";
 
 interface Detail {
   id: string;
@@ -48,20 +49,29 @@ export function TripDetail() {
       .catch((e: Error) => setError(e.message));
   }, [id]);
 
-  if (!d) return <div className="page">{error ? <div className="notice bad">{error}</div> : "Loading…"}</div>;
+  if (!d)
+    return error ? (
+      <div className="page">
+        <div className="notice bad">{error}</div>
+      </div>
+    ) : (
+      <SkeletonPage />
+    );
 
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <p className="sub" style={{ margin: 0 }}>
-            <Link to="/trips">Trips</Link> · <span className="small">{d.id}</span>
+            <Link to="/trips">Trips</Link>
+            <span className="crumb" aria-hidden="true">/</span>
+            <span className="small">{d.id}</span>
           </p>
           <h1>
-            {d.pickup_label} → {d.dropoff_label}
+            {d.pickup_label} to {d.dropoff_label}
           </h1>
           <p className="sub">
-            {d.vehicle_class} · booked {kigaliDateTime(d.created_at)}
+            {d.vehicle_class === "moto" ? "Moto" : d.vehicle_class === "cab" ? "Cab" : "Cab XL"}, booked {kigaliDateTime(d.created_at)}
             {d.scheduled_for ? ` for ${kigaliDateTime(d.scheduled_for)}` : ""}
           </p>
         </div>
@@ -96,7 +106,7 @@ export function TripDetail() {
         </div>
         <div className="card stat">
           <div className="figure">
-            {money(d.total?.total_rwf ?? d.fare_rwf)}
+            <Odometer value={money(d.total?.total_rwf ?? d.fare_rwf)} />
             <small>RWF</small>
           </div>
           <div className="label">
@@ -113,7 +123,7 @@ export function TripDetail() {
               <li key={i}>
                 <time>{kigaliTime(e.at)}</time>
                 <span>
-                  {WORDS[e.to] ?? e.to} <span className="small muted">· {e.actor}</span>
+                  {WORDS[e.to] ?? e.to} <span className="small muted">by {e.actor}</span>
                 </span>
               </li>
             ))}

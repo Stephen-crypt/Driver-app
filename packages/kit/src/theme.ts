@@ -61,6 +61,8 @@ export const type = StyleSheet.create({
   display: { fontFamily: font.numBold, fontSize: 46, lineHeight: 48, letterSpacing: -0.3 },
   /** Screen titles. Condensed, so a Kinyarwanda title still fits one line. */
   title: { fontFamily: font.num, fontSize: 32, lineHeight: 36 },
+  /** Sheet and card titles: condensed, one step down from a screen title. */
+  h2: { fontFamily: font.num, fontSize: 26, lineHeight: 30 },
   /** A figure inside a row or a stat. */
   figure: { fontFamily: font.num, fontSize: 26, lineHeight: 30 },
   heading: { fontFamily: font.semibold, fontSize: 18, lineHeight: 24 },
@@ -93,3 +95,6 @@ export const shadow = {
 } as const;
 
 export const money = (rwf: number): string => Math.round(rwf).toLocaleString("en-US");
+
+/** What sits behind a modal sheet. */
+export const scrim = "rgba(11,13,18,0.48)";

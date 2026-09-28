@@ -1,18 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Chip, Divider, Group, Screen, Txt, c, space, tap, type IconName } from "@gera/kit";
+import { Banner, Button, Chip, ChoiceRow, Divider, Group, Screen, Txt, Well, c, radius, space, type IconName } from "@gera/kit";
 import { PAYMENT_KINDS, listPaymentMethods, setDefaultPaymentMethod, type PaymentKind } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
 
 const ICONS: Record<PaymentKind, IconName> = {
-  cash: "cash-outline",
-  mtn_momo: "phone-portrait-outline",
-  airtel_money: "phone-portrait-outline",
-  card: "card-outline",
+  cash: "cash",
+  mtn_momo: "phone-portrait",
+  airtel_money: "phone-portrait",
+  card: "card",
 };
 
 export default function Payment() {
@@ -59,52 +58,51 @@ export default function Payment() {
       subtitle="Cash is how Gera works today. We'd rather show you what's coming than pretend it's here."
       onBack={() => goBack(router)}
       footer={<Button label="Done" onPress={() => goBack(router)} />}
+      gap={space.lg}
     >
-      <Group>
-        {PAYMENT_KINDS.map((p, i) => {
-          const on = selected === p.kind;
-          return (
-            <View key={p.kind}>
-              {i > 0 ? <Divider inset={70} /> : null}
-              <Pressable
-                onPress={() => {
-                  tap();
-                  void choose(p.kind);
-                }}
-                disabled={!p.live || busy}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: on, disabled: !p.live }}
-                style={[styles.row, !p.live && styles.dim]}
-              >
-                <View style={[styles.well, on && styles.wellOn]}>
-                  <Ionicons name={ICONS[p.kind]} size={20} color={on ? c.onAccent : c.textMuted} />
-                </View>
-                <View style={styles.flex}>
-                  <Txt v="bodyStrong">{p.label}</Txt>
-                  <Txt v="label" tone="muted">
-                    {p.blurb}
-                  </Txt>
-                </View>
-                {on ? <Ionicons name="checkmark-circle" size={24} color={c.accent} /> : !p.live ? <Chip label="Soon" /> : null}
-              </Pressable>
-            </View>
-          );
-        })}
+      <Group key="methods">
+        {PAYMENT_KINDS.map((p, i) => (
+          <View key={p.kind}>
+            {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+            <ChoiceRow
+              kind="radio"
+              icon={ICONS[p.kind]}
+              on={selected === p.kind}
+              onPress={() => void choose(p.kind)}
+              disabled={!p.live || busy}
+              title={p.label}
+              hint={p.blurb}
+              trailing={!p.live ? <Chip label="Soon" /> : undefined}
+            />
+          </View>
+        ))}
       </Group>
       {error ? (
-        <View style={styles.error}>
-          <Banner tone="bad" icon="alert-circle">{error}</Banner>
-        </View>
+        <Banner key="error" tone="bad" icon="alert-circle">
+          {error}
+        </Banner>
       ) : null}
+      <View key="how" style={styles.how}>
+        <Well icon="cash" tone="good" />
+        <View style={styles.flex}>
+          <Txt v="bodyStrong">How paying in cash works</Txt>
+          <Txt v="label" tone="muted">
+            The price is fixed before you book. At the end, your screen and your rider's show the same amount, so there is
+            nothing to argue about. Pay them, and you're done.
+          </Txt>
+        </View>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  row: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, minHeight: 68 },
-  dim: { opacity: 0.55 },
-  well: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.surfaceHigh, alignItems: "center", justifyContent: "center" },
-  wellOn: { backgroundColor: c.accent },
-  error: { marginTop: space.md },
+  flex: { flex: 1, minWidth: 0 },
+  how: {
+    flexDirection: "row",
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: c.surfaceRaised,
+  },
 });

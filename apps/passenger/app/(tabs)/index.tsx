@@ -1,9 +1,25 @@
 import { useCallback, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Banner, Chip, GeraMap, Paper, Txt, c, font, radius, space, tap } from "@gera/kit";
+import {
+  Banner,
+  Chip,
+  Enter,
+  GeraMap,
+  LiveDot,
+  Paper,
+  Press,
+  Segmented,
+  Txt,
+  c,
+  font,
+  radius,
+  space,
+  tap,
+  useSettledHeight,
+} from "@gera/kit";
 import {
   getActivePassengerTrip,
   listUpcoming,
@@ -30,14 +46,6 @@ function greeting(now = new Date()): string {
   return now.getHours() < 12 ? "Mwaramutse" : "Mwiriwe";
 }
 
-const shadowSoft = {
-  shadowColor: "#0B0D12",
-  shadowOpacity: 0.08,
-  shadowRadius: 4,
-  shadowOffset: { width: 0, height: 1 },
-  elevation: 2,
-} as const;
-
 const LIVE_COPY: Record<string, string> = {
   requested: "Finding you a rider",
   offered: "Finding you a rider",
@@ -45,6 +53,24 @@ const LIVE_COPY: Record<string, string> = {
   arrived: "Your rider is here",
   in_progress: "You're on your way",
 };
+
+type Mode = "now" | "later" | "regular";
+
+const MODES = [
+  { value: "now", label: "Ride now" },
+  { value: "later", label: "Schedule" },
+  { value: "regular", label: "Regular" },
+] as const;
+
+const PROMPT: Record<Mode, string> = {
+  now: "Where to?",
+  later: "Where, and when?",
+  regular: "Your regular trip",
+};
+
+function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
+  return /home|urugo/i.test(label) ? "home" : /work|office|akazi/i.test(label) ? "briefcase" : "bookmark";
+}
 
 export default function Home() {
   const router = useRouter();
@@ -57,10 +83,10 @@ export default function Home() {
   const [saved, setSaved] = useState<SavedPlace[]>([]);
   const [recent, setRecent] = useState<string[]>([]);
   const [live, setLive] = useState<TripSnapshot | null>(null);
-  const [paperH, setPaperH] = useState(300);
+  const [paperH, onPaperLayout] = useSettledHeight(320);
   // NOVA §7: three ways to book, and only three - "later" and "prebook" are
   // the same idea and a fourth button would only confuse.
-  const [mode, setMode] = useState<"now" | "later" | "regular">("now");
+  const [mode, setMode] = useState<Mode>("now");
   const [next, setNext] = useState<UpcomingRide | null>(null);
 
   // Where the passenger actually is. The pickup used to be a constant -
@@ -98,13 +124,13 @@ export default function Home() {
           getActivePassengerTrip(supabase, userId).catch(() => null),
           listUpcoming(supabase, userId).catch(() => [] as UpcomingRide[]),
         ]);
-        setNext(upcoming[0] ?? null);
         if (!active) return;
+        setNext(upcoming[0] ?? null);
         setName((profile.data as { first_name?: string } | null)?.first_name ?? null);
         setSaved(places);
         setLive(trip);
-        // Recent destinations, most recent first, each once.
-        const seen = new Set<string>();
+        // Recent destinations, most recent first, each once, none already saved.
+        const seen = new Set<string>(places.map((p) => p.label));
         setRecent(
           history
             .filter((t) => t.state === "completed")
@@ -132,17 +158,14 @@ export default function Home() {
     };
   }, [userId]);
 
+  const pickupParams = {
+    ...(here ? { plat: String(here.lat), plng: String(here.lng) } : {}),
+    ...(pickupLabel ? { plabel: pickupLabel } : {}),
+  };
+
   const go = (params: Record<string, string> = {}) => {
     tap();
-    router.push({
-      pathname: "/destination",
-      params: {
-        ...(here ? { plat: String(here.lat), plng: String(here.lng) } : {}),
-        ...(pickupLabel ? { plabel: pickupLabel } : {}),
-        mode,
-        ...params,
-      },
-    });
+    router.push({ pathname: "/destination", params: { ...pickupParams, mode, ...params } });
   };
 
   const choose = (p: SavedPlace) =>
@@ -153,11 +176,12 @@ export default function Home() {
         lng: String(p.lng),
         label: p.label,
         ...(p.note ? { note: p.note } : {}),
-        ...(here ? { plat: String(here.lat), plng: String(here.lng) } : {}),
-        ...(pickupLabel ? { plabel: pickupLabel } : {}),
+        ...pickupParams,
         mode,
       },
     });
+
+  const hasPlaces = saved.length > 0 || recent.length > 0;
 
   return (
     <View style={styles.root}>
@@ -168,91 +192,72 @@ export default function Home() {
         bottomInset={paperH}
       />
 
-      <View style={styles.sheet} onLayout={(e) => setPaperH(e.nativeEvent.layout.height)}>
+      <View style={styles.sheet} onLayout={onPaperLayout}>
         <Paper padBottom={false}>
           <View style={styles.stack}>
             {live ? (
-              <Pressable
-                onPress={() => router.push({ pathname: "/ride", params: { trip: live.id } })}
-                accessibilityRole="button"
-                style={styles.live}
-              >
-                <View style={styles.liveDot} />
-                <View style={styles.flex}>
-                  <Txt v="bodyStrong" tone="inverse">
-                    {LIVE_COPY[live.state] ?? "Your trip"}
-                  </Txt>
-                  <Txt v="label" tone="inverse" lines={1} style={styles.liveSub}>
-                    To {live.dropoffLabel}
-                  </Txt>
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={c.onAccent} />
-              </Pressable>
-            ) : null}
-
-            <Txt v="label" tone="muted">
-              {greeting()}
-              {name ? `, ${name}` : ""}
-            </Txt>
-
-            <View style={styles.modes} accessibilityRole="radiogroup">
-              {(
-                [
-                  ["now", "Ride now"],
-                  ["later", "Schedule"],
-                  ["regular", "Regular"],
-                ] as const
-              ).map(([k, l]) => (
-                <Pressable
-                  key={k}
-                  onPress={() => {
-                    tap();
-                    setMode(k);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: mode === k }}
-                  style={[styles.mode, mode === k && styles.modeOn]}
+              <Enter i={0}>
+                <Press
+                  onPress={() => router.push({ pathname: "/ride", params: { trip: live.id } })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${LIVE_COPY[live.state] ?? "Your trip"}, to ${live.dropoffLabel}`}
+                  style={styles.live}
                 >
-                  <Txt v="label" tone={mode === k ? "strong" : "muted"}>
-                    {l}
-                  </Txt>
-                </Pressable>
-              ))}
-            </View>
-
-            {/* The whole of the home screen's job. Set in the condensed face at
-                title size: it is a question, and it should read like one. */}
-            <Pressable
-              onPress={() => go()}
-              accessibilityRole="button"
-              accessibilityLabel="Where to?"
-              style={({ pressed }) => [styles.search, pressed && styles.pressed]}
-            >
-              <Ionicons name="search" size={22} color={c.textStrong} />
-              <Txt v="title" style={styles.searchText}>
-                {mode === "now" ? "Where to?" : mode === "later" ? "Where, and when?" : "Your regular trip"}
-              </Txt>
-            </Pressable>
-
-            <View style={styles.pickup}>
-              <View style={styles.pickupDot} />
-              <Txt v="label" tone="muted" lines={1} style={styles.flex}>
-                Pickup ·{" "}
-                <Txt v="label" tone="strong">
-                  {pickupLabel ?? (gpsDenied ? "Location is off" : "Finding you…")}
-                </Txt>
-              </Txt>
-            </View>
-
-            {next ? (
-              <Pressable onPress={() => router.push("/activity")} style={styles.next} accessibilityRole="button">
-                <Ionicons name="calendar-outline" size={18} color={c.accent} />
-                <Txt v="label" lines={1} style={styles.flex}>
-                  Next: {whenLabel(next.scheduledFor)} to {next.dropoffLabel}
-                </Txt>
-                <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
-              </Pressable>
+                  <LiveDot tone="good" size={9} />
+                  <View style={styles.flex}>
+                    <Txt v="bodyStrong" tone="inverse">
+                      {LIVE_COPY[live.state] ?? "Your trip"}
+                    </Txt>
+                    <Txt v="label" tone="inverse" lines={1} style={styles.liveSub}>
+                      To {live.dropoffLabel}
+                    </Txt>
+                  </View>
+                  <Ionicons name="chevron-forward" size={20} color={c.onAccent} />
+                </Press>
+              </Enter>
             ) : null}
+
+            <Enter i={1} style={styles.greetingRow}>
+              <Txt v="h2">
+                {greeting()}
+                {name ? `, ${name}` : ""}
+              </Txt>
+            </Enter>
+
+            <Enter i={2}>
+              <Segmented label="How to book" options={MODES} value={mode} onChange={setMode} />
+            </Enter>
+
+            {/* The home screen's whole job, drawn the way every route in Gera is
+                drawn: a ring where you are, a square where you are going. The
+                square is the question. */}
+            <Enter i={3}>
+              <Press onPress={() => go()} scaleTo={0.985} accessibilityRole="button" accessibilityLabel={PROMPT[mode]} style={styles.search}>
+                <View style={styles.rail} pointerEvents="none">
+                  <View style={styles.ring} />
+                  <View style={styles.railLine} />
+                  <View style={styles.square} />
+                </View>
+                <View style={styles.flex}>
+                  <View style={styles.pickupLine}>
+                    <Txt v="caption" tone="muted">
+                      Pickup
+                    </Txt>
+                    <Txt v="label" tone="strong" lines={1}>
+                      {pickupLabel ?? (gpsDenied ? "Location is off" : "Finding where you are…")}
+                    </Txt>
+                  </View>
+                  <View style={styles.searchLine}>
+                    <Txt v="title" style={styles.searchText} lines={1}>
+                      {PROMPT[mode]}
+                    </Txt>
+                    <View style={styles.searchIcon}>
+                      <Ionicons name="search" size={20} color={c.onAccent} />
+                    </View>
+                  </View>
+                </View>
+              </Press>
+            </Enter>
 
             {gpsDenied ? (
               <Banner tone="warn" icon="location">
@@ -260,31 +265,43 @@ export default function Home() {
               </Banner>
             ) : null}
 
-            {saved.length > 0 || recent.length > 0 ? (
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
-                {saved.map((p) => (
-                  <Pressable key={p.id} onPress={() => choose(p)} style={styles.place} accessibilityRole="button">
-                    <Ionicons name={/home/i.test(p.label) ? "home" : /work|office/i.test(p.label) ? "briefcase" : "bookmark"} size={16} color={c.accent} />
-                    <Txt v="label" lines={1}>
-                      {p.label}
+            {next ? (
+              <Enter i={4}>
+                <Press onPress={() => router.push("/activity")} scaleTo={0.985} style={styles.next} accessibilityRole="button" accessibilityLabel={`Next ride ${whenLabel(next.scheduledFor)} to ${next.dropoffLabel}`}>
+                  <View style={styles.nextIcon}>
+                    <Ionicons name={next.scheduleId ? "repeat" : "calendar"} size={17} color={c.accent} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Txt v="bodyStrong" lines={1}>
+                      {whenLabel(next.scheduledFor)}
                     </Txt>
-                  </Pressable>
-                ))}
-                {recent.map((r) => (
-                  <Pressable key={r} onPress={() => go({ q: r })} style={styles.place} accessibilityRole="button">
-                    <Ionicons name="time-outline" size={16} color={c.textMuted} />
-                    <Txt v="label" lines={1}>
-                      {r}
+                    <Txt v="label" tone="muted" lines={1}>
+                      To {next.dropoffLabel}
                     </Txt>
-                  </Pressable>
-                ))}
-              </ScrollView>
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={c.textMuted} />
+                </Press>
+              </Enter>
+            ) : null}
+
+            {hasPlaces ? (
+              <Enter i={5}>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+                  {saved.map((p) => (
+                    <Chip key={p.id} label={p.label} icon={placeIcon(p.label)} tone="accent" onPress={() => choose(p)} />
+                  ))}
+                  {recent.map((r) => (
+                    <Chip key={r} label={r} icon="time-outline" onPress={() => go({ q: r })} />
+                  ))}
+                </ScrollView>
+              </Enter>
             ) : (
-              <View style={styles.firstRun}>
-                <Chip label="Moto" icon="bicycle" />
-                <Chip label="Cab" icon="car" />
-                <Chip label="Price agreed before you go" icon="pricetag" tone="accent" />
-              </View>
+              <Enter i={5} style={styles.promise}>
+                <Ionicons name="pricetag" size={15} color={c.accent} />
+                <Txt v="label" tone="muted" style={styles.flex}>
+                  Motos and cabs, at a price you agree before you go.
+                </Txt>
+              </Enter>
             )}
           </View>
         </Paper>
@@ -294,54 +311,55 @@ export default function Home() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   root: { flex: 1, backgroundColor: c.surface },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   stack: { gap: space.md },
+  greetingRow: { paddingHorizontal: 2 },
   search: {
     flexDirection: "row",
-    alignItems: "center",
     gap: space.md,
-    minHeight: 64,
-    paddingHorizontal: space.lg,
+    paddingLeft: space.md,
+    paddingRight: space.sm,
+    paddingVertical: space.md,
     borderRadius: radius.lg,
     backgroundColor: c.surfaceHigh,
   },
-  searchText: { fontFamily: font.numBold },
-  pressed: { opacity: 0.85 },
-  pickup: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.xs },
-  pickupDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.textStrong },
-  chips: { gap: space.sm, paddingRight: space.md },
-  place: {
-    flexDirection: "row",
+  rail: { width: 14, alignItems: "center", paddingTop: 16, paddingBottom: 21 },
+  ring: { width: 12, height: 12, borderRadius: 6, borderWidth: 3, borderColor: c.textStrong, backgroundColor: c.surfaceHigh },
+  railLine: { flex: 1, width: 2, borderRadius: 1, backgroundColor: c.border, marginVertical: 3 },
+  square: { width: 12, height: 12, borderRadius: 3, backgroundColor: c.destination },
+  pickupLine: { gap: 1, paddingBottom: space.md, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border, marginRight: space.sm },
+  searchLine: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingTop: space.sm },
+  searchText: { flex: 1, fontFamily: font.numBold, fontSize: 30, lineHeight: 36 },
+  searchIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: c.accent,
     alignItems: "center",
-    gap: 6,
-    maxWidth: 190,
-    paddingHorizontal: space.md,
-    height: 40,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: c.border,
+    justifyContent: "center",
   },
-  modes: {
-    flexDirection: "row",
-    padding: 4,
-    gap: 4,
-    borderRadius: radius.pill,
-    backgroundColor: c.surfaceHigh,
-  },
-  mode: { flex: 1, height: 36, borderRadius: radius.pill, alignItems: "center", justifyContent: "center" },
-  modeOn: { backgroundColor: c.surfaceRaised, ...shadowSoft },
+  chips: { gap: space.sm, paddingRight: space.md },
   next: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
-    paddingVertical: space.sm,
+    gap: space.md,
+    paddingVertical: space.sm + 2,
     paddingHorizontal: space.md,
     borderRadius: radius.md,
-    backgroundColor: c.accentSoft,
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: c.border,
   },
-  firstRun: { flexDirection: "row", gap: space.sm, flexWrap: "wrap" },
+  nextIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: c.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  promise: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: 2 },
   live: {
     flexDirection: "row",
     alignItems: "center",
@@ -350,6 +368,5 @@ const styles = StyleSheet.create({
     borderRadius: radius.lg,
     backgroundColor: c.accentDeep,
   },
-  liveDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.onAccent },
   liveSub: { opacity: 0.85 },
 });

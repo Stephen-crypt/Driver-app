@@ -1,8 +1,21 @@
 import { useState } from "react";
-import { Linking, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Divider, Group, Screen, Txt, c, notify, radius, space, tap, type IconName } from "@gera/kit";
+import {
+  Banner,
+  Button,
+  ChoiceRow,
+  Divider,
+  Group,
+  Odometer,
+  Screen,
+  SuccessMark,
+  TextArea,
+  Txt,
+  notify,
+  space,
+  type IconName,
+} from "@gera/kit";
 import { EMERGENCY_NUMBER, PASSENGER_CASE_KINDS, openCase, type MyCase, type PassengerCaseKind } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
@@ -22,7 +35,7 @@ const ICON: Record<PassengerCaseKind, IconName> = {
 export default function Report() {
   const router = useRouter();
   const params = useLocalSearchParams<{ trip?: string; to?: string; kind?: PassengerCaseKind }>();
-  const tripId = params.trip ?? null;
+  const tripId = params.trip || null;
   const [kind, setKind] = useState<PassengerCaseKind>(params.kind ?? "lost_property");
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -55,12 +68,11 @@ export default function Report() {
         }
       >
         <View style={styles.sent}>
+          <SuccessMark size={72} />
           <Txt v="caption" tone="muted">
             Report number
           </Txt>
-          <Txt v="hero" tabularNums>
-            {sent.number}
-          </Txt>
+          <Odometer value={String(sent.number)} v="hero" delay={260} />
           <Txt v="heading" align="center">
             {kind === "lost_property" ? "We'll ask your rider to look for it" : "Our support team has it"}
           </Txt>
@@ -95,67 +107,31 @@ export default function Report() {
     >
       <View style={styles.stack}>
         <Group>
-          {PASSENGER_CASE_KINDS.map((k, i) => {
-            const on = kind === k.kind;
-            return (
-              <View key={k.kind}>
-                {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
-                <Pressable
-                  onPress={() => {
-                    tap();
-                    setKind(k.kind);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  style={({ pressed }) => [styles.option, pressed && styles.pressed]}
-                >
-                  <View style={[styles.well, on && styles.wellOn]}>
-                    <Ionicons name={ICON[k.kind]} size={18} color={on ? c.onAccent : c.textMuted} />
-                  </View>
-                  <View style={styles.flex}>
-                    <Txt v="bodyStrong">{k.label}</Txt>
-                    <Txt v="label" tone="muted">
-                      {k.hint}
-                    </Txt>
-                  </View>
-                  {on ? <Ionicons name="checkmark-circle" size={22} color={c.accent} /> : null}
-                </Pressable>
-              </View>
-            );
-          })}
+          {PASSENGER_CASE_KINDS.map((k, i) => (
+            <View key={k.kind}>
+              {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+              <ChoiceRow kind="radio" icon={ICON[k.kind]} on={kind === k.kind} onPress={() => setKind(k.kind)} title={k.label} hint={k.hint} />
+            </View>
+          ))}
         </Group>
 
-        <TextInput
-          style={styles.input}
+        <TextArea
           value={text}
           onChangeText={setText}
           placeholder={chosen.prompt}
-          placeholderTextColor={c.textMuted}
-          multiline
           maxLength={1000}
           accessibilityLabel="What happened"
         />
+        <Txt v="caption" tone="muted" align="right" tabularNums>
+          {text.trim().length < 10 ? `${10 - text.trim().length} more characters` : `${text.length} / 1000`}
+        </Txt>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  stack: { gap: space.lg },
+  stack: { gap: space.md },
   footer: { gap: space.sm },
   sent: { alignItems: "center", gap: space.sm, paddingVertical: space.xl },
-  option: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, minHeight: 64 },
-  pressed: { backgroundColor: c.surfaceHigh },
-  well: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.surfaceHigh, alignItems: "center", justifyContent: "center" },
-  wellOn: { backgroundColor: c.accent },
-  input: {
-    minHeight: 130,
-    borderRadius: radius.lg,
-    backgroundColor: c.surfaceRaised,
-    padding: space.md,
-    fontSize: 16,
-    color: c.textStrong,
-    textAlignVertical: "top",
-  },
 });

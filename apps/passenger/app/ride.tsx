@@ -1,9 +1,27 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Alert, Linking, Pressable, ScrollView, Share, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Linking, ScrollView, Share, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { Button, GeraMap, Paper, Txt, c, notify, shadow, space, type MapMarker } from "@gera/kit";
+import {
+  Button,
+  FloatButton,
+  GeraMap,
+  ModalSheet,
+  Paper,
+  SuccessMark,
+  Swap,
+  Txt,
+  VEHICLE_NAME,
+  VehicleGlyph,
+  VestPatch,
+  c,
+  notify,
+  space,
+  useOverlay,
+  useSettledHeight,
+  type MapMarker,
+  type VehicleKind,
+} from "@gera/kit";
 import {
   EMERGENCY_NUMBER,
   addDays,
@@ -104,7 +122,9 @@ export default function Ride() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paperH, setPaperH] = useState(420);
+  const [paperH, onPaperLayout] = useSettledHeight(420);
+  const [riderSheet, setRiderSheet] = useState(false);
+  const overlay = useOverlay();
 
   // ---- resuming ----------------------------------------------------------------
   useEffect(() => {
@@ -299,35 +319,36 @@ export default function Ride() {
     try {
       const contact = await getTripContact(supabase, trip.id);
       if (!contact?.phone) {
-        Alert.alert("Not available", "You can call your rider once they've accepted.");
+        overlay.toast("You can call your rider once they've accepted.");
         return;
       }
       await Linking.openURL(`tel:${contact.phone}`);
     } catch {
-      Alert.alert("Could not call", "Try again in a moment.");
+      overlay.toast({ message: "Couldn't start the call. Try again in a moment.", tone: "bad" });
     }
   };
 
-  const cancel = () => {
+  const cancel = async () => {
     if (!trip) return;
-    Alert.alert("Cancel this trip?", trip.riderId ? "Your rider is already on the way." : "", [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Cancel trip",
-        style: "destructive",
-        onPress: async () => {
-          setBusy(true);
-          try {
-            await cancelTrip(supabase, trip.id, "passenger");
-            setTrip(await getTrip(supabase, trip.id));
-          } catch (e) {
-            setError(e instanceof Error ? e.message : "Could not cancel.");
-          } finally {
-            setBusy(false);
-          }
-        },
-      },
-    ]);
+    const ok = await overlay.confirm({
+      title: "Cancel this trip?",
+      message: trip.riderId
+        ? `${rider?.firstName ?? "Your rider"} is already on the way to you.`
+        : "We'll stop looking for a rider.",
+      confirmLabel: "Cancel trip",
+      cancelLabel: "Keep my ride",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setBusy(true);
+    try {
+      await cancelTrip(supabase, trip.id, "passenger");
+      setTrip(await getTrip(supabase, trip.id));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not cancel.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   const share = async () => {
@@ -348,31 +369,45 @@ export default function Ride() {
   };
 
   const sos = () => {
-    Alert.alert("Safety", `We'll record where you are and who you're with. If you're in danger, call ${EMERGENCY_NUMBER}.`, [
-      { text: "Close", style: "cancel" },
-      {
-        text: "Record alert",
-        onPress: async () => {
-          try {
-            await raiseSos(supabase, {
+    overlay.actions({
+      title: "Safety",
+      message: `Gera's control room sees an alert the moment you send it, with where you are and who you're with.`,
+      options: [
+        {
+          label: `Call ${EMERGENCY_NUMBER}`,
+          hint: "Police, ambulance and fire. We alert the control room too.",
+          icon: "call",
+          tone: "danger",
+          onPress: () => {
+            // With where the trip is, like the alert below: the control room
+            // may reach the scene before the emergency services do.
+            void raiseSos(supabase, {
               ...(trip ? { tripId: trip.id } : {}),
               ...(riderAt ? { at: { lng: riderAt.lng, lat: riderAt.lat } } : {}),
-            });
-            Alert.alert("Recorded", "Your alert and location have been saved.");
-          } catch {
-            Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
-          }
+            }).catch(() => {});
+            void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+          },
         },
-      },
-      {
-        text: `Call ${EMERGENCY_NUMBER}`,
-        style: "destructive",
-        onPress: () => {
-          void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
-          void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+        {
+          label: "Alert the control room",
+          hint: "They call you back and can see this trip live.",
+          icon: "shield-half",
+          onPress: async () => {
+            try {
+              await raiseSos(supabase, {
+                ...(trip ? { tripId: trip.id } : {}),
+                ...(riderAt ? { at: { lng: riderAt.lng, lat: riderAt.lat } } : {}),
+              });
+              notify("warning");
+              overlay.toast({ message: "Alert sent. The control room will call you.", tone: "good", icon: "shield-checkmark" });
+            } catch {
+              overlay.toast({ message: `Couldn't send it. Call ${EMERGENCY_NUMBER} directly.`, tone: "bad" });
+            }
+          },
         },
-      },
-    ]);
+        { label: "Share this trip", hint: "Send your route, rider and plate to someone.", icon: "share-social", onPress: () => void share() },
+      ],
+    });
   };
 
   // ---- map -------------------------------------------------------------------------
@@ -387,14 +422,23 @@ export default function Ride() {
   }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- sheet ---------------------------------------------------------------------------
+  // Each stage is its own panel. When the stage changes, the old panel fades
+  // down and out, the new one rises in, and the sheet eases to its height.
+  let stage: string;
   let body;
   if (bookedAhead) {
+    stage = "booked";
     body = (
       <View style={styles.booked}>
-        <Txt v="label" tone="good">
-          {mode === "regular" ? "Schedule set" : "Ride booked"}
-        </Txt>
-        <Txt v="title">{bookedAhead.title}</Txt>
+        <View style={styles.bookedHead}>
+          <SuccessMark size={52} />
+          <View style={styles.flex}>
+            <Txt v="label" tone="good">
+              {mode === "regular" ? "Regular trip set up" : "Ride booked"}
+            </Txt>
+            <Txt v="h2">{bookedAhead.title}</Txt>
+          </View>
+        </View>
         <Txt v="body" tone="muted">
           To {dropLabel}. {bookedAhead.detail}
         </Txt>
@@ -403,6 +447,7 @@ export default function Ride() {
       </View>
     );
   } else if (!trip) {
+    stage = "choose";
     body = (
       <Choose
         mode={mode}
@@ -425,8 +470,10 @@ export default function Ride() {
       />
     );
   } else if (trip.state === "requested" || trip.state === "offered") {
-    body = <Searching onCancel={cancel} busy={busy} />;
+    stage = "searching";
+    body = <Searching onCancel={cancel} busy={busy} vehicle={selected} from={trip.pickupLabel} to={trip.dropoffLabel} />;
   } else if (live) {
+    stage = "live";
     body = (
       <Assigned
         trip={trip}
@@ -440,14 +487,17 @@ export default function Ride() {
         onShare={share}
         onSos={sos}
         onCancel={cancel}
+        onRider={() => setRiderSheet(true)}
       />
     );
   } else if (trip.state === "completed") {
+    stage = "completed";
     body = (
       <Completed
         total={total}
         quoted={trip.quotedAmountRwf}
         riderName={rider?.firstName ?? "your rider"}
+        destination={trip.dropoffLabel}
         rated={rated}
         onRate={async (stars, comment) => {
           try {
@@ -461,6 +511,7 @@ export default function Ride() {
       />
     );
   } else {
+    stage = `ended-${trip.state}`;
     body = <Ended state={trip.state} onAgain={() => router.replace("/")} />;
   }
 
@@ -475,16 +526,14 @@ export default function Ride() {
         bottomInset={paperH}
       />
       {!trip || !live ? (
-        <Pressable
+        <FloatButton
+          icon={trip ? "close" : "arrow-back"}
+          label={trip ? "Close" : "Back"}
           onPress={() => (trip ? router.replace("/") : goBack(router))}
           style={[styles.back, { top: insets.top + space.sm }]}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-        >
-          <Ionicons name={trip ? "close" : "arrow-back"} size={22} color={c.textStrong} />
-        </Pressable>
+        />
       ) : null}
-      <View style={styles.sheet} onLayout={(e) => setPaperH(e.nativeEvent.layout.height)}>
+      <View style={styles.sheet} onLayout={onPaperLayout}>
         <Paper>
           {/* Booking ahead adds a day and time picker; on a short phone the
               sheet would push the Book button off the screen without this. */}
@@ -494,27 +543,56 @@ export default function Ride() {
             keyboardShouldPersistTaps="handled"
             bounces={false}
           >
-            {body}
+            <Swap id={stage}>{body}</Swap>
           </ScrollView>
         </Paper>
       </View>
+
+      <ModalSheet visible={riderSheet && !!rider} onClose={() => setRiderSheet(false)}>
+        {rider ? (
+          <View style={styles.profile}>
+            <View style={styles.profileHead}>
+              {rider.vestNumber ? <VestPatch value={rider.vestNumber} size="xl" label={`Vest ${rider.vestNumber}`} /> : null}
+              <View style={styles.flex}>
+                <Txt v="title">{rider.firstName}</Txt>
+                <View style={styles.profileMeta}>
+                  <VehicleGlyph kind={rider.vehicleClass} size={18} colour={c.textMuted} />
+                  <Txt v="body" tone="muted">
+                    {VEHICLE_NAME[rider.vehicleClass as VehicleKind] ?? "Vehicle"}
+                    {rider.plate ? `, ${rider.plate}` : ""}
+                  </Txt>
+                </View>
+                {rider.rating ? (
+                  <Txt v="label" tone="muted">
+                    Rated {rider.rating.toFixed(1)} out of 5 by passengers
+                  </Txt>
+                ) : null}
+              </View>
+            </View>
+            <View style={styles.check}>
+              <Txt v="bodyStrong">Before you get on</Txt>
+              <Txt v="label" tone="muted">
+                The vest number and the plate must match what you see here. Your rider can't start the trip until you give them your PIN.
+              </Txt>
+            </View>
+            <Button label="Call" icon="call" variant="secondary" onPress={() => { setRiderSheet(false); void call(); }} />
+            <Button label="Report a problem" icon="flag" variant="quiet" compact onPress={() => { setRiderSheet(false); router.push({ pathname: "/report", params: { trip: trip?.id ?? "", to: trip?.dropoffLabel ?? "", kind: "complaint" } }); }} />
+          </View>
+        ) : null}
+      </ModalSheet>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1, minWidth: 0 },
   root: { flex: 1, backgroundColor: c.surface },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   booked: { gap: space.md },
-  back: {
-    position: "absolute",
-    left: space.md,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: c.surfaceRaised,
-    alignItems: "center",
-    justifyContent: "center",
-    ...shadow.float,
-  },
+  bookedHead: { flexDirection: "row", alignItems: "center", gap: space.md },
+  back: { position: "absolute", left: space.md },
+  profile: { gap: space.md },
+  profileHead: { flexDirection: "row", alignItems: "center", gap: space.lg },
+  profileMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
+  check: { gap: 4, padding: space.md, borderRadius: 16, backgroundColor: c.surfaceHigh },
 });

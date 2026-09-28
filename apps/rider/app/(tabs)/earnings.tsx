@@ -1,20 +1,38 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useFocusEffect } from "expo-router";
-import { Bars, Divider, Group, Row, Screen, Stat, StatRow, Txt, c, money, space } from "@gera/kit";
+import {
+  Bars,
+  Divider,
+  EmptyState,
+  Group,
+  Odometer,
+  Row,
+  Screen,
+  Segmented,
+  Skeleton,
+  SkeletonRows,
+  Txt,
+  Well,
+  c,
+  money,
+  radius,
+  space,
+} from "@gera/kit";
 import {
   dailyEarnings,
   describeLedgerRow,
   getCashHeld,
   getNetOwed,
   listLedger,
-  type DayEarnings,
   type LedgerRow,
 } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const DAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
+type Span = "7" | "14";
 
 function when(iso: string): string {
   const d = new Date(iso);
@@ -26,15 +44,15 @@ function when(iso: string): string {
 
 /**
  * NOVA §28. Two numbers that must never be netted - cash the rider is carrying
- * for the company, and money the company owes the rider - plus a week of what
- * they earned and every line that moved either one.
+ * for the company, and money the company owes the rider - plus what they
+ * earned day by day and every line that moved either one.
  */
 export default function Earnings() {
   const { riderId } = useSession();
-  const [days, setDays] = useState<DayEarnings[] | null>(null);
-  const [rows, setRows] = useState<LedgerRow[]>([]);
+  const [rows, setRows] = useState<LedgerRow[] | null>(null);
   const [cash, setCash] = useState(0);
   const [owed, setOwed] = useState(0);
+  const [span, setSpan] = useState<Span>("7");
 
   useFocusEffect(
     useCallback(() => {
@@ -43,107 +61,177 @@ export default function Earnings() {
       const since = new Date();
       since.setHours(0, 0, 0, 0);
       since.setDate(since.getDate() - 13);
-      Promise.all([
-        listLedger(supabase, riderId, since),
-        getCashHeld(supabase, riderId),
-        getNetOwed(supabase, riderId),
-      ])
+      Promise.all([listLedger(supabase, riderId, since), getCashHeld(supabase, riderId), getNetOwed(supabase, riderId)])
         .then(([ledger, held, net]) => {
           if (!active) return;
           setRows(ledger);
-          setDays(dailyEarnings(ledger, 7));
           setCash(held);
           setOwed(net);
         })
-        .catch(() => active && setDays([]));
+        .catch(() => active && setRows([]));
       return () => {
         active = false;
       };
     }, [riderId]),
   );
 
-  const week = (days ?? []).reduce((t, d) => t + d.earnedRwf, 0);
-  const trips = (days ?? []).reduce((t, d) => t + d.trips, 0);
-  const today = days?.[days.length - 1];
+  if (rows === null) {
+    return (
+      <Screen title="Earnings" stagger={false}>
+        <View style={styles.stack}>
+          <View style={styles.heroSkeleton}>
+            <Skeleton width="30%" height={14} />
+            <Skeleton width="60%" height={46} r={10} />
+            <Skeleton width="45%" height={14} />
+          </View>
+          <Skeleton height={150} r={radius.lg} />
+          <SkeletonRows count={3} />
+        </View>
+      </Screen>
+    );
+  }
+
+  const n = Number(span);
+  const days = dailyEarnings(rows, n);
+  const total = days.reduce((t, d) => t + d.earnedRwf, 0);
+  const trips = days.reduce((t, d) => t + d.trips, 0);
+  const today = days[days.length - 1];
+  const anything = days.some((d) => d.earnedRwf > 0);
 
   return (
-    <Screen title="Earnings">
-      {days === null ? (
-        <ActivityIndicator color={c.accent} />
-      ) : (
-        <View style={styles.stack}>
-          <View>
-            <Txt v="label" tone="muted">
-              Last 7 days
-            </Txt>
-            <View style={styles.hero}>
-              <Txt v="display" tabularNums>
-                {money(week)}
-              </Txt>
-              <Txt v="heading" tone="muted">
-                RWF
-              </Txt>
-            </View>
-            <Txt v="label" tone="muted">
-              {trips} {trips === 1 ? "trip" : "trips"} · {money(today?.earnedRwf ?? 0)} RWF today
-            </Txt>
-          </View>
+    <Screen title="Earnings" gap={space.lg}>
+      <Segmented
+        label="Period"
+        compact
+        value={span}
+        onChange={(v) => setSpan(v as Span)}
+        options={[
+          { value: "7", label: "7 days" },
+          { value: "14", label: "14 days" },
+        ]}
+      />
 
-          {/* A week of nothing is one line, not 150 points of empty chart. */}
-          {days.some((d) => d.earnedRwf > 0) ? null : (
-            <Txt v="label" tone="muted">
-              No trips in the last 7 days. Each day's earnings show here as you ride.
-            </Txt>
-          )}
+      <View style={styles.hero}>
+        <Txt v="label" tone="muted">
+          You earned in the last {n} days
+        </Txt>
+        <View style={styles.heroFigure}>
+          <Odometer key={span} value={money(total)} v="display" accessibilityLabel={`${money(total)} Rwandan francs`} />
+          <Txt v="heading" tone="muted">
+            RWF
+          </Txt>
+        </View>
+        {trips > 0 ? (
+          <Txt v="label" tone="muted">
+            {trips} {trips === 1 ? "trip" : "trips"}, {money(today?.earnedRwf ?? 0)} RWF of it today
+          </Txt>
+        ) : null}
+      </View>
+
+      {anything ? (
+        <View style={styles.chart}>
           <Bars
+            key={span}
             values={days.map((d) => d.earnedRwf)}
-            labels={days.map((d) => DAY[d.day.getDay()] ?? "")}
+            labels={days.map((d) => (n > 7 ? DAY_SHORT : DAY)[d.day.getDay()] ?? "")}
             highlight={days.length - 1}
             format={money}
-            height={days.some((d) => d.earnedRwf > 0) ? 150 : 40}
+            height={160}
           />
-
-          <View style={styles.card}>
-            <StatRow>
-              <Stat label="Cash to hand in" value={money(cash)} unit="RWF" tone={cash > 0 ? "warn" : "strong"} />
-              <Stat label="Owed to you" value={money(owed)} unit="RWF" tone="good" />
-            </StatRow>
-            <Txt v="caption" tone="muted">
-              Fares you collect belong to the company and are handed in. Your share is paid to you on
-              the fleet's payout schedule. The two are never netted.
-            </Txt>
-          </View>
-
-          <Group title="Recent activity">
-            {rows.length === 0 ? (
-              <Row title="Nothing yet" subtitle="Your first completed trip will show here." icon="receipt-outline" iconTone="neutral" />
-            ) : (
-              rows.slice(0, 25).map((r, i) => {
-                const d = describeLedgerRow(r);
-                return (
-                  <View key={r.id}>
-                    {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
-                    <Row
-                      title={d.title}
-                      subtitle={when(r.createdAt)}
-                      icon={d.affects === "cash" ? "cash-outline" : "wallet-outline"}
-                      iconTone={d.affects === "cash" ? "neutral" : d.sign > 0 ? "good" : "warn"}
-                      value={`${d.sign > 0 ? "+" : "−"}${money(r.amountRwf)}`}
-                      valueTone={d.affects === "cash" ? "default" : d.sign > 0 ? "good" : "strong"}
-                    />
-                  </View>
-                );
-              })
-            )}
-          </Group>
         </View>
+      ) : (
+        // A week of nothing is one sentence, not 150 points of empty chart.
+        <Txt v="label" tone="muted">
+          No trips in the last {n} days. Each day's earnings show here as you ride.
+        </Txt>
       )}
+
+      <View style={styles.balances}>
+        <Balance
+          icon="cash"
+          tone={cash > 0 ? "warn" : "neutral"}
+          label="Cash to hand in"
+          value={cash}
+          note={cash > 0 ? "Company money you're carrying" : "Nothing to hand in"}
+        />
+        <Balance icon="wallet" tone="good" label="Owed to you" value={owed} note="Paid on the fleet's schedule" />
+      </View>
+      <Txt v="caption" tone="muted">
+        Fares you collect belong to the company and are handed in. Your share is paid to you separately. The two are never
+        netted against each other.
+      </Txt>
+
+      <Group title="Recent activity">
+        {rows.length === 0 ? (
+          <EmptyState compact icon="receipt" title="Nothing yet" body="Your first completed trip shows here." />
+        ) : (
+          rows.slice(0, 25).map((r, i) => {
+            const d = describeLedgerRow(r);
+            return (
+              <View key={r.id}>
+                {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+                <Row
+                  title={d.title}
+                  subtitle={when(r.createdAt)}
+                  icon={d.affects === "cash" ? "cash-outline" : "wallet-outline"}
+                  iconTone={d.affects === "cash" ? "neutral" : d.sign > 0 ? "good" : "warn"}
+                  value={`${d.sign > 0 ? "+" : "−"}${money(r.amountRwf)}`}
+                  valueTone={d.affects === "cash" ? "default" : d.sign > 0 ? "good" : "strong"}
+                  valueNote={d.affects === "cash" ? "cash" : undefined}
+                />
+              </View>
+            );
+          })
+        )}
+      </Group>
     </Screen>
+  );
+}
+
+function Balance({
+  icon,
+  tone,
+  label,
+  value,
+  note,
+}: {
+  readonly icon: "cash" | "wallet";
+  readonly tone: "warn" | "good" | "neutral";
+  readonly label: string;
+  readonly value: number;
+  readonly note: string;
+}) {
+  return (
+    <View style={styles.balance} accessible accessibilityLabel={`${label}: ${money(value)} Rwandan francs. ${note}`}>
+      <Well icon={icon} tone={tone} size={36} />
+      <Txt v="label" tone="muted">
+        {label}
+      </Txt>
+      <View style={styles.heroFigure}>
+        <Odometer value={money(value)} v="figure" tone={tone === "warn" ? "warn" : tone === "good" ? "good" : "strong"} delay={200} />
+        <Txt v="caption" tone="muted">
+          RWF
+        </Txt>
+      </View>
+      <Txt v="caption" tone="muted">
+        {note}
+      </Txt>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
-  hero: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  card: { backgroundColor: c.surfaceRaised, borderRadius: 20, padding: space.md, gap: space.md },
+  heroSkeleton: { gap: space.sm },
+  hero: { gap: 2 },
+  heroFigure: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  chart: { paddingTop: space.xs },
+  balances: { flexDirection: "row", gap: space.sm },
+  balance: {
+    flex: 1,
+    gap: 4,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: c.surfaceRaised,
+  },
 });

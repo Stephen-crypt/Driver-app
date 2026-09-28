@@ -89,3 +89,51 @@ export async function completeTrip(
   if (!data) throw new Error("completion failed");
   return data as CompleteTripResult;
 }
+
+export interface TripDetail {
+  readonly id: string;
+  readonly state: string;
+  readonly vehicleClass: string;
+  readonly pickupLabel: string;
+  readonly pickupNote: string | null;
+  readonly dropoffLabel: string;
+  readonly quotedAmountRwf: number | null;
+  readonly createdAt: string;
+  readonly scheduledFor: string | null;
+  readonly riderId: string | null;
+}
+
+/** One of the signed-in person's trips, as a receipt shows it. RLS limits it to their own. */
+export async function getTripDetail(client: GeraClient, tripId: string): Promise<TripDetail | null> {
+  const { data, error } = await client
+    .from("trips")
+    .select("id, state, vehicle_class, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, created_at, scheduled_for, rider_id")
+    .eq("id", tripId)
+    .maybeSingle();
+  if (error) throw dataError(error.message);
+  if (!data) return null;
+  const r = data as {
+    id: string;
+    state: string;
+    vehicle_class: string;
+    pickup_label: string;
+    pickup_note: string | null;
+    dropoff_label: string;
+    quoted_amount_rwf: number | null;
+    created_at: string;
+    scheduled_for: string | null;
+    rider_id: string | null;
+  };
+  return {
+    id: r.id,
+    state: r.state,
+    vehicleClass: r.vehicle_class,
+    pickupLabel: r.pickup_label,
+    pickupNote: r.pickup_note,
+    dropoffLabel: r.dropoff_label,
+    quotedAmountRwf: r.quoted_amount_rwf,
+    createdAt: r.created_at,
+    scheduledFor: r.scheduled_for,
+    riderId: r.rider_id,
+  };
+}

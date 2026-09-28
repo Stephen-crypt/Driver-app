@@ -55,15 +55,26 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
      things on screen. */
   .leaflet-tile-pane{filter:saturate(.35) brightness(1.04) contrast(.9)}
   .g{position:relative}
-  .me{width:18px;height:18px;border-radius:50%;background:${c.accent};border:3px solid #fff;
-      box-shadow:0 0 0 8px rgba(0,87,231,.18),0 2px 6px rgba(0,0,0,.25)}
-  .pin{width:16px;height:16px;border-radius:50%;border:4px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3)}
-  .pickup{background:${c.textStrong}}
-  .dropoff{background:${c.destination};border-radius:4px}
-  .rider{width:34px;height:40px;border-radius:9px;background:${c.accentDeep};color:#fff;
-         display:flex;align-items:center;justify-content:center;border:2px solid #fff;
+  /* The map uses the same two marks as the route rail everywhere else: a ring
+     where you are, a square where you are going. */
+  .me{position:relative;width:18px;height:18px;border-radius:50%;background:${c.accent};border:3px solid #fff;
+      box-shadow:0 2px 6px rgba(0,0,0,.25)}
+  .me:after{content:'';position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
+      background:rgba(0,87,231,.35);animation:halo 2.2s cubic-bezier(.23,1,.32,1) infinite}
+  @keyframes halo{from{transform:scale(1);opacity:.9}to{transform:scale(3.4);opacity:0}}
+  @media (prefers-reduced-motion: reduce){.me:after{animation:none;opacity:.25;transform:scale(2)}}
+  .pin{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.28)}
+  .pickup{border-radius:50%;background:#fff;border:5px solid ${c.textStrong};box-sizing:border-box}
+  .dropoff{border-radius:5px;background:${c.destination};border:3px solid #fff;box-sizing:border-box}
+  .rider{position:relative;min-width:34px;height:38px;padding:0 5px;border-radius:9px;background:${c.accentDeep};color:#fff;
+         display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-sizing:border-box;
          font:700 20px/1 'Barlow Condensed','Roboto Condensed',sans-serif;
-         box-shadow:0 3px 10px rgba(0,0,0,.3)}
+         box-shadow:0 3px 10px rgba(0,0,0,.3);overflow:hidden}
+  .rider:before{content:'';position:absolute;left:0;right:0;top:56%;height:14%;background:rgba(255,255,255,.18)}
+  .rider span{position:relative}
+  .g{animation:drop .32s cubic-bezier(.23,1,.32,1) both}
+  @keyframes drop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
+  @media (prefers-reduced-motion: reduce){.g{animation:none}}
   .tag{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);white-space:nowrap;
        background:#fff;color:${c.textStrong};font:600 12px/1 -apple-system,Roboto,sans-serif;
        padding:5px 8px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.18)}
@@ -78,12 +89,32 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
 
   function icon(m){
     var inner = m.kind === 'me' ? '<div class="me"></div>'
-      : m.kind === 'rider' ? '<div class="rider">' + (m.tag || '') + '</div>'
+      : m.kind === 'rider' ? '<div class="rider"><span>' + (m.tag || '') + '</span></div>'
       : '<div class="pin ' + m.kind + '"></div>';
     var tag = (m.kind === 'pickup' || m.kind === 'dropoff') && m.tag ? '<div class="tag">' + m.tag + '</div>' : '';
-    var size = m.kind === 'rider' ? [34,40] : m.kind === 'me' ? [18,18] : [16,16];
+    var size = m.kind === 'rider' ? [34,38] : m.kind === 'me' ? [18,18] : [18,18];
     return L.divIcon({className:'', html:'<div class="g">' + inner + tag + '</div>',
                       iconSize:size, iconAnchor:[size[0]/2, size[1]/2]});
+  }
+
+  // A moving rider glides from one fix to the next over most of the gap
+  // between updates, instead of jumping - the difference between a map that
+  // looks live and one that looks like it is refreshing.
+  var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function glide(entry, to){
+    var from = entry.marker.getLatLng();
+    // Stop a glide still running first, or it would carry on after a jump and
+    // pull the marker back towards where it was going.
+    if (entry.raf) { cancelAnimationFrame(entry.raf); entry.raf = 0; }
+    if (reduce || map.distance(from, to) < 1 || map.distance(from, to) > 800) { entry.marker.setLatLng(to); return; }
+    var start = performance.now(), ms = 1600;
+    function step(now){
+      var t = Math.min(1, (now - start) / ms);
+      var e = t < .5 ? 2*t*t : 1 - Math.pow(-2*t + 2, 2) / 2;
+      entry.marker.setLatLng([from.lat + (to[0] - from.lat) * e, from.lng + (to[1] - from.lng) * e]);
+      if (t < 1) entry.raf = requestAnimationFrame(step);
+    }
+    entry.raf = requestAnimationFrame(step);
   }
 
   window.gera = {
@@ -94,7 +125,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
         var ll = [m.at.lat, m.at.lng];
         var key = m.kind + '|' + (m.tag || '');
         if (markers[m.id] && markers[m.id].key === key) {
-          markers[m.id].marker.setLatLng(ll);
+          glide(markers[m.id], ll);
         } else {
           if (markers[m.id]) map.removeLayer(markers[m.id].marker);
           markers[m.id] = {key:key, marker:L.marker(ll, {icon:icon(m), interactive:false}).addTo(map)};

@@ -22,15 +22,20 @@ export function Trips() {
       setHits([]);
       return;
     }
+    let live = true;
     const id = setTimeout(() => {
       rpc<Hit[]>("staff_search", { p_query: term })
         .then((h) => {
+          if (!live) return;
           setHits(h);
           setError(null);
         })
-        .catch((e: Error) => setError(e.message));
+        .catch((e: Error) => live && setError(e.message));
     }, 250);
-    return () => clearTimeout(id);
+    return () => {
+      live = false;
+      clearTimeout(id);
+    };
   }, [q]);
 
   const open = (h: Hit) => {

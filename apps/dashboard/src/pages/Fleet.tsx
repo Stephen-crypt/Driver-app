@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import QRCode from "qrcode";
 import { can, rpc, type Staff } from "../lib/supabase";
+import { Flash, Skeleton, useUi } from "../components/ui";
 
 interface Vehicle {
   vehicle_id: string;
@@ -41,7 +42,7 @@ async function printSticker(v: Vehicle, reissue: boolean) {
   .v { display: inline-block; background: #0057e7; color: #fff; font: 700 7mm/1 "Barlow Condensed", sans-serif; padding: 1.5mm 3mm; border-radius: 2mm; margin-top: 2mm; }
   .t { font-size: 3.2mm; color: #5e6676; margin-top: 2mm; }
 </style>
-<div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Gera · inspectors scan to verify</div></div>
+<div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Gera inspectors scan this to verify</div></div>
 <script>setTimeout(() => print(), 300)</script>`);
   w.document.close();
 }
@@ -50,6 +51,7 @@ export function Fleet({ staff }: { staff: Staff }) {
   const [vehicles, setVehicles] = useState<Vehicle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const ui = useUi();
   const [cls, setCls] = useState<(typeof CLASSES)[number][0]>("moto");
   const [plate, setPlate] = useState("");
   const [vest, setVest] = useState("");
@@ -82,13 +84,17 @@ export function Fleet({ staff }: { staff: Staff }) {
         <div>
           <h1>Fleet</h1>
           <p className="sub">
-            {vehicles ? `${assigned.length} with riders · ${depot.length} in the depot · ${assigned.filter((v) => v.in_use).length} out on shift` : "Loading…"}
+            {vehicles ? (
+              `${assigned.length} with riders, ${depot.length} in the depot, ${assigned.filter((v) => v.in_use).length} out on shift`
+            ) : (
+              <Skeleton w={320} h={14} style={{ marginTop: 6 }} />
+            )}
           </p>
         </div>
       </div>
 
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
-      {done ? <div className="notice good" style={{ marginBottom: 16 }}>{done}</div> : null}
+      <Flash message={done} onShown={() => setDone(null)} />
 
       {can(staff.role, "fleet") ? (
         <section className="card" style={{ marginBottom: 16 }}>
@@ -140,12 +146,17 @@ export function Fleet({ staff }: { staff: Staff }) {
                     <button className="link-button small" onClick={() => void act(`Sticker for ${v.plate} opened for printing.`, () => printSticker(v, false))}>
                       Sticker
                     </button>
-                    {" · "}
+                    <span className="gap" aria-hidden="true" />
                     <button
                       className="link-button small"
-                      onClick={() => {
-                        if (window.confirm(`Reprint ${v.plate}'s sticker with a new code? The old sticker stops working.`))
-                          void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
+                      onClick={async () => {
+                        const ok = await ui.confirm({
+                          title: `Replace ${v.plate}'s sticker?`,
+                          body: "A new code is printed and the old sticker stops working. Take it off the vehicle once the new one is on.",
+                          confirmLabel: "Print a new sticker",
+                          tone: "danger",
+                        });
+                        if (ok) void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
                       }}
                     >
                       Replace
@@ -191,12 +202,17 @@ export function Fleet({ staff }: { staff: Staff }) {
                     <button className="link-button small" onClick={() => void act(`Sticker for ${v.plate} opened for printing.`, () => printSticker(v, false))}>
                       Sticker
                     </button>
-                    {" · "}
+                    <span className="gap" aria-hidden="true" />
                     <button
                       className="link-button small"
-                      onClick={() => {
-                        if (window.confirm(`Reprint ${v.plate}'s sticker with a new code? The old sticker stops working.`))
-                          void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
+                      onClick={async () => {
+                        const ok = await ui.confirm({
+                          title: `Replace ${v.plate}'s sticker?`,
+                          body: "A new code is printed and the old sticker stops working. Take it off the vehicle once the new one is on.",
+                          confirmLabel: "Print a new sticker",
+                          tone: "danger",
+                        });
+                        if (ok) void act(`New sticker for ${v.plate}. Remove the old one from the vehicle.`, () => printSticker(v, true));
                       }}
                     >
                       Replace

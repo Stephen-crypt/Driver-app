@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
-import { Screen, Txt, VestPatch, c, radius, space } from "@gera/kit";
+import { Screen, Skeleton, Txt, VestPatch, c, radius, shadow, space } from "@gera/kit";
 import { getRiderProfile, myRiderQr } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
@@ -43,7 +44,7 @@ export default function MyQr() {
             Couldn't load your code. Check your connection.
           </Txt>
         ) : (
-          <ActivityIndicator color={c.accent} style={styles.loading} />
+          <Skeleton width={256} height={256} r={radius.md} />
         )}
         <View style={styles.who}>
           {vest ? <VestPatch value={vest} size="sm" /> : null}
@@ -51,16 +52,39 @@ export default function MyQr() {
         </View>
       </View>
       <Txt v="body" tone="muted" align="center" style={styles.note}>
-        Show this to a Gera inspector when they ask. It only works on their inspection app, and only shows them your Gera record.
+        Show this to a Gera inspector when they ask. It only works in their inspection app, and only shows them your Gera record.
       </Txt>
+      <View style={styles.tip}>
+        <Ionicons name="sunny" size={18} color={c.warning} />
+        <Txt v="label" tone="muted" style={styles.flex}>
+          In bright sun, turn your screen brightness up so the scanner can read it.
+        </Txt>
+      </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { alignItems: "center", backgroundColor: "#ffffff", borderRadius: radius.xl, padding: space.xl, gap: space.lg, marginTop: space.md },
+  flex: { flex: 1, minWidth: 0 },
+  card: {
+    alignItems: "center",
+    backgroundColor: "#ffffff",
+    borderRadius: radius.xl,
+    padding: space.xl,
+    gap: space.lg,
+    marginTop: space.md,
+    ...shadow.float,
+  },
   qr: { padding: space.sm, backgroundColor: "#ffffff" },
-  loading: { height: 256 },
+  tip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.sm,
+    marginTop: space.lg,
+    padding: space.md,
+    borderRadius: radius.md + 4,
+    backgroundColor: c.surfaceRaised,
+  },
   who: { flexDirection: "row", alignItems: "center", gap: space.md },
   note: { marginTop: space.lg, paddingHorizontal: space.md },
 });

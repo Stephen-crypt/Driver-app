@@ -1,17 +1,22 @@
-import type { ReactNode } from "react";
-import {
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { Children, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
+import Animated, {
+  Extrapolation,
+  interpolate,
+  useAnimatedScrollHandler,
+  useAnimatedStyle,
+  useReducedMotion,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { ease, enter, swapIn, swapOut } from "./anim";
 import { c, radius, shadow, space, tokens } from "./theme";
 import { Txt, type Tone } from "./Txt";
-import { tap, type IconName } from "./controls";
+import { IconButton, type IconName } from "./controls";
+import { Press } from "./Press";
+import { Odometer } from "./Odometer";
 
 // ---------------------------------------------------------------------------
 // Rows. Lists are rows on one surface separated by hairlines - not a card per
@@ -28,6 +33,14 @@ const WELL: Record<WellTone, { bg: string; fg: string }> = {
   neutral: { bg: c.surfaceHigh, fg: c.textMuted },
 };
 
+export function Well({ icon, tone = "accent", size = 38 }: { readonly icon: IconName; readonly tone?: WellTone; readonly size?: number }) {
+  return (
+    <View style={[styles.well, { width: size, height: size, borderRadius: Math.round(size * 0.32), backgroundColor: WELL[tone].bg }]}>
+      <Ionicons name={icon} size={Math.round(size * 0.47)} color={WELL[tone].fg} />
+    </View>
+  );
+}
+
 interface RowProps {
   readonly title: string;
   readonly subtitle?: string;
@@ -35,11 +48,14 @@ interface RowProps {
   readonly iconTone?: WellTone;
   readonly value?: string;
   readonly valueTone?: Tone;
+  /** A small line under the value: "cash", "07:30". */
+  readonly valueNote?: string;
   readonly onPress?: () => void;
   readonly trailing?: ReactNode;
   readonly leading?: ReactNode;
   /** Show the whole subtitle - for advice that must be read, not skimmed. */
   readonly full?: boolean;
+  readonly accessibilityLabel?: string;
 }
 
 export function Row({
@@ -49,19 +65,16 @@ export function Row({
   iconTone = "accent",
   value,
   valueTone = "strong",
+  valueNote,
   onPress,
   trailing,
   leading,
   full,
+  accessibilityLabel,
 }: RowProps) {
   const body = (
     <>
-      {leading ??
-        (icon ? (
-          <View style={[styles.well, { backgroundColor: WELL[iconTone].bg }]}>
-            <Ionicons name={icon} size={18} color={WELL[iconTone].fg} />
-          </View>
-        ) : null)}
+      {leading ?? (icon ? <Well icon={icon} tone={iconTone} /> : null)}
       <View style={styles.rowText}>
         <Txt v="bodyStrong" lines={full ? undefined : 1}>
           {title}
@@ -72,30 +85,38 @@ export function Row({
           </Txt>
         ) : null}
       </View>
-      {value ? (
-        <Txt v="figure" tone={valueTone} tabularNums style={styles.rowValue}>
-          {value}
-        </Txt>
+      {value || valueNote ? (
+        <View style={styles.rowValueBox}>
+          {value ? (
+            <Txt v="figure" tone={valueTone} tabularNums style={styles.rowValue}>
+              {value}
+            </Txt>
+          ) : null}
+          {valueNote ? (
+            <Txt v="caption" tone="muted">
+              {valueNote}
+            </Txt>
+          ) : null}
+        </View>
       ) : null}
       {trailing}
-      {onPress && !trailing ? (
-        <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-      ) : null}
+      {onPress && !trailing ? <Ionicons name="chevron-forward" size={18} color={c.textMuted} /> : null}
     </>
   );
 
   if (!onPress) return <View style={styles.row}>{body}</View>;
   return (
-    <Pressable
-      onPress={() => {
-        tap();
-        onPress();
-      }}
+    <Press
+      onPress={onPress}
+      scaleTo={1}
+      bg={c.surfaceRaised}
+      pressedBg={c.surfaceHigh}
       accessibilityRole="button"
-      style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
+      accessibilityLabel={accessibilityLabel ?? (subtitle ? `${title}, ${subtitle}` : title)}
+      style={styles.row}
     >
       {body}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -106,19 +127,43 @@ export function Divider({ inset = 0 }: { readonly inset?: number }) {
 /** A titled group of rows on one white surface. */
 export function Group({
   title,
+  meta,
+  action,
   children,
   style,
 }: {
   readonly title?: string;
+  /** A quiet summary at the right of the title: "3 trips, 6,900 RWF". */
+  readonly meta?: string;
+  /** A small link at the right of the title: "See all", "Edit". */
+  readonly action?: { label: string; onPress: () => void };
   readonly children: ReactNode;
   readonly style?: StyleProp<ViewStyle>;
 }) {
   return (
     <View style={style}>
-      {title ? (
-        <Txt v="label" tone="muted" style={styles.groupTitle}>
-          {title}
-        </Txt>
+      {title || action || meta ? (
+        <View style={styles.groupHead}>
+          {title ? (
+            <Txt v="label" tone="muted" style={styles.flex}>
+              {title}
+            </Txt>
+          ) : (
+            <View style={styles.flex} />
+          )}
+          {meta ? (
+            <Txt v="caption" tone="muted" tabularNums>
+              {meta}
+            </Txt>
+          ) : null}
+          {action ? (
+            <Press onPress={action.onPress} scaleTo={0.95} hitSlop={10} accessibilityRole="button">
+              <Txt v="label" tone="accent">
+                {action.label}
+              </Txt>
+            </Press>
+          ) : null}
+        </View>
       ) : null}
       <View style={styles.group}>{children}</View>
     </View>
@@ -135,19 +180,26 @@ export function Stat({
   unit,
   tone = "strong",
   big,
+  roll,
 }: {
   readonly label: string;
   readonly value: string;
   readonly unit?: string;
   readonly tone?: Tone;
   readonly big?: boolean;
+  /** Roll the figure into place: for the one number a screen is about. */
+  readonly roll?: boolean;
 }) {
   return (
     <View style={styles.stat}>
       <View style={styles.statFigure}>
-        <Txt v={big ? "display" : "figure"} tone={tone} tabularNums>
-          {value}
-        </Txt>
+        {roll ? (
+          <Odometer value={value} v={big ? "display" : "figure"} tone={tone} />
+        ) : (
+          <Txt v={big ? "display" : "figure"} tone={tone} tabularNums>
+            {value}
+          </Txt>
+        )}
         {unit ? (
           <Txt v="label" tone="muted" style={styles.statUnit}>
             {unit}
@@ -166,7 +218,9 @@ export function StatRow({ children }: { readonly children: ReactNode }) {
 }
 
 // ---------------------------------------------------------------------------
-// Paper: the sheet that sits on the map. One per screen.
+// Paper: the sheet that sits on the map. One per screen. When what is inside
+// it changes - choosing, then searching, then a rider - its height eases to the
+// new content instead of jumping.
 // ---------------------------------------------------------------------------
 
 export function Paper({
@@ -181,22 +235,93 @@ export function Paper({
 }) {
   const insets = useSafeAreaInsets();
   return (
-    <View
-      style={[
-        styles.paper,
-        { paddingBottom: (padBottom ? insets.bottom : 0) + space.md },
-        style,
-      ]}
-    >
+    <View style={[styles.paper, { paddingBottom: (padBottom ? insets.bottom : 0) + space.md }, style]}>
       <View style={styles.grabber} />
-      {children}
+      <AutoHeight>{children}</AutoHeight>
     </View>
+  );
+}
+
+/**
+ * Eases to the height of whatever is inside it. Measured from an absolutely
+ * placed inner view, so the content always lays out at its natural size and
+ * only the frame around it moves. Height is animated here on purpose: it
+ * happens once per state change, not per frame of a gesture, and it is the
+ * only way the top edge of a sheet can travel smoothly on every platform.
+ */
+export function AutoHeight({ children }: { readonly children: ReactNode }) {
+  const reduce = useReducedMotion();
+  const h = useSharedValue(-1);
+  const frame = useAnimatedStyle(() => (h.get() < 0 ? {} : { height: h.get() }));
+  return (
+    <Animated.View style={[styles.auto, frame]}>
+      <View
+        style={styles.autoInner}
+        onLayout={(e) => {
+          const next = e.nativeEvent.layout.height;
+          if (h.get() < 0 || reduce) h.set(next);
+          else h.set(withTiming(next, { duration: 280, easing: ease.inOut }));
+        }}
+      >
+        {children}
+      </View>
+    </Animated.View>
+  );
+}
+
+/**
+ * The height of something that animates its own height, reported once it has
+ * settled. A map that re-fits to a sheet on every frame of the sheet's
+ * movement would stutter and burn the battery; it only needs the final size.
+ */
+export function useSettledHeight(initial = 300): [number, (e: LayoutChangeEvent) => void] {
+  const [h, setH] = useState(initial);
+  const t = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onLayout = useCallback((e: LayoutChangeEvent) => {
+    const v = Math.round(e.nativeEvent.layout.height);
+    if (t.current) clearTimeout(t.current);
+    t.current = setTimeout(() => setH(v), 200);
+  }, []);
+  useEffect(
+    () => () => {
+      if (t.current) clearTimeout(t.current);
+    },
+    [],
+  );
+  return [h, onLayout];
+}
+
+/**
+ * One state of a sheet or a card. Give it a new id and the old content fades
+ * down and out while the new content rises in.
+ */
+export function Swap({ id, children, style }: { readonly id: string; readonly children: ReactNode; readonly style?: StyleProp<ViewStyle> }) {
+  return (
+    <Animated.View key={id} entering={swapIn} exiting={swapOut} style={style}>
+      {children}
+    </Animated.View>
+  );
+}
+
+/** Content arriving on a screen, in order. */
+export function Enter({ i = 0, children, style }: { readonly i?: number; readonly children: ReactNode; readonly style?: StyleProp<ViewStyle> }) {
+  return (
+    <Animated.View entering={enter(i)} style={style}>
+      {children}
+    </Animated.View>
   );
 }
 
 // ---------------------------------------------------------------------------
 // Screen: a scrolling page with a large condensed title.
+//
+// The title scrolls away with the page, and as it goes a compact bar fades in
+// at the top carrying the same title - so you always know where you are
+// without the header taking a fifth of the screen. The back button lives in
+// that bar and never scrolls away. Content arrives in order, once, on mount.
 // ---------------------------------------------------------------------------
+
+const BAR = 52;
 
 export function Screen({
   title,
@@ -206,6 +331,8 @@ export function Screen({
   onBack,
   scroll = true,
   footer,
+  stagger = true,
+  gap = 0,
 }: {
   readonly title?: string;
   readonly subtitle?: string;
@@ -215,25 +342,41 @@ export function Screen({
   readonly scroll?: boolean;
   /** Pinned below the scroll area - where the one primary action goes. */
   readonly footer?: ReactNode;
+  /** Off for screens whose content must not move on arrival (a keypad). */
+  readonly stagger?: boolean;
+  /** Space between the screen's direct children, each of which arrives in turn. */
+  readonly gap?: number;
 }) {
   const insets = useSafeAreaInsets();
-  const header = (
-    <View style={styles.header}>
-      {onBack ? (
-        <Pressable
-          onPress={onBack}
-          accessibilityRole="button"
-          accessibilityLabel="Back"
-          hitSlop={12}
-          style={styles.back}
-        >
-          <Ionicons name="arrow-back" size={24} color={c.textStrong} />
-        </Pressable>
-      ) : null}
-      {title ? (
+  const y = useSharedValue(0);
+  const [titleEnd, setTitleEnd] = useState(90);
+  const onScroll = useAnimatedScrollHandler((e) => {
+    y.set(e.contentOffset.y);
+  });
+
+  const top = insets.top + (onBack ? BAR : space.sm);
+  const fade = useAnimatedStyle(() => ({
+    opacity: interpolate(y.get(), [titleEnd - top - 40, titleEnd - top - 8], [0, 1], Extrapolation.CLAMP),
+  }));
+  const compactTitle = useAnimatedStyle(() => {
+    const t = interpolate(y.get(), [titleEnd - top - 30, titleEnd - top], [0, 1], Extrapolation.CLAMP);
+    return { opacity: t, transform: [{ translateY: (1 - t) * 6 }] };
+  });
+
+  const header =
+    title || right ? (
+      <Animated.View
+        entering={stagger ? enter(0) : undefined}
+        style={styles.header}
+        onLayout={(e: LayoutChangeEvent) => setTitleEnd(e.nativeEvent.layout.y + e.nativeEvent.layout.height)}
+      >
         <View style={styles.headerRow}>
           <View style={styles.flex}>
-            <Txt v="title">{title}</Txt>
+            {title ? (
+              <Txt v="title" accessibilityLabel={title}>
+                {title}
+              </Txt>
+            ) : null}
             {subtitle ? (
               <Txt v="body" tone="muted">
                 {subtitle}
@@ -242,32 +385,65 @@ export function Screen({
           </View>
           {right}
         </View>
-      ) : null}
-    </View>
-  );
+      </Animated.View>
+    ) : null;
+
+  const items = Children.toArray(children);
+  const body = stagger
+    ? items.map((child, i) => (
+        <Animated.View key={isValidElement(child) && child.key != null ? String(child.key) : i} entering={enter(i + 1)}>
+          {child}
+        </Animated.View>
+      ))
+    : children;
+
+  const bar =
+    onBack || title ? (
+      <View pointerEvents="box-none" style={[styles.bar, { height: insets.top + BAR, paddingTop: insets.top }]}>
+        {scroll ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.barBg, fade]} /> : null}
+        <View style={styles.barRow} pointerEvents="box-none">
+          {onBack ? <IconButton icon="arrow-back" label="Back" onPress={onBack} size={44} /> : <View style={styles.barSide} />}
+          {title && scroll ? (
+            <Animated.View style={[styles.barTitle, compactTitle]} pointerEvents="none">
+              <Txt v="bodyStrong" lines={1}>
+                {title}
+              </Txt>
+            </Animated.View>
+          ) : (
+            <View style={styles.flex} />
+          )}
+          <View style={styles.barSide} />
+        </View>
+      </View>
+    ) : null;
 
   const content = scroll ? (
-    <ScrollView
+    <Animated.ScrollView
       style={styles.flex}
-      contentContainerStyle={[styles.content, { paddingBottom: footer ? space.lg : insets.bottom + space.xl }]}
+      onScroll={onScroll}
+      scrollEventThrottle={16}
+      contentContainerStyle={[styles.content, { paddingTop: top, paddingBottom: footer ? space.lg : insets.bottom + space.xl }]}
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="handled"
     >
       {header}
-      {children}
-    </ScrollView>
+      <View style={[styles.stack, { gap }]}>{body}</View>
+    </Animated.ScrollView>
   ) : (
-    <View style={[styles.flex, styles.content]}>
+    <View style={[styles.flex, styles.content, { paddingTop: top }]}>
       {header}
       {children}
     </View>
   );
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
+    <View style={styles.screen}>
       {content}
+      {bar}
       {footer ? (
-        <View style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>{footer}</View>
+        <Animated.View entering={stagger ? enter(3) : undefined} style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
+          {footer}
+        </Animated.View>
       ) : null}
     </View>
   );
@@ -283,23 +459,17 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm + 2,
     paddingHorizontal: space.md,
   },
-  rowPressed: { backgroundColor: c.surfaceHigh },
-  rowText: { flex: 1, gap: 1 },
+  rowText: { flex: 1, gap: 1, minWidth: 0 },
+  rowValueBox: { alignItems: "flex-end" },
   rowValue: { fontSize: 22, lineHeight: 26 },
-  well: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    alignItems: "center",
-    justifyContent: "center",
-  },
+  well: { alignItems: "center", justifyContent: "center" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.border },
   group: {
     backgroundColor: c.surfaceRaised,
     borderRadius: radius.lg,
     overflow: "hidden",
   },
-  groupTitle: { marginBottom: space.sm, marginLeft: space.xs },
+  groupHead: { flexDirection: "row", alignItems: "center", marginBottom: space.sm, marginHorizontal: space.xs, gap: space.sm },
   stat: { flex: 1, gap: 2 },
   statFigure: { flexDirection: "row", alignItems: "baseline", gap: 4 },
   statUnit: { marginBottom: 2 },
@@ -312,6 +482,8 @@ const styles = StyleSheet.create({
     paddingTop: space.sm,
     ...shadow.paper,
   },
+  auto: { overflow: "hidden" },
+  autoInner: { position: "absolute", top: 0, left: 0, right: 0 },
   grabber: {
     alignSelf: "center",
     width: 40,
@@ -322,9 +494,14 @@ const styles = StyleSheet.create({
   },
   screen: { flex: 1, backgroundColor: c.surface },
   content: { paddingHorizontal: space.lg },
-  header: { paddingTop: space.md, paddingBottom: space.lg, gap: space.sm },
+  stack: { gap: 0 },
+  header: { paddingTop: space.sm, paddingBottom: space.lg, gap: space.sm },
   headerRow: { flexDirection: "row", alignItems: "flex-end", gap: space.md },
-  back: { width: 40, height: 40, justifyContent: "center", marginLeft: -4 },
+  bar: { position: "absolute", top: 0, left: 0, right: 0 },
+  barBg: { backgroundColor: c.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  barRow: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: space.sm },
+  barSide: { width: 44 },
+  barTitle: { flex: 1, alignItems: "center" },
   footer: {
     paddingHorizontal: space.lg,
     paddingTop: space.md,

@@ -15,7 +15,8 @@
         "NSLocationWhenInUseUsageDescription": "Gera Rider uses your location to send you trips nearby and guide you to your passenger.",
         "UIBackgroundModes": [
           "location"
-        ]
+        ],
+        "CADisableMinimumFrameDurationOnPhone": true
       }
     },
     "android": {

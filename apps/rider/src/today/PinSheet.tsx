@@ -1,8 +1,7 @@
-import { useEffect, useState } from "react";
-import { Modal, Pressable, StyleSheet, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Modal, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { Keypad, PinBoxes, Txt, c, notify, space } from "@gera/kit";
+import { Button, IconButton, Keypad, PinBoxes, SuccessMark, Swap, Txt, c, notify, space } from "@gera/kit";
 import { startTrip } from "@gera/data";
 import { supabase } from "../lib/supabase";
 
@@ -12,7 +11,8 @@ import { supabase } from "../lib/supabase";
  * the whole of passenger verification in a cash-only city.
  *
  * Submits itself on the fourth digit. There is no "Start" button to find with a
- * glove on.
+ * glove on. A match is shown for a beat before the sheet closes, so the rider
+ * sees it worked instead of guessing from the screen behind.
  */
 export function PinSheet({
   tripId,
@@ -20,12 +20,19 @@ export function PinSheet({
   visible,
   onClose,
   onStarted,
+  onCall,
 }: {
   readonly tripId: string;
   readonly passengerName: string;
   readonly visible: boolean;
   readonly onClose: () => void;
   readonly onStarted: () => void;
+  /**
+   * Offered when the PIN won't come right: the passenger may be someone else.
+   * Returns what went wrong, if anything, to be shown here - a toast would be
+   * hidden behind this sheet.
+   */
+  readonly onCall?: () => Promise<{ text: string; bad: boolean } | null>;
 }) {
   const insets = useSafeAreaInsets();
   const [pin, setPin] = useState("");
@@ -33,13 +40,23 @@ export function PinSheet({
   const [message, setMessage] = useState<{ text: string; bad: boolean } | null>(null);
   const [checking, setChecking] = useState(false);
   const [locked, setLocked] = useState(false);
+  const [matched, setMatched] = useState(false);
+  const done = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!visible) {
       setPin("");
       setMessage(null);
+      setMatched(false);
     }
   }, [visible]);
+
+  useEffect(
+    () => () => {
+      if (done.current) clearTimeout(done.current);
+    },
+    [],
+  );
 
   const submit = async (value: string) => {
     setChecking(true);
@@ -47,7 +64,8 @@ export function PinSheet({
       const r = await startTrip(supabase, tripId, value);
       if (r.started) {
         notify("success");
-        onStarted();
+        setMatched(true);
+        done.current = setTimeout(onStarted, 900);
         return;
       }
       notify("error");
@@ -74,7 +92,7 @@ export function PinSheet({
   };
 
   const onDigit = (d: string) => {
-    if (checking || locked || pin.length >= 4) return;
+    if (checking || locked || matched || pin.length >= 4) return;
     const next = pin + d;
     setPin(next);
     setMessage(null);
@@ -83,43 +101,73 @@ export function PinSheet({
 
   return (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <View style={[styles.root, { paddingTop: insets.top + space.md, paddingBottom: insets.bottom + space.lg }]}>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={12} style={styles.close}>
-          <Ionicons name="close" size={28} color={c.textStrong} />
-        </Pressable>
-
-        <View style={styles.top}>
-          <Txt v="title">Enter the PIN</Txt>
-          <Txt v="body" tone="muted">
-            Ask {passengerName} for the four numbers on their screen.
-          </Txt>
+      <View style={[styles.root, { paddingTop: insets.top + space.sm, paddingBottom: insets.bottom + space.lg }]}>
+        <View style={styles.bar}>
+          <IconButton icon="close" label="Close" onPress={onClose} size={44} />
         </View>
 
-        <View style={styles.middle}>
-          <PinBoxes value={pin} shakeKey={shake} />
-          <View style={styles.message}>
-            {checking ? (
-              <Txt v="label" tone="muted" align="center">
-                Checking…
+        <Swap id={matched ? "matched" : "entry"} style={styles.flex}>
+          {matched ? (
+            <View style={styles.matched}>
+              <SuccessMark size={84} />
+              <Txt v="title" align="center">
+                PIN matches
               </Txt>
-            ) : message ? (
-              <Txt v="label" tone={message.bad ? "bad" : "muted"} align="center">
-                {message.text}
+              <Txt v="body" tone="muted" align="center">
+                Trip started. Ride safe with {passengerName}.
               </Txt>
-            ) : null}
-          </View>
-        </View>
+            </View>
+          ) : (
+            <View style={styles.flex}>
+              <View style={styles.top}>
+                <Txt v="title">Enter the PIN</Txt>
+                <Txt v="body" tone="muted">
+                  Ask {passengerName} for the four numbers on their screen.
+                </Txt>
+              </View>
 
-        <Keypad onDigit={onDigit} onDelete={() => setPin((p) => p.slice(0, -1))} />
+              <View style={styles.middle}>
+                <PinBoxes value={pin} shakeKey={shake} />
+                <View style={styles.message}>
+                  {checking ? (
+                    <Txt v="label" tone="muted" align="center">
+                      Checking…
+                    </Txt>
+                  ) : message ? (
+                    <Txt v="label" tone={message.bad ? "bad" : "muted"} align="center">
+                      {message.text}
+                    </Txt>
+                  ) : null}
+                </View>
+                {(locked || (message?.bad && shake > 1)) && onCall ? (
+                  <Button
+                    label={`Call ${passengerName}`}
+                    icon="call"
+                    variant="secondary"
+                    compact
+                    onPress={async () => {
+                      const problem = await onCall();
+                      if (problem) setMessage(problem);
+                    }}
+                  />
+                ) : null}
+              </View>
+
+              <Keypad onDigit={onDigit} onDelete={() => setPin((p) => p.slice(0, -1))} />
+            </View>
+          )}
+        </Swap>
       </View>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   root: { flex: 1, backgroundColor: c.surface, paddingHorizontal: space.lg },
-  close: { alignSelf: "flex-start", marginBottom: space.md },
+  bar: { flexDirection: "row", marginLeft: -space.sm, marginBottom: space.sm },
   top: { gap: space.xs },
   middle: { flex: 1, justifyContent: "center", gap: space.lg },
   message: { minHeight: 40, paddingHorizontal: space.md },
+  matched: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md, paddingBottom: space.xxl },
 });

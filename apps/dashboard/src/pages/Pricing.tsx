@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { quoteFare, type FarePolicy, type VehicleClass } from "@gera/core";
 import { can, kigaliDateTime, money, rpc, type Staff, type StaffRole } from "../lib/supabase";
+import { Flash, useUi } from "../components/ui";
 
 interface PolicyRow {
   id: string;
@@ -119,7 +120,7 @@ export function Pricing({ staff }: { staff: Staff }) {
       </div>
 
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
-      {done ? <div className="notice good" style={{ marginBottom: 16 }}>{done}</div> : null}
+      <Flash message={done} onShown={() => setDone(null)} />
 
       {policies ? (
         <div className="stack" style={{ gap: 16, marginBottom: 24 }}>
@@ -254,7 +255,7 @@ function PriceCard({
                   <td className="right num">
                     <strong>{money(b)}</strong>
                     <Delta by={b - a} />
-                    <span className="small muted"> · rider {money(earn(b, next.commissionPct))}</span>
+                    <span className="small muted" style={{ marginLeft: 8 }}>rider {money(earn(b, next.commissionPct))}</span>
                   </td>
                 ) : null}
               </tr>
@@ -356,6 +357,7 @@ function SettingRow({
   canEdit: boolean;
   onSave: (v: string | number | boolean) => Promise<boolean>;
 }) {
+  const ui = useUi();
   const shown = def.bool ? value : def.minutes ? Number(value) / 60 : Number(value);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(String(shown));
@@ -371,9 +373,20 @@ function SettingRow({
                 type="checkbox"
                 checked={value === true}
                 disabled={!canEdit}
-                onChange={(e) => {
-                  if (!e.target.checked && !window.confirm("Turn off the ride PIN? Any rider could then start a trip with any passenger.")) return;
-                  void onSave(e.target.checked);
+                onChange={async (e) => {
+                  const on = e.target.checked;
+                  if (
+                    !on &&
+                    !(await ui.confirm({
+                      title: "Turn off the ride PIN?",
+                      body: "Any rider could then start a trip with any passenger. The PIN is the only check that the person on the back is the one who booked.",
+                      confirmLabel: "Turn it off",
+                      cancelLabel: "Keep it on",
+                      tone: "danger",
+                    }))
+                  )
+                    return;
+                  void onSave(on);
                 }}
               />
               <span>{value ? "On" : "Off"}</span>

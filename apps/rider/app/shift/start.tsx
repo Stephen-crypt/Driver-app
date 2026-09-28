@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
+import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { goBack } from "../../src/lib/nav";
-import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Divider, Group, Screen, Txt, VestPatch, c, notify, space, tap } from "@gera/kit";
+import { Banner, Button, ChoiceRow, Divider, Group, Screen, Txt, VehicleTile, VestPatch, c, ease, notify, radius, space, useOverlay } from "@gera/kit";
 import { SHIFT_CHECKS } from "@gera/core";
 import { getRiderProfile, startShift, type RiderProfile } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
@@ -19,6 +19,7 @@ const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "
  */
 export default function StartShift() {
   const router = useRouter();
+  const overlay = useOverlay();
   const { riderId } = useSession();
   const [profile, setProfile] = useState<RiderProfile | null>(null);
   const [checked, setChecked] = useState<Record<string, boolean>>({});
@@ -40,6 +41,7 @@ export default function StartShift() {
       const at = await loc.getCurrent();
       await startShift(supabase, checked, at);
       notify("success");
+      overlay.toast({ message: "Shift started. Go online when you're ready.", tone: "good", icon: "shield-checkmark" });
       goBack(router);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not start the shift.");
@@ -55,79 +57,92 @@ export default function StartShift() {
       title="Before you ride"
       subtitle="Check each one. If something fails, report it instead of riding."
       onBack={() => goBack(router)}
+      gap={space.lg}
       footer={
         <View style={styles.footer}>
           {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
           <Button
-            label={all ? "Start shift" : `${SHIFT_CHECKS.length - done} checks to go`}
+            label={all ? "Start shift" : `${SHIFT_CHECKS.length - done} ${SHIFT_CHECKS.length - done === 1 ? "check" : "checks"} to go`}
             icon={all ? "shield-checkmark" : undefined}
             onPress={start}
             disabled={!all}
             loading={busy}
           />
-          <Button label="Something failed — report it" variant="quiet" onPress={() => router.replace("/report")} compact />
+          <Button label="Something failed? Report it" variant="quiet" onPress={() => router.replace("/report")} compact />
         </View>
       }
     >
       {v ? (
-        <View style={styles.vehicle}>
-          {v.vestNumber ? <VestPatch value={v.vestNumber} size="lg" /> : null}
-          <View>
+        <View key="vehicle" style={styles.vehicle}>
+          <VehicleTile kind={v.vehicleClass} size={52} onGrey />
+          <View style={styles.flex}>
             <Txt v="figure">{v.plate}</Txt>
             <Txt v="label" tone="muted">
-              {CLASS_NAME[v.vehicleClass] ?? "Vehicle"} · company vehicle
+              {CLASS_NAME[v.vehicleClass] ?? "Vehicle"}, company vehicle
             </Txt>
           </View>
+          {v.vestNumber ? <VestPatch value={v.vestNumber} size="md" /> : null}
         </View>
       ) : null}
 
-      <Group>
-        {SHIFT_CHECKS.map((k, i) => {
-          const on = !!checked[k.key];
-          return (
-            <View key={k.key}>
-              {i > 0 ? <Divider inset={space.md + 32 + space.md} /> : null}
-              <Pressable
-                onPress={() => {
-                  tap();
-                  setChecked((prev) => ({ ...prev, [k.key]: !prev[k.key] }));
-                }}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: on }}
-                style={({ pressed }) => [styles.check, pressed && styles.pressed]}
-              >
-                <View style={[styles.box, on && styles.boxOn]}>
-                  {on ? <Ionicons name="checkmark" size={20} color={c.onAccent} /> : null}
-                </View>
-                <View style={styles.flex}>
-                  <Txt v="bodyStrong">{k.label}</Txt>
-                  <Txt v="label" tone="muted">
-                    {k.hint}
-                  </Txt>
-                </View>
-              </Pressable>
-            </View>
-          );
-        })}
+      <View key="meter" style={styles.meter}>
+        <View style={styles.meterHead}>
+          <Txt v="label" tone="muted">
+            Safety checks
+          </Txt>
+          <Txt v="label" tone={all ? "good" : "strong"} tabularNums>
+            {done} of {SHIFT_CHECKS.length}
+          </Txt>
+        </View>
+        <Meter value={done / SHIFT_CHECKS.length} done={all} />
+      </View>
+
+      <Group key="checks">
+        {SHIFT_CHECKS.map((k, i) => (
+          <View key={k.key}>
+            {i > 0 ? <Divider inset={space.md + 30 + space.md} /> : null}
+            <ChoiceRow
+              kind="check"
+              on={!!checked[k.key]}
+              onPress={() => setChecked((prev) => ({ ...prev, [k.key]: !prev[k.key] }))}
+              title={k.label}
+              hint={k.hint}
+            />
+          </View>
+        ))}
       </Group>
     </Screen>
   );
 }
 
+/** How much of the checklist is done, filling as boxes are ticked. */
+function Meter({ value, done }: { readonly value: number; readonly done: boolean }) {
+  const w = useSharedValue(0);
+  const p = useSharedValue(value);
+  useEffect(() => {
+    p.set(withTiming(value, { duration: 320, easing: ease.out }));
+  }, [value]); // eslint-disable-line react-hooks/exhaustive-deps
+  const fill = useAnimatedStyle(() => ({ transform: [{ translateX: -(1 - p.get()) * w.get() }] }));
+  return (
+    <View style={styles.track} onLayout={(e) => w.set(e.nativeEvent.layout.width)} accessibilityElementsHidden>
+      <Animated.View style={[StyleSheet.absoluteFill, styles.fill, { backgroundColor: done ? c.success : c.accent }, fill]} />
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  vehicle: { flexDirection: "row", alignItems: "center", gap: space.md, marginBottom: space.lg },
-  check: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, minHeight: 68 },
-  pressed: { backgroundColor: c.surfaceHigh },
-  box: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 2,
-    borderColor: c.border,
+  flex: { flex: 1, minWidth: 0 },
+  vehicle: {
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: c.surfaceRaised,
   },
-  boxOn: { backgroundColor: c.success, borderColor: c.success },
+  meter: { gap: space.sm },
+  meterHead: { flexDirection: "row", justifyContent: "space-between" },
+  track: { height: 6, borderRadius: 3, backgroundColor: c.surfaceHigh, overflow: "hidden" },
+  fill: { borderRadius: 3 },
   footer: { gap: space.sm },
 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { LiveMap, type MapLine, type MapPoint, type MapZone } from "../components/LiveMap";
 import { ago, can, kigaliTime, money, rpc, supabase, type Staff } from "../lib/supabase";
+import { Odometer, useUi } from "../components/ui";
 
 interface Rider {
   rider_id: string;
@@ -131,6 +132,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
       .catch(() => setZones([]));
   }, []);
   const [error, setError] = useState<string | null>(null);
+  const ui = useUi();
   const [focus, setFocus] = useState<{ lat: number; lng: number; key: string } | null>(null);
   const [now, setNow] = useState(Date.now());
   const known = useRef<Set<string> | null>(null);
@@ -194,7 +196,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
         lng: r.lng,
         html: `<div class="m-rider ${cls}">${escapeHtml(r.vest ?? "·")}</div>`,
         size: [30, 34],
-        title: `${r.name}${r.plate ? ` · ${r.plate}` : ""}`,
+        title: `${r.name}${r.plate ? `, ${r.plate}` : ""}`,
         onClick: () => navigate(`/riders/${r.rider_id}`),
       });
     }
@@ -206,7 +208,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
         lng: t.pickup_lng,
         html: `<div class="m-pin ${t.needs_attention ? "late" : ""}"></div>`,
         size: [14, 14],
-        title: `${t.passenger_name} · ${STATE[t.state] ?? t.state}`,
+        title: `${t.passenger_name}, ${(STATE[t.state] ?? t.state).toLowerCase()}`,
         onClick: () => navigate(`/trips/${t.trip_id}`),
       });
     }
@@ -218,7 +220,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
         lng: a.lng,
         html: `<div class="m-sos"></div>`,
         size: [26, 26],
-        title: `SOS · ${a.person_name}`,
+        title: `SOS from ${a.person_name}`,
       });
     }
     return out;
@@ -291,7 +293,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
                     </span>
                   </div>
                   <div className="small muted">
-                    {t.pickup_label} → {t.dropoff_label}
+                    {t.pickup_label} to {t.dropoff_label}
                   </div>
                 </div>
               ))}
@@ -300,7 +302,9 @@ export function ControlRoom({ staff }: { staff: Staff }) {
         ) : null}
 
         <section className="card" aria-label="Live trips">
-          <h2>Live trips · {live.length}</h2>
+          <h2>
+            Live trips <span className="count-inline"><Odometer value={live.length} /></span>
+          </h2>
           {live.length === 0 ? (
             <div className="muted small">Nothing moving right now.</div>
           ) : (
@@ -328,8 +332,8 @@ export function ControlRoom({ staff }: { staff: Staff }) {
                     </span>
                   </div>
                   <div className="small muted" style={{ marginTop: 4 }}>
-                    {t.pickup_label} → {t.dropoff_label}
-                    {t.fare_rwf ? ` · ${money(t.fare_rwf)} RWF` : ""}
+                    {t.pickup_label} to {t.dropoff_label}
+                    {t.fare_rwf ? `, ${money(t.fare_rwf)} RWF` : ""}
                   </div>
                 </div>
               ))}
@@ -355,13 +359,23 @@ export function ControlRoom({ staff }: { staff: Staff }) {
                   {e.kind === "speed" || e.kind.startsWith("geo:") ? (
                     <button
                       className="link-button small"
-                      onClick={(ev) => {
+                      onClick={async (ev) => {
                         ev.stopPropagation();
-                        const note = window.prompt("What was done? (optional)") ?? null;
+                        const note = await ui.prompt({
+                          title: "Mark as reviewed",
+                          body: e.title,
+                          label: "What was done? (optional)",
+                          placeholder: "Called the rider. A road was closed, so they went round.",
+                          confirmLabel: "Mark reviewed",
+                          optional: true,
+                        });
                         if (note === null) return;
                         void rpc(e.kind === "speed" ? "staff_review_speed_alert" : "staff_review_geo_alert", { p_alert_id: e.ref_id, p_note: note })
-                          .then(() => setEvents((all) => all.filter((x) => x.ref_id !== e.ref_id)))
-                          .catch((err: Error) => window.alert(err.message));
+                          .then(() => {
+                            setEvents((all) => all.filter((x) => x.ref_id !== e.ref_id));
+                            ui.toast("Marked as reviewed");
+                          })
+                          .catch((err: Error) => ui.toast(err.message, "bad"));
                       }}
                     >
                       Mark reviewed
@@ -407,33 +421,33 @@ function SosCard({
   return (
     <div className={`alert ${a.acknowledged_at ? "" : "fresh"}`} role="alert">
       <div className="row" style={{ justifyContent: "space-between" }}>
-        <h3>Emergency · {a.person_role === "rider" ? "rider" : "passenger"}</h3>
+        <h3>{a.person_role === "rider" ? "Rider" : "Passenger"} emergency</h3>
         <span className="small muted">{ago(a.created_at, now)}</span>
       </div>
       <div className="who" style={{ marginTop: 6 }}>
         {a.person_name}
         {a.person_phone ? (
           <>
-            {" · "}
+            {", "}
             <a href={`tel:${a.person_phone}`}>{a.person_phone}</a>
           </>
         ) : null}
       </div>
       {a.trip_id ? (
         <div className="small" style={{ marginTop: 4 }}>
-          {a.pickup_label} → {a.dropoff_label} <span className="muted">({(a.trip_state && STATE[a.trip_state]) ?? a.trip_state})</span>
+          {a.pickup_label} to {a.dropoff_label} <span className="muted">({(a.trip_state && STATE[a.trip_state]) ?? a.trip_state})</span>
           <br />
           {a.rider_name ? (
             <>
               Rider {a.rider_name}
               {a.rider_phone ? (
                 <>
-                  {" "}
-                  · <a href={`tel:${a.rider_phone}`}>{a.rider_phone}</a>
+                  {", "}
+                  <a href={`tel:${a.rider_phone}`}>{a.rider_phone}</a>
                 </>
               ) : null}
-              {a.plate ? <> · <span className="plate">{a.plate}</span></> : null}
-              {a.vest ? <> · vest {a.vest}</> : null}
+              {a.plate ? <>{", "}<span className="plate">{a.plate}</span></> : null}
+              {a.vest ? <>, vest {a.vest}</> : null}
             </>
           ) : null}
         </div>
@@ -443,7 +457,7 @@ function SosCard({
       {a.note ? <div className="small" style={{ marginTop: 4 }}>“{a.note}”</div> : null}
       <div className="small muted" style={{ marginTop: 4 }}>
         {a.lat !== null ? `${a.lat.toFixed(5)}, ${a.lng?.toFixed(5)}` : "No location recorded"}
-        {a.acknowledged_at ? ` · acknowledged by ${a.acknowledged_by_name ?? "staff"} ${ago(a.acknowledged_at, now)}` : ""}
+        {a.acknowledged_at ? `. Acknowledged by ${a.acknowledged_by_name ?? "staff"} ${ago(a.acknowledged_at, now)}` : ""}
       </div>
 
       {error ? <div className="notice bad small" style={{ marginTop: 8 }}>{error}</div> : null}

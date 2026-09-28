@@ -1,7 +1,8 @@
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
-import { c, useGeraFonts } from "@gera/kit";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { OverlayProvider, c, useGeraFonts } from "@gera/kit";
 
 export default function RootLayout() {
   // Nothing renders until the faces load: a screen that paints in the system
@@ -10,15 +11,23 @@ export default function RootLayout() {
   if (!fontsReady) return <View style={{ flex: 1, backgroundColor: c.surface }} />;
 
   return (
-    <>
-      <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: c.surface },
-          animation: "slide_from_right",
-        }}
-      />
-    </>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.surface }}>
+      <OverlayProvider>
+        <StatusBar style="dark" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: c.surface },
+            // The iOS push on both platforms: one way of moving through Gera.
+            animation: "ios_from_right",
+          }}
+        >
+          {/* Search comes up from where you tapped "Where to?", and goes back down. */}
+          <Stack.Screen name="destination" options={{ animation: "fade_from_bottom" }} />
+          <Stack.Screen name="welcome" options={{ animation: "fade" }} />
+          <Stack.Screen name="(tabs)" options={{ animation: "fade" }} />
+        </Stack>
+      </OverlayProvider>
+    </GestureHandlerRootView>
   );
 }

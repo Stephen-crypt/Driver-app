@@ -1,9 +1,27 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Image, Pressable, StyleSheet, TextInput, View } from "react-native";
+import { ActivityIndicator, Image, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Chip, Field, Group, Screen, Txt, VestPatch, c, notify, radius, space, tap } from "@gera/kit";
+import {
+  Banner,
+  Button,
+  Chip,
+  Field,
+  Group,
+  Press,
+  Screen,
+  Segmented,
+  Skeleton,
+  SuccessMark,
+  TextArea,
+  Txt,
+  VestPatch,
+  c,
+  notify,
+  radius,
+  space,
+} from "@gera/kit";
 import {
   INSPECTION_ITEMS,
   bestResultFor,
@@ -19,44 +37,6 @@ import {
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
 import * as loc from "../../src/lib/location";
-
-function Segmented<T extends string>({
-  value,
-  options,
-  onChange,
-  label,
-}: {
-  value: T | null;
-  options: readonly { value: T; label: string; tone?: "good" | "bad" | "warn"; disabled?: boolean }[];
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  return (
-    <View style={styles.seg} accessibilityRole="radiogroup" accessibilityLabel={label}>
-      {options.map((o) => {
-        const on = value === o.value;
-        const bg = on ? (o.tone === "good" ? c.success : o.tone === "bad" ? c.danger : o.tone === "warn" ? c.warning : c.accent) : "transparent";
-        return (
-          <Pressable
-            key={o.value}
-            disabled={o.disabled}
-            onPress={() => {
-              tap();
-              onChange(o.value);
-            }}
-            accessibilityRole="radio"
-            accessibilityState={{ selected: on, disabled: o.disabled }}
-            style={[styles.segItem, { backgroundColor: bg, opacity: o.disabled ? 0.35 : 1 }]}
-          >
-            <Txt v="label" tone={on ? "inverse" : "default"}>
-              {o.label}
-            </Txt>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
 
 const CHECK_OPTIONS = [
   { value: "pass", label: "OK", tone: "good" },
@@ -168,7 +148,7 @@ export default function Check() {
         }
       >
         <View style={styles.doneBox}>
-          <Ionicons name="checkmark-circle" size={64} color={c.success} />
+          <SuccessMark size={72} />
           <Txt v="title" align="center">
             Inspection saved
           </Txt>
@@ -194,8 +174,17 @@ export default function Check() {
 
   if (!found) {
     return (
-      <Screen onBack={() => goBack(router)}>
-        <ActivityIndicator color={c.accent} style={{ marginTop: space.xl }} />
+      <Screen onBack={() => goBack(router)} stagger={false}>
+        <View style={styles.loading}>
+          <View style={styles.id}>
+            <Skeleton width={60} height={74} r={14} />
+            <View style={[styles.flex, styles.loadingText]}>
+              <Skeleton width="70%" height={28} r={8} />
+              <Skeleton width="45%" height={14} />
+            </View>
+          </View>
+          <Skeleton height={220} r={radius.lg} />
+        </View>
       </Screen>
     );
   }
@@ -228,7 +217,7 @@ export default function Check() {
           <View style={styles.flex}>
             <Txt v="title">{found.rider?.name ?? "No rider assigned"}</Txt>
             <Txt v="body" tone="muted">
-              {found.vehicle ? `${found.vehicle.plate} · ${found.vehicle.class === "moto" ? "Moto" : found.vehicle.class === "cab" ? "Cab" : "Cab XL"}` : "No vehicle assigned"}
+              {found.vehicle ? `${found.vehicle.plate}, ${found.vehicle.class === "moto" ? "Moto" : found.vehicle.class === "cab" ? "Cab" : "Cab XL"}` : "No vehicle assigned"}
             </Txt>
             <View style={styles.chips}>
               {found.rider ? (
@@ -267,7 +256,7 @@ export default function Check() {
                 <Txt v="body" style={styles.flex}>
                   {i.label}
                 </Txt>
-                <Segmented label={i.label} value={checks[i.key] ?? null} options={CHECK_OPTIONS} onChange={(v) => setChecks((x) => ({ ...x, [i.key]: v }))} />
+                <Segmented compact label={i.label} value={checks[i.key] ?? null} options={CHECK_OPTIONS} onChange={(v) => setChecks((x) => ({ ...x, [i.key]: v }))} />
               </View>
             ))}
           </Group>
@@ -301,18 +290,16 @@ export default function Check() {
               {photos.map((p) => (
                 <Image key={p.path} source={{ uri: p.uri }} style={styles.thumb} accessibilityLabel="Inspection photo" />
               ))}
-              <Pressable onPress={addPhoto} style={styles.addPhoto} accessibilityRole="button" accessibilityLabel="Add a photo" disabled={uploading}>
+              <Press onPress={addPhoto} scaleTo={0.94} style={styles.addPhoto} accessibilityRole="button" accessibilityLabel="Add a photo" disabled={uploading}>
                 {uploading ? <ActivityIndicator color={c.accent} /> : <Ionicons name="camera" size={24} color={c.accent} />}
-              </Pressable>
+                {uploading ? null : (
+                  <Txt v="caption" tone="accent">
+                    Add
+                  </Txt>
+                )}
+              </Press>
             </View>
-            <TextInput
-              style={styles.notes}
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Anything else you saw"
-              placeholderTextColor={c.textMuted}
-              multiline
-            />
+            <TextArea value={notes} onChangeText={setNotes} placeholder="Anything else you saw" minHeight={96} onPaper accessibilityLabel="Notes" />
           </View>
         </Group>
 
@@ -345,13 +332,12 @@ const styles = StyleSheet.create({
   footer: { gap: space.sm },
   id: { flexDirection: "row", alignItems: "center", gap: space.md },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: space.xs, marginTop: space.xs },
-  seg: { flexDirection: "row", backgroundColor: c.surfaceHigh, borderRadius: radius.pill, padding: 3, gap: 2 },
-  segItem: { paddingHorizontal: 12, paddingVertical: 7, borderRadius: radius.pill, alignItems: "center", justifyContent: "center", minWidth: 44 },
   check: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.md, paddingVertical: space.sm },
   pad: { padding: space.md, gap: space.md },
   photos: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   thumb: { width: 72, height: 72, borderRadius: radius.md },
-  addPhoto: { width: 72, height: 72, borderRadius: radius.md, borderWidth: 2, borderStyle: "dashed", borderColor: c.accent, alignItems: "center", justifyContent: "center" },
-  notes: { minHeight: 80, borderRadius: radius.md, backgroundColor: c.surfaceHigh, padding: space.md, fontSize: 16, color: c.textStrong, textAlignVertical: "top" },
+  addPhoto: { width: 72, height: 72, borderRadius: radius.md, borderWidth: 2, borderStyle: "dashed", borderColor: c.accent, alignItems: "center", justifyContent: "center", gap: 2 },
   doneBox: { alignItems: "center", gap: space.md, paddingVertical: space.xxl },
+  loading: { gap: space.lg, paddingTop: space.md },
+  loadingText: { gap: space.sm },
 });

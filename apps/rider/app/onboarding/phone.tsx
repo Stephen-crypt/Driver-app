@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen } from "@gera/kit";
+import { Banner, Button, Field, Screen, StepTrack, Txt, space } from "@gera/kit";
 import { requestOtp } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
+import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 
 export default function PhoneScreen() {
   const router = useRouter();
@@ -28,8 +29,11 @@ export default function PhoneScreen() {
       title="What's your number?"
       subtitle="We'll text you a code to sign in."
       onBack={router.canGoBack() ? () => router.back() : undefined}
+      stagger={false}
+      gap={space.lg}
       footer={<Button label="Send code" onPress={submit} loading={busy} disabled={phone.trim().length < 9} />}
     >
+      <StepTrack steps={SIGNUP_STEPS} current={0} />
       <Field
         big
         prefix="+250"
@@ -40,6 +44,9 @@ export default function PhoneScreen() {
         autoFocus
         accessibilityLabel="Phone number"
       />
+      <Txt v="caption" tone="muted">
+        Passengers see your first name and your vest number. Your phone number stays with Gera.
+      </Txt>
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
     </Screen>
   );

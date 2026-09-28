@@ -1,8 +1,7 @@
-import { useState } from "react";
-import { Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Divider, Group, Row, Screen, Txt, c, radius, space, tap, type IconName } from "@gera/kit";
+import { Disclosure, Divider, Group, Press, Row, Screen, Txt, c, radius, space, type IconName } from "@gera/kit";
 import { EMERGENCY_NUMBER } from "@gera/data";
 import { goBack } from "../src/lib/nav";
 
@@ -58,17 +57,18 @@ const FAQ = [
 
 export default function Help() {
   const router = useRouter();
-  const [open, setOpen] = useState<string | null>(null);
 
   return (
     <Screen title="Help and safety" onBack={() => goBack(router)}>
       <View style={styles.stack}>
         {/* First, because someone opening this screen in a hurry is not here to
             read a FAQ. */}
-        <Pressable
+        <Press
           style={styles.emergency}
           onPress={() => Linking.openURL(`tel:${EMERGENCY_NUMBER}`)}
+          scaleTo={0.98}
           accessibilityRole="button"
+          accessibilityLabel={`Call ${EMERGENCY_NUMBER}, Rwanda emergency services`}
         >
           <View style={styles.emergencyWell}>
             <Ionicons name="call" size={22} color={c.onAccent} />
@@ -82,7 +82,7 @@ export default function Help() {
             </Txt>
           </View>
           <Ionicons name="chevron-forward" size={20} color={c.danger} />
-        </Pressable>
+        </Press>
 
         <Group title="Staying safe">
           {SAFETY.map((s, i) => (
@@ -94,42 +94,24 @@ export default function Help() {
         </Group>
 
         <Group title="Common questions">
-          {FAQ.map((f, i) => {
-            const isOpen = open === f.q;
-            return (
-              <View key={f.q}>
-                {i > 0 ? <Divider /> : null}
-                <Pressable
-                  onPress={() => {
-                    tap();
-                    setOpen(isOpen ? null : f.q);
-                  }}
-                  accessibilityRole="button"
-                  accessibilityState={{ expanded: isOpen }}
-                  style={styles.faq}
-                >
-                  <View style={styles.faqHead}>
-                    <Txt v="bodyStrong" style={styles.flex}>
-                      {f.q}
-                    </Txt>
-                    <Ionicons name={isOpen ? "remove" : "add"} size={20} color={c.textMuted} />
-                  </View>
-                  {isOpen ? (
-                    <Txt v="body" tone="muted">
-                      {f.a}
-                    </Txt>
-                  ) : null}
-                </Pressable>
-              </View>
-            );
-          })}
+          {FAQ.map((f, i) => (
+            <View key={f.q}>
+              {i > 0 ? <Divider /> : null}
+              <Disclosure title={f.q}>{f.a}</Disclosure>
+            </View>
+          ))}
         </Group>
 
-        {/* Said plainly rather than implied by a support button that goes
-            nowhere. A promise of help nobody answers is worse than none. */}
+        <Group title="Talk to us">
+          <Row title="Report a problem" subtitle="Lost property, a trip that went wrong, anything else" icon="flag" iconTone="warn" onPress={() => router.push("/report")} />
+          <Divider inset={70} />
+          <Row title="Your reports" subtitle="What you've sent us, and our answers" icon="document-text" onPress={() => router.push("/reports")} />
+        </Group>
+
+        {/* Said plainly: what happens, and who is on the other end. */}
         <Txt v="label" tone="muted">
-          Gera doesn't have a 24-hour support line yet. During a trip, the Safety button records your
-          location and who you're with. If you're in danger, call {EMERGENCY_NUMBER}.
+          Gera's control room watches every live trip. The Safety button on a trip sends them your location and who
+          you're with, and they call you back. If you're in danger, call {EMERGENCY_NUMBER} first.
         </Txt>
       </View>
     </Screen>
@@ -155,6 +137,4 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  faq: { padding: space.md, gap: space.sm },
-  faqHead: { flexDirection: "row", alignItems: "center", gap: space.md },
 });

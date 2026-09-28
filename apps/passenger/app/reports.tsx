@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
-import { ActivityIndicator, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Button, CaseCard, Screen, Txt, c, space } from "@gera/kit";
+import { Button, CaseCard, EmptyState, Enter, Screen, SkeletonRows, space } from "@gera/kit";
 import { caseStatusLabel, caseTitle, listMyCases, type MyCase } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
@@ -35,27 +35,23 @@ export default function Reports() {
       footer={<Button label="Report something" variant="secondary" onPress={() => router.push("/report")} />}
     >
       {cases === null ? (
-        <ActivityIndicator color={c.accent} />
+        <SkeletonRows count={3} />
       ) : cases.length === 0 ? (
-        <View style={styles.empty}>
-          <Txt v="heading">Nothing reported</Txt>
-          <Txt v="body" tone="muted">
-            Left something on a trip, or something went wrong? Open the trip in Activity, or report it here.
-          </Txt>
-        </View>
+        <EmptyState icon="document-text" title="Nothing reported" body="Left something on a trip, or something went wrong? Open the trip in Activity, or report it here." />
       ) : (
         <View style={styles.stack}>
-          {cases.map((k) => (
-            <CaseCard
-              key={k.id}
-              number={k.number}
-              title={caseTitle(k)}
-              status={k.status}
-              statusLabel={caseStatusLabel(k.status)}
-              when={when(k.createdAt)}
-              description={k.description}
-              resolution={k.resolution}
-            />
+          {cases.map((k, i) => (
+            <Enter key={k.id} i={i}>
+              <CaseCard
+                number={k.number}
+                title={caseTitle(k)}
+                status={k.status}
+                statusLabel={caseStatusLabel(k.status)}
+                when={when(k.createdAt)}
+                description={k.description}
+                resolution={k.resolution}
+              />
+            </Enter>
           ))}
         </View>
       )}
@@ -65,5 +61,4 @@ export default function Reports() {
 
 const styles = StyleSheet.create({
   stack: { gap: space.md },
-  empty: { gap: space.sm, paddingVertical: space.xl },
 });

@@ -18,7 +18,8 @@
     "review": "node scripts/review.mjs",
     "dev:approve-rider": "node scripts/dev-approve-rider.mjs",
     "staff": "node scripts/staff.mjs",
-    "dev:offer": "node scripts/dev-offer-trip.mjs"
+    "dev:offer": "node scripts/dev-offer-trip.mjs",
+    "dev:ip": "node scripts/dev-ip.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

@@ -1,24 +1,33 @@
 import { useCallback, useEffect, useRef, useState, type ReactElement } from "react";
-import { ActivityIndicator, Alert, Linking, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Banner,
   Button,
   Chip,
   FloatButton,
   GeraMap,
+  LiveDot,
   Paper,
-  Row,
+  Press,
+  Skeleton,
   SlideToConfirm,
   Stat,
   StatRow,
+  Swap,
   Txt,
+  VehicleTile,
   VestPatch,
   c,
   money,
+  notify,
+  radius,
   shadow,
   space,
+  useOverlay,
+  useSettledHeight,
 } from "@gera/kit";
 import {
   EMERGENCY_NUMBER,
@@ -73,6 +82,7 @@ export default function Today() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { riderId } = useSession();
+  const overlay = useOverlay();
 
   const [profile, setProfile] = useState<RiderProfile | null>(null);
   const [shift, setShift] = useState<Shift | null | undefined>(undefined);
@@ -97,7 +107,7 @@ export default function Today() {
 
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [paperH, setPaperH] = useState(320);
+  const [paperH, onPaperLayout] = useSettledHeight(320);
 
   const now = useNow(1000, trip?.state === "arrived" || shift != null);
 
@@ -353,38 +363,40 @@ export default function Today() {
       void load();
     }, "Could not finish the trip.");
 
-  const noShow = () => {
+  const noShow = async () => {
     if (!trip) return;
-    Alert.alert(
-      `${passengerName} didn't come?`,
-      "This ends the trip and records that you waited. Call them first if you haven't.",
-      [
-        { text: "Keep waiting", style: "cancel" },
-        {
-          text: "End trip",
-          style: "destructive",
-          onPress: () =>
-            run(async () => {
-              await reportNoShow(supabase, trip.id, "Passenger could not be found", hereRef.current);
-              setTrip(null);
-            }, "Could not report that."),
-        },
-      ],
-    );
+    const ok = await overlay.confirm({
+      title: `${passengerName} didn't come?`,
+      message: "This ends the trip and records how long you waited. Call them first if you haven't.",
+      confirmLabel: "End the trip",
+      cancelLabel: "Keep waiting",
+      tone: "danger",
+    });
+    if (!ok) return;
+    run(async () => {
+      await reportNoShow(supabase, trip.id, "Passenger could not be found", hereRef.current);
+      setTrip(null);
+      overlay.toast({ message: "No-show recorded. You're free for the next trip.", tone: "good" });
+    }, "Could not report that.");
+  };
+
+  // Starts a call and returns what went wrong, rather than showing it: the PIN
+  // sheet is a modal, which sits above the toasts, so it says it itself.
+  const startCall = async (): Promise<{ text: string; bad: boolean } | null> => {
+    if (!trip) return null;
+    try {
+      const contact = await getTripContact(supabase, trip.id);
+      if (!contact?.phone) return { text: "You can call once the trip is active.", bad: false };
+      await Linking.openURL(`tel:${contact.phone}`);
+      return null;
+    } catch {
+      return { text: "Couldn't start the call. Try again in a moment.", bad: true };
+    }
   };
 
   const callPassenger = async () => {
-    if (!trip) return;
-    try {
-      const contact = await getTripContact(supabase, trip.id);
-      if (!contact?.phone) {
-        Alert.alert("Not available", "You can call once the trip is active.");
-        return;
-      }
-      await Linking.openURL(`tel:${contact.phone}`);
-    } catch {
-      Alert.alert("Could not call", "Try again in a moment.");
-    }
+    const problem = await startCall();
+    if (problem) overlay.toast({ message: problem.text, tone: problem.bad ? "bad" : "neutral" });
   };
 
   // Hands off to Google Maps, which every rider already has and trusts, with
@@ -396,49 +408,59 @@ export default function Today() {
     );
   };
 
-  const cancel = () => {
+  const cancel = async () => {
     if (!trip) return;
-    Alert.alert("Cancel this trip?", "Cancelling after accepting affects your standing.", [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Cancel trip",
-        style: "destructive",
-        onPress: () =>
-          run(async () => {
-            await cancelTrip(supabase, trip.id, "rider");
-            setTrip(null);
-          }, "Could not cancel."),
-      },
-    ]);
+    const ok = await overlay.confirm({
+      title: "Cancel this trip?",
+      message: `${passengerName} is waiting for you. Cancelling after accepting counts against your standing.`,
+      confirmLabel: "Cancel trip",
+      cancelLabel: "Keep the trip",
+      tone: "danger",
+    });
+    if (!ok) return;
+    run(async () => {
+      await cancelTrip(supabase, trip.id, "rider");
+      setTrip(null);
+    }, "Could not cancel.");
   };
 
   const sos = () => {
-    Alert.alert("Emergency", `We'll record where you are. If you're in danger, call ${EMERGENCY_NUMBER}.`, [
-      { text: "Close", style: "cancel" },
-      {
-        text: "Record alert",
-        onPress: async () => {
-          const at = hereRef.current;
-          try {
-            await raiseSos(supabase, {
-              ...(trip ? { tripId: trip.id } : {}),
-              ...(at ? { at } : {}),
-            });
-            Alert.alert("Recorded", "Your alert and location have been saved.");
-          } catch {
-            Alert.alert("Could not record", `Call ${EMERGENCY_NUMBER} directly.`);
-          }
+    overlay.actions({
+      title: "Emergency",
+      message: "The control room sees your alert at once, with where you are and who you're carrying.",
+      options: [
+        {
+          label: `Call ${EMERGENCY_NUMBER}`,
+          hint: "Police, ambulance and fire. The control room is alerted too.",
+          icon: "call",
+          tone: "danger",
+          onPress: () => {
+            const at = hereRef.current;
+            void raiseSos(supabase, { ...(trip ? { tripId: trip.id } : {}), ...(at ? { at } : {}) }).catch(() => {});
+            void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+          },
         },
-      },
-      {
-        text: `Call ${EMERGENCY_NUMBER}`,
-        style: "destructive",
-        onPress: () => {
-          void raiseSos(supabase, trip ? { tripId: trip.id } : {}).catch(() => {});
-          void Linking.openURL(`tel:${EMERGENCY_NUMBER}`);
+        {
+          label: "Alert the control room",
+          hint: "They call you back straight away.",
+          icon: "shield-half",
+          onPress: async () => {
+            const at = hereRef.current;
+            try {
+              await raiseSos(supabase, {
+                ...(trip ? { tripId: trip.id } : {}),
+                ...(at ? { at } : {}),
+              });
+              notify("warning");
+              overlay.toast({ message: "Alert sent. The control room will call you.", tone: "good", icon: "shield-checkmark" });
+            } catch {
+              overlay.toast({ message: `Couldn't send it. Call ${EMERGENCY_NUMBER} directly.`, tone: "bad" });
+            }
+          },
         },
-      },
-    ]);
+        { label: "Report a problem", hint: "Not urgent: a fault, a hazard, a dispute", icon: "construct", onPress: () => router.push("/report") },
+      ],
+    });
   };
 
   // ---- map -------------------------------------------------------------------
@@ -453,10 +475,20 @@ export default function Today() {
   const target = trip && points ? (trip.state === "in_progress" ? points.dropoff : points.pickup) : null;
 
   // ---- sheet content -----------------------------------------------------------
+  // One panel per state. A new state swaps in and the sheet eases to its size.
+  let stage: string;
   let body: ReactElement;
   if (shift === undefined || !riderId) {
-    body = <ActivityIndicator color={c.accent} style={styles.spin} />;
+    stage = "loading";
+    body = (
+      <View style={styles.block} accessibilityLabel="Loading your day" accessibilityRole="progressbar">
+        <Skeleton width="40%" height={14} />
+        <Skeleton width="72%" height={30} r={8} />
+        <Skeleton height={64} r={32} />
+      </View>
+    );
   } else if (trip) {
+    stage = `trip-${trip.state}`;
     body = (
       <TripPanel
         trip={trip}
@@ -477,6 +509,7 @@ export default function Today() {
       />
     );
   } else if (!shift) {
+    stage = "no-shift";
     body = (
       <View style={styles.block}>
         <Txt v="title">Start your shift</Txt>
@@ -485,11 +518,13 @@ export default function Today() {
         </Txt>
         {profile?.vehicle ? (
           <View style={styles.vehicle}>
-            <Row
-              title={profile.vehicle.plate}
-              subtitle={`${CLASS_NAME[profile.vehicle.vehicleClass] ?? "Vehicle"} assigned to you`}
-              icon="bicycle"
-            />
+            <VehicleTile kind={profile.vehicle.vehicleClass} size={48} onGrey />
+            <View style={styles.flex}>
+              <Txt v="bodyStrong">{profile.vehicle.plate}</Txt>
+              <Txt v="label" tone="muted">
+                {CLASS_NAME[profile.vehicle.vehicleClass] ?? "Vehicle"} assigned to you
+              </Txt>
+            </View>
           </View>
         ) : (
           <Banner tone="warn" icon="alert-circle">
@@ -506,19 +541,46 @@ export default function Today() {
       </View>
     );
   } else {
+    stage = online ? "online" : "offline";
     body = (
       <View style={styles.block}>
-        <View style={styles.statusRow}>
-          {online ? <Chip label="Online" tone="good" dot /> : <Chip label="Offline" dot />}
-          <Txt v="label" tone="muted">
-            On shift {duration(shift.startedAt, now)}
-          </Txt>
-        </View>
-        <Txt v="title">{online ? "Trips come to you" : "Ready when you are"}</Txt>
+        {online ? (
+          // The one place blue is a ground: a rider glancing down from the road
+          // knows from the colour alone that work can reach them.
+          <View style={styles.slab}>
+            <LiveDot tone="good" size={10} onDark />
+            <View style={styles.flex}>
+              <Txt v="heading" tone="inverse">
+                You're online
+              </Txt>
+              <Txt v="label" tone="inverse" style={styles.soft}>
+                Trips come to you. Keep the app open.
+              </Txt>
+            </View>
+            <View style={styles.clock}>
+              <Txt v="caption" tone="inverse" style={styles.soft}>
+                On shift
+              </Txt>
+              <Txt v="bodyStrong" tone="inverse" tabularNums>
+                {duration(shift.startedAt, now)}
+              </Txt>
+            </View>
+          </View>
+        ) : (
+          <>
+            <View style={styles.statusRow}>
+              <Chip label="Offline" dot />
+              <Txt v="label" tone="muted" tabularNums>
+                On shift {duration(shift.startedAt, now)}
+              </Txt>
+            </View>
+            <Txt v="title">Ready when you are</Txt>
+          </>
+        )}
         <StatRow>
-          <Stat label="Earned today" value={money(earnings?.earnedRwf ?? 0)} tone="good" />
-          <Stat label="Trips" value={String(earnings?.trips ?? 0)} />
-          <Stat label="Cash to hand in" value={money(cashHeld ?? 0)} />
+          <Stat label="Earned today" value={money(earnings?.earnedRwf ?? 0)} tone="good" roll />
+          <Stat label="Trips" value={String(earnings?.trips ?? 0)} roll />
+          <Stat label="Cash to hand in" value={money(cashHeld ?? 0)} roll />
         </StatRow>
         {gpsDenied ? (
           <Banner tone="warn" icon="location">
@@ -559,26 +621,40 @@ export default function Today() {
         bottomInset={paperH}
       />
 
-      <View style={[styles.top, { top: insets.top + space.sm }]}>
-        <View style={styles.idCard}>
-          {profile?.vehicle?.vestNumber ? (
-            <VestPatch value={profile.vehicle.vestNumber} size="sm" />
-          ) : null}
-          <View>
+      <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
+        <Press
+          onPress={() => router.navigate("/me")}
+          style={styles.idCard}
+          accessibilityRole="button"
+          accessibilityLabel={`${profile?.firstName ?? "You"}${profile?.vehicle?.plate ? `, ${profile.vehicle.plate}` : ""}. Open your profile`}
+        >
+          {profile?.vehicle?.vestNumber ? <VestPatch value={profile.vehicle.vestNumber} size="sm" /> : null}
+          <View style={styles.shrink}>
             <Txt v="bodyStrong" lines={1}>
               {profile?.firstName ?? " "}
             </Txt>
-            <Txt v="caption" tone="muted" lines={1}>
-              {profile?.vehicle?.plate ?? "No vehicle"}
-              {profile?.rating ? ` · ★ ${profile.rating.toFixed(1)}` : ""}
-            </Txt>
+            <View style={styles.idMeta}>
+              <Txt v="caption" tone="muted" lines={1}>
+                {profile?.vehicle?.plate ?? "No vehicle"}
+              </Txt>
+              {profile?.rating ? (
+                <View style={styles.rating}>
+                  <Ionicons name="star" size={10} color={c.warning} />
+                  <Txt v="caption" tone="muted" tabularNums>
+                    {profile.rating.toFixed(1)}
+                  </Txt>
+                </View>
+              ) : null}
+            </View>
           </View>
-        </View>
+        </Press>
         <FloatButton icon="warning" label="Emergency" tone="bad" onPress={sos} />
       </View>
 
-      <View style={styles.sheet} onLayout={(e) => setPaperH(e.nativeEvent.layout.height)}>
-        <Paper padBottom={false}>{body}</Paper>
+      <View style={styles.sheet} onLayout={onPaperLayout}>
+        <Paper padBottom={false}>
+          <Swap id={stage}>{body}</Swap>
+        </Paper>
       </View>
 
       <OfferSheet offer={trip ? null : offer} here={here} busy={busy} onAccept={accept} onPass={pass} />
@@ -588,6 +664,7 @@ export default function Today() {
           passengerName={passengerName}
           visible={pinOpen}
           onClose={() => setPinOpen(false)}
+          onCall={startCall}
           onStarted={() => {
             setPinOpen(false);
             void refreshWork();
@@ -600,7 +677,8 @@ export default function Today() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  shrink: { flexShrink: 1 },
   root: { flex: 1, backgroundColor: c.surface },
   top: {
     position: "absolute",
@@ -622,10 +700,30 @@ const styles = StyleSheet.create({
     maxWidth: "75%",
     ...shadow.float,
   },
+  idMeta: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  rating: { flexDirection: "row", alignItems: "center", gap: 3 },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   block: { gap: space.md },
-  spin: { marginVertical: space.xl },
   statusRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  vehicle: { marginHorizontal: -space.md },
+  slab: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    paddingVertical: space.md,
+    paddingHorizontal: space.md + 2,
+    borderRadius: radius.lg,
+    backgroundColor: c.accentDeep,
+  },
+  soft: { opacity: 0.8 },
+  clock: { alignItems: "flex-end" },
+  vehicle: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.sm,
+    paddingRight: space.md,
+    borderRadius: radius.lg,
+    backgroundColor: c.surfaceHigh,
+  },
   pair: { flexDirection: "row", gap: space.sm },
 });

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { can, kigaliDateTime, money, rpc, supabase, type Staff } from "../lib/supabase";
+import { Flash, Odometer, SkeletonPage } from "../components/ui";
 
 interface Detail {
   id: string;
@@ -100,7 +101,14 @@ export function RiderDetail({ staff }: { staff: Staff }) {
     }
   };
 
-  if (!d) return <div className="page">{error ? <div className="notice bad">{error}</div> : "Loading…"}</div>;
+  if (!d)
+    return error ? (
+      <div className="page">
+        <div className="notice bad">{error}</div>
+      </div>
+    ) : (
+      <SkeletonPage />
+    );
 
   const required = d.documents.filter((x) => x.kind === "national_id" || x.kind === "driving_licence");
   const allApproved = required.length === 2 && required.every((x) => x.status === "approved");
@@ -115,8 +123,8 @@ export function RiderDetail({ staff }: { staff: Staff }) {
           </p>
           <h1>{d.name}</h1>
           <p className="sub">
-            {d.phone} · joined {kigaliDateTime(d.joined)}
-            {d.rating ? ` · ★ ${d.rating} from ${d.rating_count}` : ""}
+            {d.phone}, joined {kigaliDateTime(d.joined)}
+            {d.rating ? `. Rated ${d.rating} from ${d.rating_count} ratings` : ""}
           </p>
         </div>
         <div className="spacer" />
@@ -130,19 +138,19 @@ export function RiderDetail({ staff }: { staff: Staff }) {
       </div>
 
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
-      {done ? <div className="notice good" style={{ marginBottom: 16 }}>{done}</div> : null}
+      <Flash message={done} onShown={() => setDone(null)} />
 
       <div className="grid cols-3" style={{ marginBottom: 16 }}>
         <div className="card stat">
           <div className="figure">
-            {money(d.cash_held_rwf)}
+            <Odometer value={money(d.cash_held_rwf)} />
             <small>RWF</small>
           </div>
           <div className="label">Company cash they are carrying</div>
         </div>
         <div className="card stat">
           <div className="figure" style={{ color: "var(--good)" }}>
-            {money(d.net_owed_rwf)}
+            <Odometer value={money(d.net_owed_rwf)} delay={120} />
             <small>RWF</small>
           </div>
           <div className="label">Owed to them</div>
@@ -158,7 +166,7 @@ export function RiderDetail({ staff }: { staff: Staff }) {
           <section className="card">
             <h2>Documents</h2>
             <div className="small muted" style={{ marginBottom: 12 }}>
-              Licence {d.licence ?? "not given"} · National ID {d.national_id ?? "not given"}
+              Licence {d.licence ?? "not given"}, national ID {d.national_id ?? "not given"}
             </div>
             <div className="docs">
               {required.map((doc) => (
@@ -387,8 +395,8 @@ function AssignVehicle({
           <option value="">{depot.length ? (current ? "Swap for a depot vehicle…" : "Choose a depot vehicle…") : "No vehicles in the depot"}</option>
           {depot.map((v) => (
             <option key={v.vehicle_id} value={v.vehicle_id}>
-              {v.plate} · {v.class}
-              {v.vest ? ` · vest ${v.vest}` : ""}
+              {v.plate}, {v.class}
+              {v.vest ? `, vest ${v.vest}` : ""}
             </option>
           ))}
         </select>
@@ -559,8 +567,8 @@ function Inspections({ riderId }: { riderId: string }) {
                 By {r.inspector_name ?? "an inspector"}
                 {r.case_id ? (
                   <>
-                    {" · "}
-                    <Link to={`/cases/${r.case_id}`}>open the case</Link>
+                    {". "}
+                    <Link to={`/cases/${r.case_id}`}>Open the case</Link>
                   </>
                 ) : null}
               </div>

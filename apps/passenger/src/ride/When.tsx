@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { Pressable, ScrollView, StyleSheet, View } from "react-native";
-import { Txt, c, radius, space, tap } from "@gera/kit";
+import { ScrollView, StyleSheet, View } from "react-native";
+import { Press, Txt, c, radius, selection, space } from "@gera/kit";
 import { addDays, dayLabel, isoWeekday, kigaliToday, timeSlots } from "@gera/data";
 
 export type BookingMode = "now" | "later" | "regular";
@@ -39,20 +39,22 @@ export function Pill({
   readonly onLayout?: (x: number) => void;
 }) {
   return (
-    <Pressable
+    <Press
       onLayout={onLayout ? (e) => onLayout(e.nativeEvent.layout.x) : undefined}
       onPress={() => {
-        tap();
+        if (!on) selection();
         onPress();
       }}
+      scaleTo={0.95}
       accessibilityRole="radio"
       accessibilityState={{ selected: on }}
+      accessibilityLabel={label}
       style={[styles.pill, wide && styles.pillWide, on && styles.pillOn]}
     >
       <Txt v="label" tone={on ? "inverse" : "strong"} tabularNums>
         {label}
       </Txt>
-    </Pressable>
+    </Press>
   );
 }
 
@@ -182,12 +184,13 @@ export function Weekdays({
         const d = i + 1;
         const on = days.includes(d);
         return (
-          <Pressable
+          <Press
             key={d}
             onPress={() => {
-              tap();
+              selection();
               toggle(d);
             }}
+            scaleTo={0.92}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: on }}
             accessibilityLabel={DAY_NAME[i]}
@@ -196,7 +199,7 @@ export function Weekdays({
             <Txt v="bodyStrong" tone={on ? "inverse" : "strong"}>
               {l}
             </Txt>
-          </Pressable>
+          </Press>
         );
       })}
     </View>

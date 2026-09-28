@@ -1,7 +1,7 @@
 import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { goBack } from "../src/lib/nav";
-import { Button, Group, Row, Divider, Screen, Txt, c, space, type IconName } from "@gera/kit";
+import { Button, Group, Row, Divider, Screen, Txt, Well, c, radius, space, type IconName } from "@gera/kit";
 import { EMERGENCY_NUMBER } from "@gera/data";
 
 const RULES: readonly { icon: IconName; title: string; body: string }[] = [
@@ -35,35 +35,34 @@ const RULES: readonly { icon: IconName; title: string; body: string }[] = [
 export default function Safety() {
   const router = useRouter();
   return (
-    <Screen title="Riding safely" onBack={() => goBack(router)}>
-      <View style={styles.stack}>
-        <Group>
-          {RULES.map((r, i) => (
-            <View key={r.title}>
-              {i > 0 ? <Divider inset={70} /> : null}
-              <Row title={r.title} subtitle={r.body} icon={r.icon} iconTone="good" full />
-            </View>
-          ))}
-        </Group>
-        <View style={styles.sos}>
-          <Txt v="heading">In an emergency</Txt>
-          <Txt v="body" tone="muted">
-            Use the red button on the Today screen. It records where you are and who you're carrying.
-            If anyone is hurt, call {EMERGENCY_NUMBER} first.
+    <Screen title="Riding safely" subtitle="Five rules that keep you and your passenger safe." onBack={() => goBack(router)} gap={space.lg}>
+      <Group key="rules">
+        {RULES.map((r, i) => (
+          <View key={r.title}>
+            {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+            <Row title={r.title} subtitle={r.body} icon={r.icon} iconTone="good" full />
+          </View>
+        ))}
+      </Group>
+      <View key="sos" style={styles.sos}>
+        <View style={styles.sosHead}>
+          <Well icon="warning" tone="bad" />
+          <Txt v="heading" style={styles.flex}>
+            In an emergency
           </Txt>
-          <Button
-            label={`Call ${EMERGENCY_NUMBER}`}
-            icon="call"
-            variant="danger"
-            onPress={() => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`)}
-          />
         </View>
+        <Txt v="body" tone="muted">
+          Use the red button on the Today screen. It records where you are and who you're carrying. If anyone is hurt, call{" "}
+          {EMERGENCY_NUMBER} first.
+        </Txt>
+        <Button label={`Call ${EMERGENCY_NUMBER}`} icon="call" variant="danger" onPress={() => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`)} />
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  stack: { gap: space.lg },
-  sos: { gap: space.sm, padding: space.md, borderRadius: 20, backgroundColor: c.surfaceRaised },
+  flex: { flex: 1, minWidth: 0 },
+  sos: { gap: space.md, padding: space.md, borderRadius: radius.lg, backgroundColor: c.surfaceRaised },
+  sosHead: { flexDirection: "row", alignItems: "center", gap: space.md },
 });

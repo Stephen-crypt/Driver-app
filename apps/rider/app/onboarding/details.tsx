@@ -1,9 +1,10 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, Txt, space } from "@gera/kit";
+import { Banner, Button, Field, Screen, StepTrack, Txt, Well, c, radius, space } from "@gera/kit";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
+import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 
 function normalisePhone(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -77,9 +78,11 @@ export default function DetailsScreen() {
     <Screen
       title="About you"
       subtitle="As it appears on your licence and ID."
+      stagger={false}
       footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!ready} />}
     >
       <View style={styles.stack}>
+        <StepTrack steps={SIGNUP_STEPS} current={2} />
         <Field label="First name" value={name} onChangeText={setName} autoCapitalize="words" />
         <Field label="Driving licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters" />
         <Field
@@ -91,9 +94,10 @@ export default function DetailsScreen() {
           hint={idDigits.length > 0 && idDigits.length !== 16 ? "A Rwandan national ID has 16 digits." : "16 digits, on the front of your ID."}
         />
         <View style={styles.note}>
-          <Txt v="label" tone="muted">
-            You don't need a vehicle. Once you're approved, the fleet office assigns you one - with
-            its plate and your vest number.
+          <Well icon="key" size={36} />
+          <Txt v="label" tone="muted" style={styles.flex}>
+            You don't need a vehicle. Once you're approved, the fleet office assigns you one, with its plate and your
+            vest number.
           </Txt>
         </View>
         {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
@@ -103,6 +107,14 @@ export default function DetailsScreen() {
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1, minWidth: 0 },
   stack: { gap: space.md },
-  note: { paddingHorizontal: space.xs },
+  note: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.md + 4,
+    backgroundColor: c.surfaceRaised,
+  },
 });

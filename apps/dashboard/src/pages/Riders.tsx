@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { money, rpc } from "../lib/supabase";
+import { Skeleton } from "../components/ui";
 
 interface RiderRow {
   rider_id: string;
@@ -47,7 +48,7 @@ export function Riders() {
         <div>
           <h1>Riders</h1>
           <p className="sub">
-            {rows ? `${rows.length} shown · ${money(cash)} RWF of company cash out with them` : "Loading…"}
+            {rows ? `${rows.length} shown, ${money(cash)} RWF of company cash out with them` : <Skeleton w={340} h={14} style={{ marginTop: 6 }} />}
           </p>
         </div>
         <div className="spacer" />

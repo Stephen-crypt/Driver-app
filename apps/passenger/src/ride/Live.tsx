@@ -1,21 +1,31 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Button,
   Chip,
+  Enter,
+  Odometer,
   PinPatches,
+  Press,
   Pulse,
+  QuickAction,
+  QuickActions,
+  RouteRail,
+  TripProgress,
   Txt,
+  VEHICLE_NAME,
+  VehicleGlyph,
   VestPatch,
+  Well,
   c,
   money,
   radius,
   space,
+  type IconName,
+  type VehicleKind,
 } from "@gera/kit";
-import { Ionicons } from "@expo/vector-icons";
 import { waitingChargeFor } from "@gera/core";
 import type { RiderCard, RiderPosition, TripSnapshot, WaitStatus } from "@gera/data";
-
-const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
 
 function minutes(seconds: number | null | undefined): string {
   if (!seconds || seconds < 60) return "1";
@@ -27,19 +37,38 @@ function clock(total: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
 }
 
-export function Searching({ onCancel, busy }: { readonly onCancel: () => void; readonly busy: boolean }) {
+const STEPS = ["Rider on the way", "Rider at pickup", "On your trip"];
+
+export function Searching({
+  onCancel,
+  busy,
+  vehicle,
+  from,
+  to,
+}: {
+  readonly onCancel: () => void;
+  readonly busy: boolean;
+  readonly vehicle: string;
+  readonly from: string;
+  readonly to: string;
+}) {
   return (
-    <View style={styles.searching}>
-      <Pulse size={120}>
-        <Ionicons name="bicycle" size={28} color={c.onAccent} />
-      </Pulse>
-      <Txt v="title" align="center">
-        Finding you a rider
-      </Txt>
-      <Txt v="body" tone="muted" align="center">
-        Usually under a minute. We ask the closest riders one at a time.
-      </Txt>
-      <Button label="Cancel" variant="quiet" onPress={onCancel} disabled={busy} compact />
+    <View style={styles.stack}>
+      <View style={styles.searching}>
+        <Pulse size={132}>
+          <VehicleGlyph kind={vehicle} size={30} colour={c.onAccent} />
+        </Pulse>
+        <Txt v="title" align="center">
+          Finding you a rider
+        </Txt>
+        <Txt v="body" tone="muted" align="center">
+          Usually under a minute. We ask the closest riders one at a time.
+        </Txt>
+      </View>
+      <View style={styles.summary}>
+        <RouteRail dense from={{ label: from }} to={{ label: to }} />
+      </View>
+      <Button label="Cancel request" variant="quiet" onPress={onCancel} disabled={busy} compact />
     </View>
   );
 }
@@ -48,6 +77,10 @@ export function Searching({ onCancel, busy }: { readonly onCancel: () => void; r
  * Who is coming, how soon, and the PIN. The PIN is set in vest patches, the same
  * numerals the rider wears on their back: the two numbers that prove to each
  * of them that the other is the right person.
+ *
+ * The first time a rider appears is the one orchestrated moment in the
+ * passenger app: the vest patch turns to the rider's number, then their name
+ * and plate arrive after it.
  */
 export function Assigned({
   trip,
@@ -61,6 +94,7 @@ export function Assigned({
   onShare,
   onSos,
   onCancel,
+  onRider,
 }: {
   readonly trip: TripSnapshot;
   readonly rider: RiderCard | null;
@@ -73,24 +107,24 @@ export function Assigned({
   readonly onShare: () => void;
   readonly onSos: () => void;
   readonly onCancel: () => void;
+  readonly onRider: () => void;
 }) {
   const name = rider?.firstName ?? "Your rider";
   const arrived = trip.state === "arrived";
   const moving = trip.state === "in_progress";
+  const step = moving ? 2 : arrived ? 1 : 0;
 
   let headline: string;
   let sub: string | null = null;
   if (moving) {
     headline = `On the way to ${trip.dropoffLabel}`;
-    sub = riderAt ? `About ${minutes(riderAt.etaSeconds)} min to go` : null;
+    sub = riderAt ? "Arriving in about" : null;
   } else if (arrived) {
     headline = `${name} is here`;
     // Pickup labels are often "Near X" already; "At Near X" reads as a typo.
     sub = trip.pickupLabel.startsWith("Near ") ? trip.pickupLabel : `At ${trip.pickupLabel}`;
   } else {
     headline = `${name} is on the way`;
-    // The minutes are shown big beside the headline once there is a fix, so
-    // the line underneath says where they are going instead of repeating it.
     sub = "Heading to your pickup";
   }
 
@@ -99,9 +133,12 @@ export function Assigned({
   const grace = s?.graceSeconds ?? 300;
   const freeLeft = Math.max(0, grace - waited);
   const charge = s ? waitingChargeFor(waited, grace, s.perMinuteRwf) : 0;
+  const showEta = !arrived && riderAt;
 
   return (
     <View style={styles.stack}>
+      <TripProgress steps={STEPS} current={step} />
+
       <View style={styles.headRow}>
         <View style={styles.flex}>
           <Txt v="title" lines={2}>
@@ -113,11 +150,9 @@ export function Assigned({
             </Txt>
           ) : null}
         </View>
-        {!moving && !arrived && riderAt ? (
-          <View style={styles.eta}>
-            <Txt v="display" tabularNums>
-              {minutes(riderAt.etaSeconds)}
-            </Txt>
+        {showEta ? (
+          <View style={styles.eta} accessibilityLabel={`${minutes(riderAt.etaSeconds)} minutes`}>
+            <Odometer value={minutes(riderAt.etaSeconds)} v="display" />
             <Txt v="caption" tone="muted">
               min
             </Txt>
@@ -126,110 +161,97 @@ export function Assigned({
       </View>
 
       {rider ? (
-        <View style={styles.rider}>
-          {rider.vestNumber ? <VestPatch value={rider.vestNumber} size="md" label={`Vest ${rider.vestNumber}`} /> : null}
-          <View style={styles.flex}>
+        <Press onPress={onRider} scaleTo={0.985} style={styles.rider} accessibilityRole="button" accessibilityLabel={`${rider.firstName}, vest ${rider.vestNumber ?? "unknown"}, plate ${rider.plate ?? "unknown"}. More about your rider`}>
+          {rider.vestNumber ? <VestPatch value={rider.vestNumber} size="md" roll label={`Vest ${rider.vestNumber}`} /> : null}
+          <Enter i={3} style={styles.flex}>
             <Txt v="heading">{rider.firstName}</Txt>
-            <Txt v="label" tone="muted">
-              {CLASS_NAME[rider.vehicleClass] ?? "Vehicle"}
-              {rider.rating ? ` · ★ ${rider.rating.toFixed(1)}` : ""}
-            </Txt>
-          </View>
+            <View style={styles.riderMeta}>
+              <VehicleGlyph kind={rider.vehicleClass} size={15} colour={c.textMuted} />
+              <Txt v="label" tone="muted">
+                {VEHICLE_NAME[rider.vehicleClass as VehicleKind] ?? "Vehicle"}
+              </Txt>
+              {rider.rating ? (
+                <>
+                  <Ionicons name="star" size={12} color={c.warning} />
+                  <Txt v="label" tone="muted">
+                    {rider.rating.toFixed(1)}
+                  </Txt>
+                </>
+              ) : null}
+            </View>
+          </Enter>
           {rider.plate ? (
-            <View style={styles.plate}>
+            <Enter i={5} style={styles.plate}>
               <Txt v="figure" tabularNums style={styles.plateText}>
                 {rider.plate}
               </Txt>
-            </View>
+            </Enter>
           ) : null}
-        </View>
+        </Press>
       ) : null}
 
       {pin && !moving ? (
-        <View style={styles.pin}>
+        <Enter i={2} style={styles.pin}>
           <View style={styles.flex}>
             <Txt v="bodyStrong">Your PIN</Txt>
             <Txt v="label" tone="muted">
               {arrived ? `Tell ${name} these numbers to start` : "Tell your rider when they arrive"}
             </Txt>
           </View>
-          <PinPatches pin={pin} size="sm" />
-        </View>
+          <PinPatches pin={pin} size="sm" roll />
+        </Enter>
       ) : null}
 
       {arrived && s ? (
-        <View style={styles.waitRow}>
-          <Ionicons name="time-outline" size={18} color={freeLeft > 0 ? c.textMuted : c.warning} />
-          <Txt v="label" tone={freeLeft > 0 ? "muted" : "warn"} style={styles.flex}>
-            {freeLeft > 0
-              ? `${name} waits free for ${clock(freeLeft)} more`
-              : `Waiting is now charged · +${money(charge)} RWF so far`}
-          </Txt>
+        <View style={[styles.waitRow, freeLeft === 0 && styles.waitRowCharged]}>
+          <Ionicons name="time" size={18} color={freeLeft > 0 ? c.textMuted : c.warning} />
+          {freeLeft > 0 ? (
+            <Txt v="label" tone="muted" style={styles.flex}>
+              {name} waits free for{" "}
+              <Txt v="label" tone="strong" tabularNums>
+                {clock(freeLeft)}
+              </Txt>{" "}
+              more
+            </Txt>
+          ) : (
+            <Txt v="label" tone="warn" style={styles.flex}>
+              Waiting is now charged: {money(charge)} RWF so far
+            </Txt>
+          )}
         </View>
       ) : null}
 
-      <View style={styles.actions}>
-        <Action icon="call" label="Call" onPress={onCall} />
-        <Action icon="share-social" label="Share trip" onPress={onShare} />
-        <Action icon="shield" label="Safety" onPress={onSos} tone="bad" />
-        {!moving ? <Action icon="close" label="Cancel" onPress={onCancel} disabled={busy} /> : null}
-      </View>
+      <QuickActions>
+        <QuickAction icon="call" label="Call" onPress={onCall} />
+        <QuickAction icon="share-social" label="Share trip" onPress={onShare} />
+        <QuickAction icon="shield-half" label="Safety" onPress={onSos} tone="bad" />
+        {!moving ? <QuickAction icon="close" label="Cancel" onPress={onCancel} disabled={busy} /> : null}
+      </QuickActions>
     </View>
   );
 }
 
-function Action({
-  icon,
-  label,
-  onPress,
-  tone,
-  disabled,
-}: {
-  readonly icon: keyof typeof Ionicons.glyphMap;
-  readonly label: string;
-  readonly onPress: () => void;
-  readonly tone?: "bad";
-  readonly disabled?: boolean;
-}) {
-  return (
-    <View style={styles.action}>
-      <Button
-        label=""
-        icon={icon}
-        variant={tone === "bad" ? "danger" : "secondary"}
-        compact
-        onPress={onPress}
-        disabled={disabled}
-        style={styles.actionButton}
-      />
-      <Txt v="caption" tone="muted" align="center">
-        {label}
-      </Txt>
-    </View>
-  );
-}
+const ENDED: Record<string, { title: string; body: string; icon: IconName; tone: "neutral" | "warn" }> = {
+  no_riders: { title: "No riders free nearby", body: "Everyone close by is on a trip. Try again in a few minutes.", icon: "people", tone: "neutral" },
+  expired: { title: "That request timed out", body: "Nobody accepted in time. Try again - it's usually quicker the second time.", icon: "hourglass", tone: "neutral" },
+  cancelled_by_rider: { title: "Your rider cancelled", body: "You haven't been charged. Book again and we'll find someone else.", icon: "close-circle", tone: "neutral" },
+  cancelled_by_passenger: { title: "Trip cancelled", body: "You haven't been charged.", icon: "close-circle", tone: "neutral" },
+  no_show: {
+    title: "Your rider couldn't find you",
+    body: "They waited at the pickup and have left. Book again when you're ready - adding a note helps them find you.",
+    icon: "location",
+    tone: "warn",
+  },
+};
 
-export function Ended({
-  state,
-  onAgain,
-}: {
-  readonly state: string;
-  readonly onAgain: () => void;
-}) {
-  const copy: Record<string, { title: string; body: string }> = {
-    no_riders: { title: "No riders free nearby", body: "Everyone close by is on a trip. Try again in a few minutes." },
-    expired: { title: "That request timed out", body: "Nobody accepted in time. Try again - it's usually quicker the second time." },
-    cancelled_by_rider: { title: "Your rider cancelled", body: "You haven't been charged. Book again and we'll find someone else." },
-    cancelled_by_passenger: { title: "Trip cancelled", body: "You haven't been charged." },
-    no_show: {
-      title: "Your rider couldn't find you",
-      body: "They waited at the pickup and have left. Book again when you're ready - adding a note helps them find you.",
-    },
-  };
-  const t = copy[state] ?? { title: "Trip ended", body: "" };
+export function Ended({ state, onAgain }: { readonly state: string; readonly onAgain: () => void }) {
+  const t = ENDED[state] ?? { title: "Trip ended", body: "", icon: "flag" as IconName, tone: "neutral" as const };
   return (
     <View style={styles.stack}>
-      <Chip label={state === "no_show" ? "No-show recorded" : "Not charged"} tone={state === "no_show" ? "warn" : "neutral"} />
+      <View style={styles.endedHead}>
+        <Well icon={t.icon} tone={t.tone} size={48} />
+        <Chip label={state === "no_show" ? "No-show recorded" : "Not charged"} tone={state === "no_show" ? "warn" : "neutral"} />
+      </View>
       <Txt v="title">{t.title}</Txt>
       <Txt v="body" tone="muted">
         {t.body}
@@ -239,20 +261,27 @@ export function Ended({
   );
 }
 
+export function vehicleName(kind: string): string {
+  return VEHICLE_NAME[kind as VehicleKind] ?? "Ride";
+}
+
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   stack: { gap: space.md },
-  searching: { alignItems: "center", gap: space.sm, paddingVertical: space.sm },
+  searching: { alignItems: "center", gap: space.sm, paddingTop: space.xs },
+  summary: { padding: space.md, borderRadius: radius.lg, backgroundColor: c.surfaceHigh },
   headRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
-  eta: { alignItems: "center" },
+  eta: { alignItems: "center", minWidth: 48 },
   rider: {
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
     padding: space.sm,
+    paddingRight: space.md,
     borderRadius: radius.lg,
     backgroundColor: c.surfaceHigh,
   },
+  riderMeta: { flexDirection: "row", alignItems: "center", gap: 5 },
   // The plate is what the passenger scans the kerb for, so it is set like one.
   plate: {
     paddingHorizontal: space.sm,
@@ -272,8 +301,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: c.accentSoft,
   },
-  waitRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  actions: { flexDirection: "row", justifyContent: "space-between" },
-  action: { alignItems: "center", gap: 4, width: 76 },
-  actionButton: { width: 56, paddingHorizontal: 0 },
+  waitRow: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.xs },
+  waitRowCharged: { backgroundColor: c.warningSoft, borderRadius: radius.md, padding: space.sm },
+  endedHead: { flexDirection: "row", alignItems: "center", gap: space.md },
 });

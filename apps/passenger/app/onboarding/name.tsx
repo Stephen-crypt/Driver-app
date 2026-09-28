@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen } from "@gera/kit";
+import { Banner, Button, Field, Screen, StepTrack, Txt, notify } from "@gera/kit";
 import { normaliseRwandanPhone } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 
@@ -51,6 +51,7 @@ export default function NameScreen() {
         setError("We couldn't save that. Check your connection and try again.");
         return;
       }
+      notify("success");
       router.replace("/");
     } finally {
       setBusy(false);
@@ -61,9 +62,14 @@ export default function NameScreen() {
     <Screen
       title="What should we call you?"
       subtitle="Your rider sees your first name, so they know who they're looking for."
+      stagger={false}
       footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!name.trim()} />}
     >
-      <Field value={name} onChangeText={setName} placeholder="Aline" autoFocus autoCapitalize="words" />
+      <StepTrack steps={["Your number", "The code", "Your name"]} current={2} />
+      <Field value={name} onChangeText={setName} placeholder="Aline" autoFocus autoCapitalize="words" onSubmitEditing={submit} returnKeyType="done" />
+      <Txt v="caption" tone="muted">
+        Just a first name is fine.
+      </Txt>
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
     </Screen>
   );

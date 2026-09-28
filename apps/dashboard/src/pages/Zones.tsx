@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LiveMap, type MapZone } from "../components/LiveMap";
 import { can, kigaliDateTime, rpc, type Staff } from "../lib/supabase";
+import { Flash } from "../components/ui";
 
 type Kind = "service" | "operating" | "restricted" | "parking" | "pickup";
 
@@ -87,7 +88,7 @@ export function Zones({ staff }: { staff: Staff }) {
           id: z.id,
           ring: ringOf(z),
           color: KINDS[z.kind].color,
-          label: `${z.name} · ${KINDS[z.kind].label}${z.active ? "" : " (off)"}`,
+          label: `${z.name}, ${KINDS[z.kind].label.toLowerCase()}${z.active ? "" : " (off)"}`,
           muted: !z.active || (draft !== null && draft.id !== z.id),
           onClick: drawing ? undefined : () => edit(z),
         })),
@@ -109,7 +110,7 @@ export function Zones({ staff }: { staff: Staff }) {
         {drawing ? (
           <div className="map-legend">
             <strong>Click the map to place each corner.</strong>
-            <div className="small muted">{draft?.corners?.length ?? 0} placed · at least 3</div>
+            <div className="small muted">{draft?.corners?.length ?? 0} placed, at least 3 needed</div>
           </div>
         ) : null}
       </div>
@@ -128,7 +129,7 @@ export function Zones({ staff }: { staff: Staff }) {
         </div>
 
         {error ? <div className="notice bad">{error}</div> : null}
-        {done ? <div className="notice good">{done}</div> : null}
+        <Flash message={done} onShown={() => setDone(null)} />
 
         {draft ? (
           <section className="card stack">
@@ -231,9 +232,9 @@ function ZoneList({ zones, onPick, empty }: { zones: Zone[]; onPick: (z: Zone) =
           </div>
           <div className="small muted">
             {KINDS[z.kind].label}
-            {" · "}
+            {", "}
             {z.alert_on_enter && z.alert_on_exit ? "alerts both ways" : z.alert_on_enter ? "alerts on entry" : z.alert_on_exit ? "alerts on leaving" : "no alerts"}
-            {" · "}
+            {", "}
             {kigaliDateTime(z.updated_at)}
           </div>
         </div>

@@ -78,7 +78,7 @@ export function Audit() {
     const rest = Object.entries(d)
       .filter(([k, v]) => v !== null && v !== "" && k !== "from" && k !== "to")
       .map(([k, v]) => `${k.replace("_rwf", "").replace(/_/g, " ")}: ${show(v)}`);
-    return [change, ...rest].filter(Boolean).join(" · ");
+    return [change, ...rest].filter(Boolean).join("; ");
   };
 
   return (

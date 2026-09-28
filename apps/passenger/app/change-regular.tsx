@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, View } from "react-native";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banner, Button, Group, Screen, Txt, c, notify, space } from "@gera/kit";
+import { Banner, Button, Group, Screen, SkeletonRows, SuccessMark, Txt, notify, space, useOverlay } from "@gera/kit";
 import {
   addDays,
   cancelSchedule,
@@ -26,6 +26,7 @@ export default function ChangeRegular() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useSession();
+  const overlay = useOverlay();
   const [s, setS] = useState<RecurringSchedule | null>(null);
   const [days, setDays] = useState<number[]>([]);
   const [time, setTime] = useState<string | null>(null);
@@ -80,22 +81,37 @@ export default function ChangeRegular() {
     }
   };
 
-  const stop = () =>
-    Alert.alert("Stop this regular trip?", "Every ride still to come is cancelled.", [
-      { text: "Keep it", style: "cancel" },
-      {
-        text: "Stop it",
-        style: "destructive",
-        onPress: () => void cancelSchedule(supabase, id).then(() => goBack(router)).catch(() => setError("Couldn't cancel it.")),
-      },
-    ]);
+  const stop = async () => {
+    const ok = await overlay.confirm({
+      title: "Stop this regular trip?",
+      message: "Every ride still to come is cancelled. Rides already on their way are not affected.",
+      confirmLabel: "Stop it",
+      cancelLabel: "Keep it",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      await cancelSchedule(supabase, id);
+      overlay.toast({ message: "Regular trip stopped", tone: "good" });
+      goBack(router);
+    } catch {
+      setError("Couldn't cancel it.");
+    }
+  };
 
   if (result) {
     return (
-      <Screen title="Regular trip changed" subtitle={result} footer={<Button label="Done" onPress={() => goBack(router)} />}>
-        <Txt v="body" tone="muted">
-          {daysLabel(days)} at {time}, until {end ? dateLabel(end) : ""}.
-        </Txt>
+      <Screen footer={<Button label="Done" onPress={() => goBack(router)} />}>
+        <View style={styles.done}>
+          <SuccessMark size={64} />
+          <Txt v="title">Regular trip changed</Txt>
+          <Txt v="body" tone="muted">
+            {result}
+          </Txt>
+          <Txt v="bodyStrong">
+            {daysLabel(days)} at {time}, until {end ? dateLabel(end) : ""}.
+          </Txt>
+        </View>
       </Screen>
     );
   }
@@ -103,7 +119,7 @@ export default function ChangeRegular() {
   if (!s) {
     return (
       <Screen onBack={() => goBack(router)}>
-        {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : <ActivityIndicator color={c.accent} />}
+        {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : <SkeletonRows count={3} />}
       </Screen>
     );
   }
@@ -145,7 +161,7 @@ export default function ChangeRegular() {
         <Txt v="label" tone="muted">
           Changes apply to rides from now on. Rides you moved one by one keep their time, and rides already on their way aren't affected. The price stays {s.amountRwf.toLocaleString("en-US")} RWF a ride.
         </Txt>
-        <Button label="Stop this regular trip" variant="danger" onPress={stop} />
+        <Button label="Stop this regular trip" variant="danger" onPress={() => void stop()} />
       </View>
     </Screen>
   );
@@ -156,4 +172,5 @@ const styles = StyleSheet.create({
   footer: { gap: space.sm },
   pad: { padding: space.md },
   row: { gap: space.sm, padding: space.md },
+  done: { gap: space.sm, paddingTop: space.xl },
 });

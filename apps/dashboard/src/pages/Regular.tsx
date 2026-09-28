@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { kigaliDateTime, rpc, type Staff } from "../lib/supabase";
+import { Flash } from "../components/ui";
 
 type Role = "primary" | "preferred" | "backup";
 
@@ -82,7 +83,7 @@ export function Regular({ staff: _staff }: { staff: Staff }) {
       </div>
 
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
-      {done ? <div className="notice good" style={{ marginBottom: 16 }}>{done}</div> : null}
+      <Flash message={done} onShown={() => setDone(null)} />
 
       {list && list.length === 0 ? <p className="muted">No regular trips running. They appear here when a passenger books one.</p> : null}
 
@@ -92,13 +93,13 @@ export function Regular({ staff: _staff }: { staff: Staff }) {
             <div className="row" style={{ justifyContent: "space-between", alignItems: "flex-start" }}>
               <div>
                 <h2 style={{ margin: 0 }}>
-                  {s.passenger} · {days(s.days)} at {s.time}
+                  {s.passenger}, {days(s.days)} at {s.time}
                 </h2>
                 <div className="small muted">
-                  {s.pickup} to {s.dropoff} · {s.class === "moto" ? "Moto" : s.class === "cab" ? "Cab" : "Cab XL"} · until {s.end}
+                  {s.pickup} to {s.dropoff}, {s.class === "moto" ? "Moto" : s.class === "cab" ? "Cab" : "Cab XL"}, until {s.end}
                   {s.phone ? (
                     <>
-                      {" · "}
+                      {", "}
                       <a href={`tel:${s.phone}`}>{s.phone}</a>
                     </>
                   ) : null}
@@ -110,7 +111,10 @@ export function Regular({ staff: _staff }: { staff: Staff }) {
               {ROLES.map(({ role, label, help }) => (
                 <div key={role} className="field">
                   <label htmlFor={`${s.id}-${role}`}>
-                    {label} <span className="muted">· {help}</span>
+                    {label}
+                    <span className="muted small" style={{ display: "block", fontWeight: 400 }}>
+                      {help}
+                    </span>
                   </label>
                   <select
                     id={`${s.id}-${role}`}
@@ -127,7 +131,8 @@ export function Regular({ staff: _staff }: { staff: Staff }) {
                     <option value="">None</option>
                     {(riders[s.class] ?? []).map((r) => (
                       <option key={r.id} value={r.id}>
-                        {r.name} {r.vest ? `(${r.vest})` : ""} · {r.plate}
+                        {r.name}
+                        {r.vest ? ` (${r.vest})` : ""}, {r.plate}
                       </option>
                     ))}
                   </select>

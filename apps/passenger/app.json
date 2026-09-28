@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "rw.gera.passenger",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Gera uses your location to find riders near you and set your pickup point."
+        "NSLocationWhenInUseUsageDescription": "Gera uses your location to find riders near you and set your pickup point.",
+        "CADisableMinimumFrameDurationOnPhone": true
       }
     },
     "android": {

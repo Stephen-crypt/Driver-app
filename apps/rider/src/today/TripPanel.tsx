@@ -1,11 +1,18 @@
 import { StyleSheet, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import {
   Banner,
   Button,
+  Odometer,
+  QuickAction,
+  QuickActions,
+  RouteRail,
   SlideToConfirm,
+  TripProgress,
   Txt,
   c,
   money,
+  radius,
   space,
 } from "@gera/kit";
 import {
@@ -18,25 +25,10 @@ import {
 } from "@gera/data";
 import { waitingChargeFor } from "@gera/core";
 import type { Coords } from "../lib/location";
-import { Leg } from "./OfferSheet";
+import { DrainBar, PassengerNote } from "./parts";
 import { clock } from "./useNow";
 
-const STEPS = ["To pickup", "Passenger", "Drop-off"] as const;
-
-function Steps({ at }: { readonly at: 0 | 1 | 2 }) {
-  return (
-    <View style={styles.steps} accessibilityLabel={`Step ${at + 1} of 3: ${STEPS[at]}`}>
-      {STEPS.map((s, i) => (
-        <View key={s} style={styles.step}>
-          <View style={[styles.stepBar, i <= at && styles.stepBarOn]} />
-          <Txt v="caption" tone={i === at ? "strong" : "muted"}>
-            {s}
-          </Txt>
-        </View>
-      ))}
-    </View>
-  );
-}
+const STEPS = ["Heading to pickup", "At the pickup", "On the trip"] as const;
 
 export interface TripPanelProps {
   readonly trip: ActiveTrip;
@@ -57,45 +49,41 @@ export interface TripPanelProps {
   readonly onCancel: () => void;
 }
 
+/**
+ * The trip in hand, one step at a time. Each step shows only what that step
+ * needs - where to go, who to wait for, what to collect - and ends in the one
+ * action that moves it on.
+ */
 export function TripPanel(p: TripPanelProps) {
   const { trip, points, here } = p;
-
-  const actions = (to: Coords | undefined) => (
-    <View style={styles.actions}>
-      <Button
-        label="Navigate"
-        icon="navigate"
-        variant="secondary"
-        compact
-        style={styles.flex}
-        onPress={() => to && p.onNavigate(to)}
-        disabled={!to}
-      />
-      <Button label="Call" icon="call" variant="secondary" compact style={styles.flex} onPress={p.onCall} />
-    </View>
-  );
+  const error = p.error ? (
+    <Banner tone="bad" icon="alert-circle">
+      {p.error}
+    </Banner>
+  ) : null;
 
   if (trip.state === "accepted") {
     const away = points && here ? distanceBetween(here, points.pickup) : null;
     return (
       <View style={styles.panel}>
-        <Steps at={0} />
-        <Txt v="title">Pick up {p.passengerName}</Txt>
+        <TripProgress steps={STEPS} current={0} note={away !== null ? `${distanceLabel(away)} away` : undefined} />
+        <Txt v="h2" lines={1}>
+          Pick up {p.passengerName}
+        </Txt>
         {trip.scheduledFor && new Date(trip.scheduledFor).getTime() > p.now ? (
           <Banner tone="warn" icon="calendar">
-            {`Booked for ${kigaliTime(trip.scheduledFor)}. Be there on time - waiting isn't charged before then.`}
+            {`Booked for ${kigaliTime(trip.scheduledFor)}. Be there on time. Waiting isn't charged before then.`}
           </Banner>
         ) : null}
-        <Leg
-          kind="pickup"
-          title={trip.pickupLabel}
-          detail={away !== null ? `${distanceLabel(away)} from you` : undefined}
-          note={trip.pickupNote}
-        />
-        {actions(points?.pickup)}
-        {p.error ? <Banner tone="bad" icon="alert-circle">{p.error}</Banner> : null}
+        <RouteRail dense from={{ label: trip.pickupLabel, note: "Pickup" }} to={{ label: trip.dropoffLabel, note: "Drop-off" }} />
+        {trip.pickupNote ? <PassengerNote text={trip.pickupNote} /> : null}
+        <QuickActions>
+          <QuickAction icon="navigate" label="Navigate" tone="accent" onPress={() => points && p.onNavigate(points.pickup)} disabled={!points} />
+          <QuickAction icon="call" label="Call" onPress={p.onCall} />
+          <QuickAction icon="close" label="Cancel" onPress={p.onCancel} disabled={p.busy} />
+        </QuickActions>
+        {error}
         <SlideToConfirm label="Slide when you've arrived" onConfirm={p.onArrive} disabled={p.busy} icon="flag" />
-        <Button label="Cancel trip" variant="quiet" onPress={p.onCancel} disabled={p.busy} compact />
       </View>
     );
   }
@@ -106,33 +94,44 @@ export function TripPanel(p: TripPanelProps) {
     const grace = s?.graceSeconds ?? 300;
     const freeLeft = Math.max(0, grace - waited);
     const charge = s ? waitingChargeFor(waited, grace, s.perMinuteRwf) : 0;
+    // When the free wait runs out, as a moment in time: the bar drains towards
+    // it without being re-told every second.
+    const freeEndsAt = s && p.wait ? p.wait.readAt + (grace - s.waitedSeconds) * 1000 : 0;
+    const charging = s != null && freeLeft === 0;
     return (
       <View style={styles.panel}>
-        <Steps at={1} />
-        <View style={styles.waitRow}>
-          <View style={styles.flex}>
-            <Txt v="title">Waiting for {p.passengerName}</Txt>
-            <Txt v="label" tone="muted" lines={1}>
-              {trip.pickupLabel}
+        <TripProgress steps={STEPS} current={1} />
+        <Txt v="h2" lines={1}>
+          Waiting for {p.passengerName}
+        </Txt>
+        <View style={[styles.wait, charging && styles.waitCharged]}>
+          <View style={styles.waitHead}>
+            <Ionicons name={charging ? "cash" : "time"} size={20} color={charging ? c.warning : c.textMuted} />
+            <View style={styles.flex}>
+              <Txt v="bodyStrong" tone={charging ? "warn" : "strong"}>
+                {charging ? "Waiting is now charged" : "Free waiting"}
+              </Txt>
+              <Txt v="label" tone="muted">
+                {charging ? `+${money(charge)} RWF on the fare so far` : `Charged after ${Math.round(grace / 60)} minutes`}
+              </Txt>
+            </View>
+            <Txt v="figure" tone={charging ? "warn" : "strong"} tabularNums>
+              {s ? clock(charging ? waited - grace : freeLeft) : "-"}
             </Txt>
           </View>
-          <View style={styles.clock}>
-            <Txt v="display" tone={freeLeft > 0 ? "strong" : "warn"} tabularNums>
-              {clock(freeLeft > 0 ? freeLeft : waited - grace)}
-            </Txt>
-            <Txt v="caption" tone={freeLeft > 0 ? "muted" : "warn"}>
-              {freeLeft > 0 ? "free waiting left" : `waiting · +${money(charge)} RWF`}
-            </Txt>
-          </View>
+          {s && !charging ? <DrainBar endsAt={freeEndsAt} totalMs={grace * 1000} /> : null}
         </View>
-        {actions(points?.pickup)}
-        {p.error ? <Banner tone="bad" icon="alert-circle">{p.error}</Banner> : null}
+        <QuickActions>
+          <QuickAction icon="call" label="Call" onPress={p.onCall} />
+          <QuickAction icon="navigate" label="Map" onPress={() => points && p.onNavigate(points.pickup)} disabled={!points} />
+          {charging ? (
+            <QuickAction icon="person-remove" label="Didn't come" tone="bad" onPress={p.onNoShow} disabled={p.busy} />
+          ) : (
+            <QuickAction icon="close" label="Cancel" onPress={p.onCancel} disabled={p.busy} />
+          )}
+        </QuickActions>
+        {error}
         <Button label="Enter PIN to start" icon="keypad" onPress={p.onOpenPin} disabled={p.busy} />
-        {freeLeft === 0 ? (
-          <Button label="Passenger didn't come" variant="danger" compact onPress={p.onNoShow} disabled={p.busy} />
-        ) : (
-          <Button label="Cancel trip" variant="quiet" onPress={p.onCancel} disabled={p.busy} compact />
-        )}
       </View>
     );
   }
@@ -140,41 +139,53 @@ export function TripPanel(p: TripPanelProps) {
   // in_progress
   return (
     <View style={styles.panel}>
-      <Steps at={2} />
-      <Txt v="title" lines={2}>
+      <TripProgress steps={STEPS} current={2} />
+      <Txt v="h2" lines={2}>
         Drop off at {trip.dropoffLabel}
       </Txt>
       <View style={styles.collect}>
-        <Txt v="label" tone="muted">
-          To collect at the end
-        </Txt>
-        <Txt v="figure" tabularNums>
-          {trip.fareRwf === null ? "—" : `${money(trip.fareRwf)} RWF`}
-        </Txt>
+        <View style={styles.flex}>
+          <Txt v="label" tone="muted">
+            To collect at the end
+          </Txt>
+          <Txt v="caption" tone="muted">
+            Cash, plus any waiting charge
+          </Txt>
+        </View>
+        <View style={styles.amount}>
+          {trip.fareRwf === null ? (
+            <Txt v="figure">-</Txt>
+          ) : (
+            <Odometer value={money(trip.fareRwf)} v="figure" accessibilityLabel={`${money(trip.fareRwf)} Rwandan francs`} />
+          )}
+          <Txt v="label" tone="muted">
+            RWF
+          </Txt>
+        </View>
       </View>
-      {actions(points?.dropoff)}
-      {p.error ? <Banner tone="bad" icon="alert-circle">{p.error}</Banner> : null}
+      <QuickActions>
+        <QuickAction icon="navigate" label="Navigate" tone="accent" onPress={() => points && p.onNavigate(points.dropoff)} disabled={!points} />
+        <QuickAction icon="call" label="Call" onPress={p.onCall} />
+      </QuickActions>
+      {error}
       <SlideToConfirm label="Slide to finish trip" tone="good" onConfirm={p.onFinish} disabled={p.busy} icon="checkmark" />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   panel: { gap: space.md },
-  steps: { flexDirection: "row", gap: space.sm },
-  step: { flex: 1, gap: 5 },
-  stepBar: { height: 4, borderRadius: 2, backgroundColor: c.surfaceHigh },
-  stepBarOn: { backgroundColor: c.accent },
-  actions: { flexDirection: "row", gap: space.sm },
-  waitRow: { flexDirection: "row", alignItems: "flex-start", gap: space.md },
-  clock: { alignItems: "flex-end" },
+  wait: { gap: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: c.surfaceHigh },
+  waitCharged: { backgroundColor: c.warningSoft },
+  waitHead: { flexDirection: "row", alignItems: "center", gap: space.md },
   collect: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
+    gap: space.md,
     padding: space.md,
-    borderRadius: 16,
+    borderRadius: radius.lg,
     backgroundColor: c.surfaceHigh,
   },
+  amount: { flexDirection: "row", alignItems: "baseline", gap: 4 },
 });

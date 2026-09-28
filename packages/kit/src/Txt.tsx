@@ -4,7 +4,8 @@ import { c, tabular, type, type TypeVariant } from "./theme";
 
 export type Tone = "strong" | "default" | "muted" | "accent" | "good" | "bad" | "warn" | "inverse";
 
-const TONE: Record<Tone, string> = {
+/** The colour of each tone, for anything that draws text itself (icons, odometers). */
+export const TONE: Record<Tone, string> = {
   strong: c.textStrong,
   default: c.text,
   muted: c.textMuted,

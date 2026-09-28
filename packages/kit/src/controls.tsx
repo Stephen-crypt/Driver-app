@@ -1,21 +1,19 @@
 import type { ReactNode } from "react";
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import Animated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
-import { c, radius, space, tokens } from "./theme";
+import { fadeIn, swapIn } from "./anim";
+import { c, radius, shadow, space, tokens } from "./theme";
 import { Txt, type Tone } from "./Txt";
+import { Press } from "./Press";
+import { Odometer } from "./Odometer";
 
 export type IconName = keyof typeof Ionicons.glyphMap;
 
 // Haptics are a courtesy, never a dependency: a device without a motor, or a
-// web preview, must not throw out of a button press.
+// web preview, must not throw out of a button press. One per action, in the
+// same frame as the visual change, and never the only feedback.
 export function tap(style: "light" | "medium" | "heavy" = "light") {
   const map = {
     light: Haptics.ImpactFeedbackStyle.Light,
@@ -23,6 +21,11 @@ export function tap(style: "light" | "medium" | "heavy" = "light") {
     heavy: Haptics.ImpactFeedbackStyle.Heavy,
   };
   Haptics.impactAsync(map[style]).catch(() => {});
+}
+
+/** A value ticking past a step: a segment, a chip, a checkbox. */
+export function selection() {
+  Haptics.selectionAsync().catch(() => {});
 }
 
 export function notify(kind: "success" | "warning" | "error") {
@@ -36,7 +39,7 @@ export function notify(kind: "success" | "warning" | "error") {
 
 // ---------------------------------------------------------------------------
 
-type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dark";
+type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dangerSolid" | "dark";
 
 interface ButtonProps {
   readonly label: string;
@@ -45,7 +48,10 @@ interface ButtonProps {
   readonly icon?: IconName;
   readonly loading?: boolean;
   readonly disabled?: boolean;
-  /** A trailing figure: "Book · 1,700 RWF" puts the price here. */
+  /**
+   * A trailing figure: a price on the Book button. Digits roll when it changes,
+   * so choosing a different vehicle visibly changes what you are agreeing to.
+   */
   readonly trailing?: string;
   readonly compact?: boolean;
   readonly style?: StyleProp<ViewStyle>;
@@ -57,6 +63,7 @@ const BUTTON: Record<ButtonVariant, { bg: string; fg: Tone; spinner: string }> =
   secondary: { bg: c.surfaceHigh, fg: "strong", spinner: c.textStrong },
   quiet: { bg: "transparent", fg: "accent", spinner: c.accent },
   danger: { bg: c.dangerSoft, fg: "bad", spinner: c.danger },
+  dangerSolid: { bg: c.danger, fg: "inverse", spinner: c.onAccent },
 };
 
 export function Button({
@@ -72,27 +79,31 @@ export function Button({
 }: ButtonProps) {
   const b = BUTTON[variant];
   const off = disabled || loading;
+  const strong = variant === "primary" || variant === "dark" || variant === "dangerSolid";
   return (
-    <Pressable
+    <Press
       onPress={() => {
-        tap(variant === "primary" || variant === "dark" ? "medium" : "light");
+        if (strong) tap("medium");
         onPress();
       }}
       disabled={off}
+      scaleTo={variant === "quiet" ? 1 : 0.97}
       accessibilityRole="button"
+      accessibilityLabel={trailing ? `${label}, ${trailing}` : label}
       accessibilityState={{ disabled: !!off, busy: !!loading }}
-      style={({ pressed }) => [
+      style={[
         styles.button,
         compact && styles.buttonCompact,
         { backgroundColor: b.bg },
         trailing ? styles.buttonSplit : null,
-        pressed && !off && styles.pressed,
         off && !loading && styles.disabled,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator color={b.spinner} />
+        <Animated.View entering={fadeIn} style={styles.spinner}>
+          <ActivityIndicator color={b.spinner} />
+        </Animated.View>
       ) : (
         <>
           <View style={styles.buttonMain}>
@@ -101,14 +112,10 @@ export function Button({
               {label}
             </Txt>
           </View>
-          {trailing ? (
-            <Txt v="figure" tone={b.fg} tabularNums style={styles.trailing}>
-              {trailing}
-            </Txt>
-          ) : null}
+          {trailing ? <Odometer value={trailing} v="figure" tone={b.fg} style={styles.trailing} /> : null}
         </>
       )}
-    </Pressable>
+    </Press>
   );
 }
 
@@ -136,21 +143,52 @@ export function FloatButton({
   readonly icon: IconName;
   readonly onPress: () => void;
   readonly label: string;
-  readonly tone?: "default" | "bad";
+  readonly tone?: "default" | "bad" | "accent";
   readonly style?: StyleProp<ViewStyle>;
 }) {
   return (
-    <Pressable
+    <Press
       onPress={() => {
         tap();
         onPress();
       }}
+      scaleTo={0.92}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [styles.float, pressed && styles.pressed, style]}
+      hitSlop={6}
+      style={[styles.float, tone === "bad" && styles.floatBad, style]}
     >
-      <Ionicons name={icon} size={22} color={tone === "bad" ? c.danger : c.textStrong} />
-    </Pressable>
+      <Ionicons name={icon} size={22} color={tone === "bad" ? c.danger : tone === "accent" ? c.accent : c.textStrong} />
+    </Press>
+  );
+}
+
+/** A quiet round icon button for headers and rows: back, close, more. */
+export function IconButton({
+  icon,
+  onPress,
+  label,
+  tone = "default",
+  size = 40,
+}: {
+  readonly icon: IconName;
+  readonly onPress: () => void;
+  readonly label: string;
+  readonly tone?: "default" | "accent" | "bad" | "onDark";
+  readonly size?: number;
+}) {
+  const colour = tone === "accent" ? c.accent : tone === "bad" ? c.danger : tone === "onDark" ? c.onAccent : c.textStrong;
+  return (
+    <Press
+      onPress={onPress}
+      scaleTo={0.9}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={[styles.iconButton, { width: size, height: size, borderRadius: size / 2 }]}
+    >
+      <Ionicons name={icon} size={Math.round(size * 0.58)} color={colour} />
+    </Press>
   );
 }
 
@@ -171,22 +209,43 @@ export function Chip({
   tone = "neutral",
   icon,
   dot,
+  onPress,
+  selected,
 }: {
   readonly label: string;
   readonly tone?: ChipTone;
   readonly icon?: IconName;
   /** A solid dot - "live" states, where the colour is the message. */
   readonly dot?: boolean;
+  /** A chip that is also a choice: a saved place, a filter. */
+  readonly onPress?: () => void;
+  readonly selected?: boolean;
 }) {
   const t = CHIP[tone];
-  return (
-    <View style={[styles.chip, { backgroundColor: t.bg }]}>
+  const inner = (
+    <>
       {dot ? <View style={[styles.dot, { backgroundColor: t.icon }]} /> : null}
-      {icon ? <Ionicons name={icon} size={13} color={t.icon} /> : null}
-      <Txt v="caption" tone={t.fg}>
+      {icon ? <Ionicons name={icon} size={13} color={selected ? c.onAccent : t.icon} /> : null}
+      <Txt v="caption" tone={selected ? "inverse" : t.fg}>
         {label}
       </Txt>
-    </View>
+    </>
+  );
+  if (!onPress) return <View style={[styles.chip, { backgroundColor: t.bg }]}>{inner}</View>;
+  return (
+    <Press
+      onPress={() => {
+        selection();
+        onPress();
+      }}
+      scaleTo={0.95}
+      accessibilityRole="button"
+      accessibilityState={{ selected: !!selected }}
+      accessibilityLabel={label}
+      style={[styles.chip, styles.chipTap, { backgroundColor: selected ? c.textStrong : t.bg }]}
+    >
+      {inner}
+    </Press>
   );
 }
 
@@ -205,7 +264,7 @@ export function Banner({
 }) {
   const t = CHIP[tone];
   return (
-    <View style={[styles.banner, { backgroundColor: t.bg }]}>
+    <Animated.View entering={swapIn} style={[styles.banner, { backgroundColor: t.bg }]} accessibilityRole={tone === "bad" ? "alert" : undefined}>
       <Ionicons name={icon} size={18} color={t.icon} style={styles.bannerIcon} />
       <View style={styles.flex}>
         <Txt v="label" tone={t.fg}>
@@ -219,18 +278,76 @@ export function Banner({
           </Txt>
         </Pressable>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 
-export function Avatar({ name, size = 44 }: { readonly name: string; readonly size?: number }) {
+export function Avatar({ name, size = 44, tone = "accent" }: { readonly name: string; readonly size?: number; readonly tone?: "accent" | "dark" }) {
   return (
-    <View style={[styles.avatar, { width: size, height: size, borderRadius: size / 2 }]}>
-      <Txt v="bodyStrong" tone="accent" style={{ fontSize: size * 0.4, lineHeight: size * 0.5 }}>
+    <View
+      style={[
+        styles.avatar,
+        { width: size, height: size, borderRadius: size / 2 },
+        tone === "dark" && { backgroundColor: c.accentDeep },
+      ]}
+      accessibilityElementsHidden
+    >
+      <Txt
+        v="bodyStrong"
+        tone={tone === "dark" ? "inverse" : "accent"}
+        style={{ fontSize: size * 0.42, lineHeight: size * 0.52, fontFamily: "BarlowCondensed_700Bold" }}
+      >
         {(name.trim().charAt(0) || "?").toUpperCase()}
       </Txt>
     </View>
   );
+}
+
+/**
+ * A round action with its name under it: call, share, navigate. A row of these
+ * reads as "things I can do on this trip" without a single sentence of copy,
+ * and a round well is easy to hit with a thumb on a moving bike.
+ */
+export function QuickAction({
+  icon,
+  label,
+  onPress,
+  tone,
+  disabled,
+}: {
+  readonly icon: IconName;
+  readonly label: string;
+  readonly onPress: () => void;
+  readonly tone?: "bad" | "accent";
+  readonly disabled?: boolean;
+}) {
+  const fg = tone === "bad" ? c.danger : tone === "accent" ? c.onAccent : c.textStrong;
+  return (
+    <Press
+      onPress={() => {
+        tap();
+        onPress();
+      }}
+      disabled={disabled}
+      scaleTo={0.94}
+      style={[styles.quick, disabled && styles.disabled]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled: !!disabled }}
+    >
+      <View style={[styles.quickWell, tone === "bad" && styles.quickWellBad, tone === "accent" && styles.quickWellAccent]}>
+        <Ionicons name={icon} size={22} color={fg} />
+      </View>
+      <Txt v="caption" tone={tone === "bad" ? "bad" : "muted"} align="center" lines={1}>
+        {label}
+      </Txt>
+    </Press>
+  );
+}
+
+/** Quick actions spread across the sheet. */
+export function QuickActions({ children }: { readonly children: ReactNode }) {
+  return <View style={styles.quickRow}>{children}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -243,12 +360,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     flexDirection: "row",
   },
-  buttonCompact: { minHeight: tokens.MIN_TOUCH_TARGET, paddingHorizontal: space.md },
+  buttonCompact: { minHeight: tokens.MIN_TOUCH_TARGET - 4, paddingHorizontal: space.md },
   buttonSplit: { justifyContent: "space-between" },
   buttonMain: { flexDirection: "row", alignItems: "center", gap: space.sm },
   buttonText: { fontSize: 17 },
+  spinner: { height: 24, justifyContent: "center" },
   trailing: { fontSize: 22, lineHeight: 26 },
-  pressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
   disabled: { opacity: 0.4 },
   float: {
     width: 48,
@@ -257,12 +374,10 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceRaised,
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#0B0D12",
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 6,
+    ...shadow.float,
   },
+  floatBad: { backgroundColor: c.surfaceRaised },
+  iconButton: { alignItems: "center", justifyContent: "center" },
   chip: {
     flexDirection: "row",
     alignItems: "center",
@@ -272,6 +387,7 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderRadius: radius.pill,
   },
+  chipTap: { paddingHorizontal: 12, paddingVertical: 8 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   banner: {
     flexDirection: "row",
@@ -283,4 +399,16 @@ const styles = StyleSheet.create({
   bannerIcon: { marginTop: 1 },
   bannerAction: { textDecorationLine: "underline" },
   avatar: { backgroundColor: c.accentSoft, alignItems: "center", justifyContent: "center" },
+  quickRow: { flexDirection: "row", justifyContent: "space-around", paddingTop: space.xs },
+  quick: { alignItems: "center", gap: 6, minWidth: 72, maxWidth: 96 },
+  quickWell: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: c.surfaceHigh,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  quickWellBad: { backgroundColor: c.dangerSoft },
+  quickWellAccent: { backgroundColor: c.accent },
 });

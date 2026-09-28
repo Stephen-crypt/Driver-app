@@ -1,10 +1,9 @@
 import { useEffect, useState } from "react";
-import { Pressable, StyleSheet, TextInput, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { goBack } from "../src/lib/nav";
-import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Divider, Group, Screen, Txt, c, notify, space, tap, type IconName } from "@gera/kit";
-import { REPORT_KINDS, getActiveTrip, reportIssue, type ReportKind } from "@gera/data";
+import { Banner, Button, ChoiceRow, Divider, Group, Screen, SuccessMark, TextArea, Txt, notify, space, type IconName } from "@gera/kit";
+import { EMERGENCY_NUMBER, REPORT_KINDS, getActiveTrip, reportIssue, type ReportKind } from "@gera/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import * as loc from "../src/lib/location";
@@ -14,6 +13,13 @@ const ICON: Record<ReportKind, IconName> = {
   safety_issue: "warning",
   accident: "medical",
   incident: "document-text",
+};
+
+const PROMPT: Record<ReportKind, string> = {
+  vehicle_problem: "What's wrong? Rear brake soft, a light out, a flat…",
+  safety_issue: "What did you see, and where?",
+  accident: "What happened, where, and is anyone hurt?",
+  incident: "What happened, and where?",
 };
 
 /**
@@ -51,93 +57,74 @@ export default function Report() {
   };
 
   if (sent) {
+    const urgent = kind === "accident" || kind === "safety_issue";
     return (
       <Screen
-        title="Report sent"
-        subtitle="The fleet office has it, with where you are and when."
-        footer={<Button label="Done" onPress={() => goBack(router)} />}
+        footer={
+          <View style={styles.footer}>
+            <Button label="See your reports" variant="secondary" onPress={() => router.replace("/reports")} />
+            <Button label="Done" onPress={() => goBack(router)} />
+          </View>
+        }
       >
-        {kind === "accident" || kind === "safety_issue" ? (
-          <Banner tone="bad" icon="call">
-            If anyone is hurt or in danger, call 112 now. A report is not an emergency call.
+        <View style={styles.sent}>
+          <SuccessMark size={72} />
+          <Txt v="title" align="center">
+            Report sent
+          </Txt>
+          <Txt v="body" tone="muted" align="center">
+            The fleet office has it, with where you are and when{tripId ? ", and the trip you're on" : ""}.
+          </Txt>
+        </View>
+        {urgent ? (
+          <Banner tone="bad" icon="call" action={{ label: `Call ${EMERGENCY_NUMBER}`, onPress: () => void Linking.openURL(`tel:${EMERGENCY_NUMBER}`) }}>
+            If anyone is hurt or in danger, call {EMERGENCY_NUMBER} now. A report is not an emergency call.
           </Banner>
         ) : null}
       </Screen>
     );
   }
 
+  const length = note.trim().length;
+
   return (
     <Screen
       title="Report a problem"
-      subtitle={tripId ? "This will be attached to your current trip." : undefined}
+      subtitle={tripId ? "Your current trip is attached." : "Sent to the fleet office with your location."}
       onBack={() => goBack(router)}
+      gap={space.md}
       footer={
         <View style={styles.footer}>
           {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
-          <Button label="Send report" onPress={send} loading={busy} disabled={note.trim().length < 3} />
+          <Button label="Send report" onPress={send} loading={busy} disabled={length < 3} />
         </View>
       }
     >
-      <View style={styles.stack}>
-        <Group>
-          {REPORT_KINDS.map((k, i) => {
-            const on = kind === k.kind;
-            return (
-              <View key={k.kind}>
-                {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
-                <Pressable
-                  onPress={() => {
-                    tap();
-                    setKind(k.kind);
-                  }}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                  style={({ pressed }) => [styles.option, pressed && styles.pressed]}
-                >
-                  <View style={[styles.well, on && styles.wellOn]}>
-                    <Ionicons name={ICON[k.kind]} size={18} color={on ? c.onAccent : c.textMuted} />
-                  </View>
-                  <View style={styles.flex}>
-                    <Txt v="bodyStrong">{k.label}</Txt>
-                    <Txt v="label" tone="muted">
-                      {k.hint}
-                    </Txt>
-                  </View>
-                  {on ? <Ionicons name="checkmark-circle" size={22} color={c.accent} /> : null}
-                </Pressable>
-              </View>
-            );
-          })}
-        </Group>
+      <Group key="kinds">
+        {REPORT_KINDS.map((k, i) => (
+          <View key={k.kind}>
+            {i > 0 ? <Divider inset={space.md + 38 + space.md} /> : null}
+            <ChoiceRow kind="radio" icon={ICON[k.kind]} on={kind === k.kind} onPress={() => setKind(k.kind)} title={k.label} hint={k.hint} />
+          </View>
+        ))}
+      </Group>
 
-        <TextInput
-          style={styles.input}
-          value={note}
-          onChangeText={setNote}
-          placeholder="What happened, and where?"
-          placeholderTextColor={c.textMuted}
-          multiline
-        />
-      </View>
+      <TextArea
+        key="note"
+        value={note}
+        onChangeText={setNote}
+        placeholder={PROMPT[kind]}
+        maxLength={1000}
+        accessibilityLabel="What happened"
+      />
+      <Txt key="count" v="caption" tone="muted" align="right" tabularNums>
+        {length < 3 ? "A few words is enough" : `${note.length} / 1000`}
+      </Txt>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
-  stack: { gap: space.lg },
   footer: { gap: space.sm },
-  option: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, minHeight: 64 },
-  pressed: { backgroundColor: c.surfaceHigh },
-  well: { width: 38, height: 38, borderRadius: 12, backgroundColor: c.surfaceHigh, alignItems: "center", justifyContent: "center" },
-  wellOn: { backgroundColor: c.accent },
-  input: {
-    minHeight: 120,
-    borderRadius: 16,
-    backgroundColor: c.surfaceRaised,
-    padding: space.md,
-    fontSize: 16,
-    color: c.textStrong,
-    textAlignVertical: "top",
-  },
+  sent: { alignItems: "center", gap: space.sm, paddingTop: space.xxl, paddingBottom: space.xl },
 });

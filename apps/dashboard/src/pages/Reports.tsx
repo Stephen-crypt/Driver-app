@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { money, rpc } from "../lib/supabase";
+import { Odometer } from "../components/ui";
 
 interface Summary {
   day: string;
@@ -81,26 +82,28 @@ export function Reports() {
         <>
           <div className="grid cols-4" style={{ marginBottom: 16 }}>
             <div className="card stat">
-              <div className="figure">{s.completed}</div>
+              <div className="figure">
+                <Odometer value={s.completed} />
+              </div>
               <div className="label">Trips completed</div>
             </div>
             <div className="card stat">
               <div className="figure">
-                {finished > 0 ? Math.round((s.completed / finished) * 100) : 0}
+                <Odometer value={finished > 0 ? Math.round((s.completed / finished) * 100) : 0} delay={80} />
                 <small>%</small>
               </div>
               <div className="label">Of requests that ended in a ride</div>
             </div>
             <div className="card stat">
               <div className="figure">
-                {money(s.collected_rwf)}
+                <Odometer value={money(s.collected_rwf)} delay={160} />
                 <small>RWF</small>
               </div>
               <div className="label">Fares collected</div>
             </div>
             <div className="card stat">
               <div className="figure" style={{ color: s.outstanding_cash_rwf > 0 ? "var(--warn)" : undefined }}>
-                {money(s.outstanding_cash_rwf)}
+                <Odometer value={money(s.outstanding_cash_rwf)} delay={240} />
                 <small>RWF</small>
               </div>
               <div className="label">Cash still out with riders, all days</div>

@@ -1,14 +1,31 @@
 import { useCallback, useState } from "react";
-import { Alert, Linking, Pressable, StyleSheet, View } from "react-native";
+import { Linking, StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Ionicons } from "@expo/vector-icons";
-import { Avatar, Button, Divider, Group, Row, Screen, Txt, c, space } from "@gera/kit";
+import Constants from "expo-constants";
+import {
+  Avatar,
+  Button,
+  Divider,
+  Group,
+  IconButton,
+  Row,
+  Screen,
+  Txt,
+  c,
+  space,
+  useOverlay,
+} from "@gera/kit";
 import { EMERGENCY_NUMBER, deleteSavedPlace, listSavedPlaces, type SavedPlace } from "@gera/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
+function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
+  return /home|urugo/i.test(label) ? "home" : /work|office|akazi/i.test(label) ? "briefcase" : "bookmark";
+}
+
 export default function Account() {
   const router = useRouter();
+  const overlay = useOverlay();
   const { userId } = useSession();
   const [name, setName] = useState<string | null>(null);
   const [phone, setPhone] = useState<string | null>(null);
@@ -36,31 +53,47 @@ export default function Account() {
     }, [userId]),
   );
 
-  const remove = (p: SavedPlace) =>
-    Alert.alert("Remove this place?", p.label, [
-      { text: "Keep", style: "cancel" },
-      {
-        text: "Remove",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await deleteSavedPlace(supabase, p.id);
-            setPlaces((ps) => ps.filter((x) => x.id !== p.id));
-          } catch {
-            Alert.alert("Could not remove that.");
-          }
-        },
-      },
-    ]);
+  const remove = async (p: SavedPlace) => {
+    const ok = await overlay.confirm({
+      title: `Remove ${p.label}?`,
+      message: "You can pin it again any time.",
+      confirmLabel: "Remove place",
+      cancelLabel: "Keep it",
+      tone: "danger",
+    });
+    if (!ok) return;
+    try {
+      await deleteSavedPlace(supabase, p.id);
+      setPlaces((ps) => ps.filter((x) => x.id !== p.id));
+      overlay.toast({ message: `${p.label} removed`, tone: "good" });
+    } catch {
+      overlay.toast({ message: "Couldn't remove that place. Try again.", tone: "bad" });
+    }
+  };
+
+  const signOut = async () => {
+    const ok = await overlay.confirm({
+      title: "Sign out of Gera?",
+      message: "Your trips and saved places stay on your account.",
+      confirmLabel: "Sign out",
+      cancelLabel: "Stay signed in",
+      tone: "danger",
+    });
+    if (!ok) return;
+    await supabase.auth.signOut();
+    router.replace("/welcome");
+  };
+
+  const version = Constants.expoConfig?.version;
 
   return (
     <Screen>
       <View style={styles.identity}>
-        <Avatar name={name ?? "?"} size={64} />
+        <Avatar name={name ?? "?"} size={68} tone="dark" />
         <View style={styles.flex}>
           <Txt v="title">{name ?? "Your account"}</Txt>
           {phone ? (
-            <Txt v="body" tone="muted">
+            <Txt v="body" tone="muted" tabularNums>
               {phone}
             </Txt>
           ) : null}
@@ -69,39 +102,29 @@ export default function Account() {
 
       <View style={styles.stack}>
         <Group title="Saved places">
-          {places.length === 0 ? (
-            <Row
-              title="Nothing saved yet"
-              subtitle="Pin a place on the map and name it - Home, Work - to book it in one tap."
-              icon="bookmark-outline"
-              iconTone="neutral"
-            />
-          ) : (
-            places.map((p, i) => (
-              <View key={p.id}>
-                {i > 0 ? <Divider inset={70} /> : null}
-                <Row
-                  title={p.label}
-                  subtitle={p.note ?? undefined}
-                  icon={/home/i.test(p.label) ? "home" : /work|office/i.test(p.label) ? "briefcase" : "bookmark"}
-                  trailing={
-                    <Pressable
-                      onPress={() => remove(p)}
-                      hitSlop={12}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Remove ${p.label}`}
-                    >
-                      <Ionicons name="trash-outline" size={20} color={c.textMuted} />
-                    </Pressable>
-                  }
-                />
-              </View>
-            ))
-          )}
+          {places.map((p, i) => (
+            <View key={p.id}>
+              {i > 0 ? <Divider inset={70} /> : null}
+              <Row
+                title={p.label}
+                subtitle={p.note ?? undefined}
+                icon={placeIcon(p.label)}
+                trailing={<IconButton icon="trash-outline" label={`Remove ${p.label}`} onPress={() => void remove(p)} size={40} />}
+              />
+            </View>
+          ))}
+          {places.length > 0 ? <Divider inset={70} /> : null}
+          <Row
+            title={places.length === 0 ? "Save a place" : "Add another place"}
+            subtitle={places.length === 0 ? "Home, work - book it in one tap" : undefined}
+            icon="add"
+            iconTone="neutral"
+            onPress={() => router.push({ pathname: "/destination", params: { map: "1" } })}
+          />
         </Group>
 
         <Group title="Payments">
-          <Row title="How you pay" subtitle="Cash, paid to your rider at the end" icon="cash-outline" iconTone="good" onPress={() => router.push("/payment")} />
+          <Row title="How you pay" subtitle="Cash, paid to your rider at the end" icon="cash" iconTone="good" onPress={() => router.push("/payment")} />
         </Group>
 
         <Group title="Help">
@@ -118,21 +141,19 @@ export default function Account() {
           />
         </Group>
 
-        <Button
-          label="Sign out"
-          variant="quiet"
-          onPress={async () => {
-            await supabase.auth.signOut();
-            router.replace("/welcome");
-          }}
-        />
+        <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />
+        {version ? (
+          <Txt v="caption" tone="muted" align="center">
+            Gera {version}
+          </Txt>
+        ) : null}
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   identity: { flexDirection: "row", alignItems: "center", gap: space.md, paddingTop: space.lg, paddingBottom: space.xl },
   stack: { gap: space.lg },
 });

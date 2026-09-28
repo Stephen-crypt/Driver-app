@@ -1,5 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
-import { NavLink, Navigate, Route, Routes } from "react-router-dom";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { can, supabase, useStaff, type Staff, type StaffRole } from "./lib/supabase";
 import { Login } from "./pages/Login";
 import { ControlRoom } from "./pages/ControlRoom";
@@ -14,6 +14,7 @@ import { Cases } from "./pages/Cases";
 import { Pricing } from "./pages/Pricing";
 import { Zones } from "./pages/Zones";
 import { Regular } from "./pages/Regular";
+import { Palette } from "./components/Palette";
 
 interface Section {
   readonly to: string;
@@ -54,6 +55,7 @@ export function App() {
   return (
     <div className="frame">
       <Nav staff={staff} sections={allowed} />
+      <Palette sections={allowed} canSearch={can(staff.role, ...sec("/trips").roles)} />
       <main style={{ overflow: "hidden", height: "100%" }}>
         <Routes>
           <Route path="/" element={guard(staff, sec("/"), <ControlRoom staff={staff} />, home)} />
@@ -94,8 +96,20 @@ const ROLE_NAME: Record<StaffRole, string> = {
 function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
   const alerts = useOpenAlertCount(can(staff.role, "control_room", "operations", "safety"));
   const cases = useOpenCaseCount(can(staff.role, "support", "operations", "safety", "control_room", "fleet"));
+  const location = useLocation();
+  const ref = useRef<HTMLElement>(null);
+  const [marker, setMarker] = useState<{ y: number; h: number } | null>(null);
+
+  // One lane marker that travels to the section you open, the way the apps'
+  // tab bar does, instead of one that blinks out here and in over there.
+  useLayoutEffect(() => {
+    const a = ref.current?.querySelector<HTMLAnchorElement>("a.active");
+    setMarker(a ? { y: a.offsetTop + 8, h: a.offsetHeight - 16 } : null);
+  }, [location.pathname, sections.length]);
+
   return (
-    <nav className="nav" aria-label="Sections">
+    <nav className="nav" aria-label="Sections" ref={ref}>
+      {marker ? <span className="nav-marker" style={{ transform: `translateY(${marker.y}px)`, height: marker.h }} aria-hidden="true" /> : null}
       <div className="brand">
         <span className="vest">G</span>
         <div>
@@ -103,6 +117,14 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
           <div className="brand-sub">Control</div>
         </div>
       </div>
+      <button
+        className="nav-search"
+        onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
+        aria-label="Search and go to (Ctrl K)"
+      >
+        <span>Search</span>
+        <kbd>Ctrl K</kbd>
+      </button>
       {sections.map((s) => (
         <NavLink key={s.to} to={s.to} end={s.to === "/"}>
           {s.label}

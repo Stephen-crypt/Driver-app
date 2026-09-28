@@ -133,7 +133,7 @@ export function Cases({ staff }: { staff: Staff }) {
                 <span>
                   {c.reporter_name ?? (c.reporter_role === "staff" ? "Staff" : "Unknown caller")} ({c.reporter_role})
                 </span>
-                {c.assigned_name ? <span>· {c.assigned_name}</span> : null}
+                {c.assigned_name ? <span>with {c.assigned_name}</span> : null}
               </div>
             </button>
           ))}
@@ -207,8 +207,8 @@ function CaseView({ id, staff, onChanged }: { id: string; staff: Staff; onChange
             <span className={`chip ${STATUS[c.status][1]}`}>{STATUS[c.status][0]}</span>
           </div>
           <p className="sub">
-            {KIND[c.kind]} · opened {kigaliDateTime(c.created_at)}
-            {c.assigned_name ? ` · ${mine ? "yours" : `with ${c.assigned_name}`}` : " · nobody has it yet"}
+            {KIND[c.kind]}, opened {kigaliDateTime(c.created_at)}.{" "}
+            {c.assigned_name ? (mine ? "It's yours." : `With ${c.assigned_name}.`) : "Nobody has it yet."}
           </p>
         </div>
         {open && !mine ? (
@@ -379,7 +379,7 @@ function LogCall({ tripId, onCancel, onCreated }: { tripId: string | null; onCan
               <div className="list">
                 {hits.map((h) => (
                   <div key={h.id} className="list-item" onClick={() => setPerson(h)}>
-                    <strong>{h.title}</strong> <span className="small muted">{h.kind} · {h.subtitle}</span>
+                    <strong>{h.title}</strong> <span className="small muted">{h.subtitle ? `${h.kind}, ${h.subtitle}` : h.kind}</span>
                   </div>
                 ))}
               </div>

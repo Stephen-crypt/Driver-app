@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, TextInput, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -7,16 +7,23 @@ import {
   Banner,
   Button,
   Divider,
+  Enter,
   Field,
+  FloatButton,
   GeraMap,
   Group,
+  IconButton,
   Paper,
+  Press,
   Row,
+  SkeletonRows,
+  Swap,
   Txt,
   c,
   font,
   radius,
   space,
+  useOverlay,
   type LatLng,
 } from "@gera/kit";
 import { listSavedPlaces, savePlace, searchLandmarks, type Place, type SavedPlace } from "@gera/data";
@@ -27,6 +34,10 @@ import * as loc from "../src/lib/location";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
+function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
+  return /home|urugo/i.test(label) ? "home" : /work|office|akazi/i.test(label) ? "briefcase" : "bookmark";
+}
+
 /**
  * Spec 3.7: saved places, then the landmark gazetteer, then a pin. Kigali
  * addresses are landmarks - "the blue gate opposite the pharmacy" - so a pin
@@ -35,6 +46,7 @@ const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 export default function Destination() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const overlay = useOverlay();
   const { userId } = useSession();
   const params = useLocalSearchParams<Record<string, string | string[]>>();
 
@@ -50,7 +62,8 @@ export default function Destination() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedPlace[]>([]);
-  const [mapMode, setMapMode] = useState(false);
+  // Account opens this straight onto the map to save a new place.
+  const [mapMode, setMapMode] = useState(one(params.map) === "1");
   const [pin, setPin] = useState<LatLng | null>(null);
   const [note, setNote] = useState("");
   const [label, setLabel] = useState("");
@@ -70,8 +83,8 @@ export default function Destination() {
       return;
     }
     // Debounced: mobile data in Kigali is bought in bundles.
+    setSearching(true);
     timer.current = setTimeout(() => {
-      setSearching(true);
       setError(null);
       searchLandmarks(supabase, query)
         .then(setResults)
@@ -114,19 +127,12 @@ export default function Destination() {
           onPressMap={setPin}
           bottomInset={pin ? 360 : 140}
         />
-        <Pressable
-          onPress={() => setMapMode(false)}
-          style={[styles.back, { top: insets.top + space.sm }]}
-          accessibilityRole="button"
-          accessibilityLabel="Back to search"
-        >
-          <Ionicons name="arrow-back" size={22} color={c.textStrong} />
-        </Pressable>
+        <FloatButton icon="arrow-back" label="Back to search" onPress={() => setMapMode(false)} style={[styles.back, { top: insets.top + space.sm }]} />
         <View style={styles.sheet}>
           <Paper>
             {pin ? (
-              <View style={styles.stack}>
-                <Txt v="title">Drop-off pinned</Txt>
+              <Swap id="pinned" style={styles.stack}>
+                <Txt v="h2">Drop-off pinned</Txt>
                 <Field
                   label="How will your rider find it?"
                   value={note}
@@ -155,7 +161,7 @@ export default function Destination() {
                             ...(note.trim() ? { note: note.trim() } : {}),
                           });
                           setSaved(await listSavedPlaces(supabase, userId));
-                          setLabel("");
+                          overlay.toast({ message: `Saved as ${label.trim()}`, tone: "good" });
                         } catch {
                           setError("Could not save that place.");
                         } finally {
@@ -165,18 +171,22 @@ export default function Destination() {
                     />
                   </View>
                 ) : null}
-                <Button
-                  label="Go here"
-                  onPress={() => choose(pin.lng, pin.lat, label.trim() || "Pinned location", note.trim())}
-                />
-              </View>
+                <Button label="Go here" onPress={() => choose(pin.lng, pin.lat, label.trim() || "Pinned location", note.trim())} />
+              </Swap>
             ) : (
-              <View style={styles.stack}>
-                <Txt v="title">Tap the map</Txt>
-                <Txt v="body" tone="muted">
-                  Put the pin where your rider should drop you.
-                </Txt>
-              </View>
+              <Swap id="tap" style={styles.stack}>
+                <View style={styles.tapHead}>
+                  <View style={styles.tapIcon}>
+                    <Ionicons name="hand-left" size={20} color={c.accent} />
+                  </View>
+                  <View style={styles.flex}>
+                    <Txt v="h2">Tap the map</Txt>
+                    <Txt v="body" tone="muted">
+                      Put the pin where your rider should drop you.
+                    </Txt>
+                  </View>
+                </View>
+              </Swap>
             )}
           </Paper>
         </View>
@@ -189,32 +199,36 @@ export default function Destination() {
   return (
     <View style={[styles.root, { paddingTop: insets.top }]}>
       <View style={styles.header}>
-        <Pressable onPress={() => goBack(router)} hitSlop={12} accessibilityRole="button" accessibilityLabel="Back">
-          <Ionicons name="arrow-back" size={24} color={c.textStrong} />
-        </Pressable>
+        <IconButton icon="arrow-back" label="Back" onPress={() => goBack(router)} size={44} />
+        {/* The same route drawing as everywhere else: the ring is where you
+            are, the square is what you are typing. */}
         <View style={styles.route}>
-          <View style={styles.routeRow}>
-            <View style={styles.dotPick} />
-            <Txt v="label" tone="muted" lines={1} style={styles.flex}>
-              {pickup.plabel ?? "Current location"}
-            </Txt>
+          <View style={styles.rail} pointerEvents="none">
+            <View style={styles.ring} />
+            <View style={styles.railLine} />
+            <View style={styles.square} />
           </View>
-          <View style={styles.routeRow}>
-            <View style={styles.dotDrop} />
-            <TextInput
-              style={styles.input}
-              value={query}
-              onChangeText={setQuery}
-              placeholder="Where to?"
-              placeholderTextColor={c.textMuted}
-              autoFocus
-              returnKeyType="search"
-            />
-            {query ? (
-              <Pressable onPress={() => setQuery("")} hitSlop={10} accessibilityRole="button" accessibilityLabel="Clear the search">
-                <Ionicons name="close-circle" size={20} color={c.textMuted} />
-              </Pressable>
-            ) : null}
+          <View style={styles.flex}>
+            <View style={styles.fromRow}>
+              <Txt v="label" tone="muted" lines={1} style={styles.flex}>
+                {pickup.plabel ?? "Current location"}
+              </Txt>
+            </View>
+            <View style={styles.inputRow}>
+              <TextInput
+                style={styles.input}
+                value={query}
+                onChangeText={setQuery}
+                placeholder="Where to?"
+                placeholderTextColor={c.textMuted}
+                autoFocus
+                returnKeyType="search"
+                accessibilityLabel="Where to?"
+              />
+              {query ? (
+                <IconButton icon="close-circle" label="Clear the search" onPress={() => setQuery("")} size={34} />
+              ) : null}
+            </View>
           </View>
         </View>
       </View>
@@ -222,52 +236,77 @@ export default function Destination() {
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
         {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
 
-        <Group>
-          <Row title="Choose on the map" subtitle="For anywhere without a name" icon="map" onPress={() => setMapMode(true)} />
-        </Group>
+        <Enter i={0}>
+          <Press onPress={() => setMapMode(true)} scaleTo={0.985} style={styles.mapRow} accessibilityRole="button" accessibilityLabel="Choose on the map">
+            <View style={styles.mapIcon}>
+              <Ionicons name="map" size={19} color={c.onAccent} />
+            </View>
+            <View style={styles.flex}>
+              <Txt v="bodyStrong">Choose on the map</Txt>
+              <Txt v="label" tone="muted">
+                For anywhere without a name
+              </Txt>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+          </Press>
+        </Enter>
 
         {!showingResults && saved.length > 0 ? (
-          <Group title="Saved">
-            {saved.map((p, i) => (
-              <View key={p.id}>
-                {i > 0 ? <Divider inset={70} /> : null}
-                <Row
-                  title={p.label}
-                  subtitle={p.note ?? undefined}
-                  icon={/home/i.test(p.label) ? "home" : /work|office/i.test(p.label) ? "briefcase" : "bookmark"}
-                  onPress={() => choose(p.lng, p.lat, p.label, p.note ?? undefined)}
-                />
-              </View>
-            ))}
-          </Group>
-        ) : null}
-
-        {showingResults ? (
-          <Group title="Places in Kigali">
-            {searching && results.length === 0 ? (
-              <ActivityIndicator color={c.accent} style={styles.spin} />
-            ) : results.length === 0 ? (
-              <Row
-                title="No landmark by that name"
-                subtitle="Try a nearby market, school or church - or drop a pin"
-                icon="help"
-                iconTone="neutral"
-              />
-            ) : (
-              results.map((p, i) => (
+          <Enter i={1}>
+            <Group title="Saved places">
+              {saved.map((p, i) => (
                 <View key={p.id}>
                   {i > 0 ? <Divider inset={70} /> : null}
                   <Row
-                    title={p.name}
-                    subtitle={p.sector ?? undefined}
-                    icon="location"
-                    iconTone="neutral"
-                    onPress={() => choose(p.lng, p.lat, p.name)}
+                    title={p.label}
+                    subtitle={p.note ?? undefined}
+                    icon={placeIcon(p.label)}
+                    onPress={() => choose(p.lng, p.lat, p.label, p.note ?? undefined)}
                   />
                 </View>
-              ))
-            )}
-          </Group>
+              ))}
+            </Group>
+          </Enter>
+        ) : null}
+
+        {!showingResults && saved.length === 0 ? (
+          <Enter i={1} style={styles.tip}>
+            <Ionicons name="bulb-outline" size={16} color={c.textMuted} />
+            <Txt v="label" tone="muted" style={styles.flex}>
+              Kigali runs on landmarks. Type a market, school, church or hotel near where you are going.
+            </Txt>
+          </Enter>
+        ) : null}
+
+        {showingResults ? (
+          searching && results.length === 0 ? (
+            <SkeletonRows count={4} />
+          ) : (
+            <Group title="Places in Kigali">
+              {results.length === 0 ? (
+                <Row
+                  title="No landmark by that name"
+                  subtitle="Try a nearby market, school or church - or drop a pin"
+                  icon="help"
+                  iconTone="neutral"
+                  onPress={() => setMapMode(true)}
+                />
+              ) : (
+                results.map((p, i) => (
+                  <Enter key={p.id} i={i}>
+                    {i > 0 ? <Divider inset={70} /> : null}
+                    <Row
+                      title={p.name}
+                      subtitle={p.sector ?? undefined}
+                      icon="location"
+                      iconTone="neutral"
+                      onPress={() => choose(p.lng, p.lat, p.name)}
+                    />
+                  </Enter>
+                ))
+              )}
+            </Group>
+          )
         ) : null}
       </ScrollView>
     </View>
@@ -275,34 +314,64 @@ export default function Destination() {
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
   root: { flex: 1, backgroundColor: c.surface },
-  header: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.lg, paddingVertical: space.md },
+  header: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.sm, paddingRight: space.lg, paddingVertical: space.md },
   route: {
     flex: 1,
+    flexDirection: "row",
+    gap: space.md,
     backgroundColor: c.surfaceRaised,
     borderRadius: radius.lg,
-    paddingHorizontal: space.md,
+    paddingLeft: space.md,
+    paddingRight: space.xs,
     paddingVertical: space.sm,
-    gap: 2,
   },
-  routeRow: { flexDirection: "row", alignItems: "center", gap: space.sm, minHeight: 36 },
-  dotPick: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.textStrong },
-  dotDrop: { width: 10, height: 10, borderRadius: 2, backgroundColor: c.destination },
-  input: { flex: 1, minWidth: 0, fontFamily: font.num, fontSize: 22, color: c.textStrong, paddingVertical: 4 },
+  rail: { width: 12, alignItems: "center", paddingTop: 12, paddingBottom: 18 },
+  ring: { width: 11, height: 11, borderRadius: 6, borderWidth: 3, borderColor: c.textStrong },
+  railLine: { flex: 1, width: 2, borderRadius: 1, backgroundColor: c.border, marginVertical: 3 },
+  square: { width: 11, height: 11, borderRadius: 3, backgroundColor: c.destination },
+  fromRow: { minHeight: 34, justifyContent: "center", borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border, marginRight: space.sm },
+  inputRow: { flexDirection: "row", alignItems: "center", minHeight: 46 },
+  input: {
+    flex: 1,
+    minWidth: 0,
+    fontFamily: font.numBold,
+    fontSize: 24,
+    color: c.textStrong,
+    paddingVertical: 4,
+    // The card is the field; the browser's own focus box would sit inside it.
+    ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null),
+  },
   list: { paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.lg },
-  spin: { margin: space.lg },
-  back: {
-    position: "absolute",
-    left: space.md,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  mapRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: space.md,
+    padding: space.md,
+    borderRadius: radius.lg,
     backgroundColor: c.surfaceRaised,
+  },
+  mapIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: c.accent,
     alignItems: "center",
     justifyContent: "center",
   },
+  tip: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.xs },
+  back: { position: "absolute", left: space.md },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   stack: { gap: space.md },
+  tapHead: { flexDirection: "row", alignItems: "center", gap: space.md },
+  tapIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: c.accentSoft,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   saveRow: { flexDirection: "row", alignItems: "center", gap: space.sm },
 });

@@ -1,7 +1,23 @@
-import { Pressable, StyleSheet, View } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Banner, Button, Field, Txt, c, money, radius, space, tap, type IconName } from "@gera/kit";
+import {
+  Banner,
+  Button,
+  Enter,
+  Field,
+  Odometer,
+  Press,
+  RouteRail,
+  Skeleton,
+  Txt,
+  VehicleTile,
+  c,
+  money,
+  radius,
+  selection,
+  space,
+} from "@gera/kit";
 import { dateLabel, daysLabel, type QuoteResult } from "@gera/data";
 import {
   LaterPicker,
@@ -17,10 +33,10 @@ export type VehicleClass = "moto" | "cab" | "cab_xl";
 
 // Moto first and default: it is the dominant mode in Kigali. Ordering it second
 // would import a Western assumption about what a ride normally is.
-export const CLASSES: readonly { id: VehicleClass; label: string; blurb: string; icon: IconName; seats: string }[] = [
-  { id: "moto", label: "Moto", blurb: "Fastest through traffic", icon: "bicycle", seats: "1" },
-  { id: "cab", label: "Cab", blurb: "Covered, out of the rain", icon: "car", seats: "3" },
-  { id: "cab_xl", label: "Cab XL", blurb: "Room for luggage", icon: "car-sport", seats: "6" },
+export const CLASSES: readonly { id: VehicleClass; label: string; blurb: string; seats: number }[] = [
+  { id: "moto", label: "Moto", blurb: "Fastest through traffic", seats: 1 },
+  { id: "cab", label: "Cab", blurb: "Covered, out of the rain", seats: 3 },
+  { id: "cab_xl", label: "Cab XL", blurb: "Room for luggage", seats: 6 },
 ];
 
 export function Choose({
@@ -82,58 +98,73 @@ export function Choose({
 
   return (
     <View style={styles.stack}>
-      <View>
-        <Txt v="title" lines={1}>
-          {destination}
-        </Txt>
-        <Txt v="label" tone="muted" lines={1}>
-          From {pickupLabel}
-          {minutes ? ` · about ${minutes} min` : ""}
-        </Txt>
-      </View>
+      <Enter i={0}>
+        <RouteRail
+          dense
+          from={{ label: pickupLabel, note: "Pickup" }}
+          to={{ label: destination, note: minutes ? `About ${minutes} min by road` : "Drop-off" }}
+        />
+      </Enter>
 
-      <View style={styles.options}>
-        {CLASSES.map((k) => {
+      <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Vehicle">
+        {CLASSES.map((k, i) => {
           const on = selected === k.id;
           const q = quotes[k.id];
           return (
-            <Pressable
-              key={k.id}
-              onPress={() => {
-                tap();
-                onSelect(k.id);
-              }}
-              accessibilityRole="radio"
-              accessibilityState={{ selected: on }}
-              style={[styles.option, on && styles.optionOn]}
-            >
-              <View style={[styles.well, on && styles.wellOn]}>
-                <Ionicons name={k.icon} size={22} color={on ? c.onAccent : c.textStrong} />
-              </View>
-              <View style={styles.flex}>
-                <Txt v="bodyStrong">{k.label}</Txt>
-                <Txt v="label" tone="muted">
-                  {k.blurb} · {k.seats} {k.seats === "1" ? "seat" : "seats"}
-                </Txt>
-              </View>
-              {/* Every option shows its price, not just the chosen one: a
-                  passenger comparing a moto to a cab is comparing prices. */}
-              <Txt v="figure" tabularNums tone={q ? "strong" : "muted"}>
-                {q ? money(q.amountRwf) : "···"}
-              </Txt>
-            </Pressable>
+            <Enter key={k.id} i={i + 1}>
+              <Press
+                onPress={() => {
+                  if (on) return;
+                  selection();
+                  onSelect(k.id);
+                }}
+                scaleTo={0.985}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: on }}
+                accessibilityLabel={`${k.label}, ${q ? `${money(q.amountRwf)} Rwandan francs` : "price loading"}`}
+                style={[styles.option, on && styles.optionOn]}
+              >
+                <VehicleTile kind={k.id} size={48} on={on} onGrey />
+                <View style={styles.flex}>
+                  <Txt v="bodyStrong">{k.label}</Txt>
+                  <View style={styles.meta}>
+                    <Txt v="label" tone="muted" lines={1} style={styles.shrink}>
+                      {k.blurb}
+                    </Txt>
+                    <View style={styles.seats}>
+                      <Ionicons name="person" size={11} color={c.textMuted} />
+                      <Txt v="caption" tone="muted">
+                        {k.seats}
+                      </Txt>
+                    </View>
+                  </View>
+                </View>
+                {/* Every option shows its price, not just the chosen one: a
+                    passenger comparing a moto to a cab is comparing prices. */}
+                {q ? (
+                  <View style={styles.price}>
+                    <Odometer value={money(q.amountRwf)} v="figure" delay={i * 60} />
+                    <Txt v="caption" tone="muted">
+                      RWF
+                    </Txt>
+                  </View>
+                ) : (
+                  <Skeleton width={64} height={22} r={6} />
+                )}
+              </Press>
+            </Enter>
           );
         })}
       </View>
 
       {mode === "later" ? (
-        <View style={styles.when}>
+        <Enter i={4} style={styles.when}>
           <Txt v="heading">When?</Txt>
           <LaterPicker plan={later} onChange={onLater} />
-        </View>
+        </Enter>
       ) : null}
       {mode === "regular" ? (
-        <View style={styles.when}>
+        <Enter i={4} style={styles.when}>
           <Txt v="heading">Which days?</Txt>
           <RegularPicker plan={regular} onChange={onRegular} />
           {regular.time && first ? (
@@ -142,33 +173,39 @@ export function Choose({
               {dateLabel(endDateOf(regular))}. The price stays {quote ? `${money(quote.amountRwf)} RWF` : "fixed"} for every ride.
             </Txt>
           ) : null}
-        </View>
+        </Enter>
       ) : null}
 
-      <Field
-        value={pickupNote}
-        onChangeText={onPickupNote}
-        placeholder="Note for your rider - where to find you"
-        onPaper
-        accessibilityLabel="Note for your rider"
-      />
+      <Enter i={5}>
+        <Field
+          value={pickupNote}
+          onChangeText={onPickupNote}
+          placeholder="Note for your rider - where to find you"
+          onPaper
+          accessibilityLabel="Note for your rider"
+        />
+      </Enter>
 
-      <Pressable onPress={() => router.push("/payment")} style={styles.pay} accessibilityRole="button">
-        <Ionicons name="cash-outline" size={20} color={c.success} />
-        <Txt v="bodyStrong" style={styles.flex}>
-          Cash
-        </Txt>
-        <Txt v="label" tone="muted">
-          Pay your rider at the end
-        </Txt>
-        <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
-      </Pressable>
+      <Enter i={6}>
+        <Press onPress={() => router.push("/payment")} scaleTo={0.985} style={styles.pay} accessibilityRole="button" accessibilityLabel="Payment: cash, paid to your rider at the end">
+          <View style={styles.cash}>
+            <Ionicons name="cash" size={17} color={c.success} />
+          </View>
+          <View style={styles.flex}>
+            <Txt v="bodyStrong">Cash</Txt>
+            <Txt v="caption" tone="muted">
+              Pay your rider at the end
+            </Txt>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
+        </Press>
+      </Enter>
 
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
 
       <Button
         label={label}
-        trailing={quote && !missing ? `${money(quote.amountRwf)} RWF` : undefined}
+        trailing={quote && !missing ? money(quote.amountRwf) : undefined}
         onPress={onBook}
         loading={busy}
         disabled={!quote || !canBook || missing !== null}
@@ -178,7 +215,8 @@ export function Choose({
 }
 
 const styles = StyleSheet.create({
-  flex: { flex: 1 },
+  flex: { flex: 1, minWidth: 0 },
+  shrink: { flexShrink: 1 },
   stack: { gap: space.md },
   when: { gap: space.sm },
   options: { gap: space.sm },
@@ -194,20 +232,21 @@ const styles = StyleSheet.create({
     backgroundColor: c.surfaceHigh,
   },
   optionOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
-  well: {
-    width: 48,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: c.surfaceRaised,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  wellOn: { backgroundColor: c.accent },
+  meta: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  seats: { flexDirection: "row", alignItems: "center", gap: 2 },
+  price: { alignItems: "flex-end" },
   pay: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
+    gap: space.md,
     paddingVertical: space.xs,
-    paddingHorizontal: space.xs,
+  },
+  cash: {
+    width: 34,
+    height: 34,
+    borderRadius: 11,
+    backgroundColor: c.successSoft,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

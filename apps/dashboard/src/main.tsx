@@ -5,6 +5,7 @@ import "leaflet/dist/leaflet.css";
 import { theme } from "@gera/ui";
 import "./styles.css";
 import { App } from "./App";
+import { UiProvider } from "./components/ui";
 
 // The palette comes from the same tokens the apps use, so a colour change is
 // one edit in packages/ui and all three surfaces follow.
@@ -31,7 +32,9 @@ for (const [k, v] of Object.entries(vars)) document.documentElement.style.setPro
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <App />
+      <UiProvider>
+        <App />
+      </UiProvider>
     </BrowserRouter>
   </StrictMode>,
 );
