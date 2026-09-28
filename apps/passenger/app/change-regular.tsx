@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banner, Button, Group, Screen, SkeletonRows, SuccessMark, Txt, notify, space, useOverlay } from "@gera/kit";
+import { Banner, Button, Group, Screen, SkeletonRows, SuccessMark, Txt, notify, space, useOverlay } from "@nova/kit";
 import {
   addDays,
   cancelSchedule,
@@ -12,7 +12,7 @@ import {
   listSchedules,
   timeSlots,
   type RecurringSchedule,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";

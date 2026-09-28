@@ -1,8 +1,8 @@
 import { useCallback, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
-import { Button, CaseCard, EmptyState, Enter, Screen, SkeletonRows, space } from "@gera/kit";
-import { caseStatusLabel, caseTitle, listMyCases, type MyCase } from "@gera/data";
+import { Button, CaseCard, EmptyState, Enter, Screen, SkeletonRows, space } from "@nova/kit";
+import { caseStatusLabel, caseTitle, listMyCases, type MyCase } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";

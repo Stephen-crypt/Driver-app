@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Gera",
-    "slug": "gera-passenger",
-    "scheme": "gera",
+    "name": "Nova",
+    "slug": "nova-passenger",
+    "scheme": "nova",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,14 +10,14 @@
     "backgroundColor": "#F2F3F7",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "rw.gera.passenger",
+      "bundleIdentifier": "rw.nova.passenger",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Gera uses your location to find riders near you and set your pickup point.",
+        "NSLocationWhenInUseUsageDescription": "Nova uses your location to find riders near you and set your pickup point.",
         "CADisableMinimumFrameDurationOnPhone": true
       }
     },
     "android": {
-      "package": "rw.gera.passenger",
+      "package": "rw.nova.passenger",
       "adaptiveIcon": {
         "backgroundColor": "#0057E7",
         "foregroundImage": "./assets/android-icon-foreground.png",

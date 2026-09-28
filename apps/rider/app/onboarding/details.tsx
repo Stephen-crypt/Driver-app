@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt, Well, c, radius, space } from "@gera/kit";
-import { normaliseRwandanPhone } from "@gera/data";
+import { Banner, Button, Field, Screen, StepTrack, Txt, Well, c, radius, space } from "@nova/kit";
+import { normaliseRwandanPhone } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 
@@ -16,7 +16,7 @@ function normalisePhone(raw: string | undefined): string | null {
 }
 
 /**
- * Who the rider is - not what they ride. Gera owns the vehicles and assigns one
+ * Who the rider is - not what they ride. Nova owns the vehicles and assigns one
  * when it approves the rider, so this screen used to ask for a plate, a vest
  * and a vehicle class nobody had yet: a marketplace question left over in a
  * fleet.

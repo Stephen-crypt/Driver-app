@@ -22,11 +22,11 @@
 //   node scripts/review.mjs money <rider-id>
 //
 // Against the cloud project instead of the local stack:
-//   GERA_DB_URL="postgresql://..." node scripts/review.mjs queue
+//   NOVA_DB_URL="postgresql://..." node scripts/review.mjs queue
 import { execFileSync } from "node:child_process";
 
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
-const DB_URL = process.env.GERA_DB_URL ?? "";
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB_URL = process.env.NOVA_DB_URL ?? "";
 
 function psql(sql) {
   const args = DB_URL
@@ -45,7 +45,7 @@ const [, , command, ...rest] = process.argv;
 
 function usage() {
   console.log(`
-The Gera rider desk.
+The Nova rider desk.
 
   queue                                  everyone waiting on a decision
   show <rider-id>                       one rider in full

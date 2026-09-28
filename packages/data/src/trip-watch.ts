@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 /**
@@ -36,7 +36,7 @@ interface TripRow {
   dropoff_label: string;
 }
 
-export async function getTrip(client: GeraClient, tripId: string): Promise<TripSnapshot> {
+export async function getTrip(client: NovaClient, tripId: string): Promise<TripSnapshot> {
   const { data, error } = await client
     .from("trips")
     .select("id, state, rider_id, quoted_amount_rwf, pickup_label, dropoff_label")
@@ -82,7 +82,7 @@ interface RiderCardRow {
  * an error.
  */
 export async function getRiderCard(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
 ): Promise<RiderCard | null> {
   const { data, error } = await client.rpc("trip_rider_card", { p_trip_id: tripId });
@@ -108,7 +108,7 @@ export async function getRiderCard(
  * the way and no way to see them.
  */
 export async function getActivePassengerTrip(
-  client: GeraClient,
+  client: NovaClient,
   passengerId: string,
 ): Promise<TripSnapshot | null> {
   const { data, error } = await client

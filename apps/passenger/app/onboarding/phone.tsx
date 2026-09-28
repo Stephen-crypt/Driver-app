@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt } from "@gera/kit";
-import { requestOtp } from "@gera/data";
+import { Banner, Button, Field, Screen, StepTrack, Txt } from "@nova/kit";
+import { requestOtp } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 
 export default function PhoneScreen() {
@@ -43,7 +43,7 @@ export default function PhoneScreen() {
         accessibilityLabel="Phone number"
       />
       <Txt v="caption" tone="muted">
-        Your rider only ever sees your first name. Your number stays with Gera.
+        Your rider only ever sees your first name. Your number stays with Nova.
       </Txt>
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
     </Screen>

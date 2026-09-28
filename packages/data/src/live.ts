@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 
 export interface Subscription {
   readonly unsubscribe: () => void;
@@ -14,7 +14,7 @@ export interface Subscription {
  * needs. One source of truth for how a trip is read, one for when.
  */
 export function watchTrip(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   onChange: () => void,
 ): Subscription {
@@ -42,7 +42,7 @@ export function watchTrip(
  * sees it.
  */
 export function watchOffers(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   onChange: () => void,
 ): Subscription {
@@ -69,7 +69,7 @@ export function watchOffers(
 
 /** Trips assigned to this rider, so the console follows its own trip live. */
 export function watchRiderTrips(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   onChange: () => void,
 ): Subscription {

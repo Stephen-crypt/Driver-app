@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Gera Rider",
-    "slug": "gera-rider",
-    "scheme": "gerarider",
+    "name": "Nova Rider",
+    "slug": "nova-rider",
+    "scheme": "novarider",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,9 +10,9 @@
     "backgroundColor": "#F2F3F7",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "rw.gera.rider",
+      "bundleIdentifier": "rw.nova.rider",
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "Gera Rider uses your location to send you trips nearby and guide you to your passenger.",
+        "NSLocationWhenInUseUsageDescription": "Nova Rider uses your location to send you trips nearby and guide you to your passenger.",
         "UIBackgroundModes": [
           "location"
         ],
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "package": "rw.gera.rider",
+      "package": "rw.nova.rider",
       "adaptiveIcon": {
         "backgroundColor": "#FFFFFF",
         "foregroundImage": "./assets/android-icon-foreground.png",
@@ -42,7 +42,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Gera Rider uses your location to send you trips nearby."
+          "locationAlwaysAndWhenInUsePermission": "Nova Rider uses your location to send you trips nearby."
         }
       ],
       [
@@ -54,7 +54,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "Gera Rider uses the camera to scan rider and vehicle QR codes during safety inspections.",
+          "cameraPermission": "Nova Rider uses the camera to scan rider and vehicle QR codes during safety inspections.",
           "recordAudioAndroid": false
         }
       ],

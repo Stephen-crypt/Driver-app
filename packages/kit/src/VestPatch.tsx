@@ -27,7 +27,7 @@ interface Props {
 }
 
 /**
- * The numbered patch on the back of a Kigali moto rider's vest, and Gera's one
+ * The numbered patch on the back of a Kigali moto rider's vest, and Nova's one
  * visual signature. It carries the numbers a person has to match against the
  * real world: the rider's vest number, and the PIN the passenger reads out.
  *

@@ -42,7 +42,7 @@ async function printSticker(v: Vehicle, reissue: boolean) {
   .v { display: inline-block; background: #0057e7; color: #fff; font: 700 7mm/1 "Barlow Condensed", sans-serif; padding: 1.5mm 3mm; border-radius: 2mm; margin-top: 2mm; }
   .t { font-size: 3.2mm; color: #5e6676; margin-top: 2mm; }
 </style>
-<div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Gera inspectors scan this to verify</div></div>
+<div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Nova inspectors scan this to verify</div></div>
 <script>setTimeout(() => print(), 300)</script>`);
   w.document.close();
 }

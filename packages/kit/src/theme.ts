@@ -7,7 +7,7 @@ import { Barlow_700Bold } from "@expo-google-fonts/barlow/700Bold";
 import { BarlowCondensed_500Medium } from "@expo-google-fonts/barlow-condensed/500Medium";
 import { BarlowCondensed_600SemiBold } from "@expo-google-fonts/barlow-condensed/600SemiBold";
 import { BarlowCondensed_700Bold } from "@expo-google-fonts/barlow-condensed/700Bold";
-import { theme, tokens } from "@gera/ui";
+import { theme, tokens } from "@nova/ui";
 
 export { theme, tokens };
 export const c = theme;
@@ -37,7 +37,7 @@ export const font = {
 } as const;
 
 /** True once the faces are ready, or failed - a font error must not block the app. */
-export function useGeraFonts(): boolean {
+export function useNovaFonts(): boolean {
   const [loaded, error] = useFonts({
     Barlow_400Regular,
     Barlow_500Medium,

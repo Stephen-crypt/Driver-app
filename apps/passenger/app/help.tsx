@@ -1,8 +1,8 @@
 import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { Disclosure, Divider, Group, Press, Row, Screen, Txt, c, radius, space, type IconName } from "@gera/kit";
-import { EMERGENCY_NUMBER } from "@gera/data";
+import { Disclosure, Divider, Group, Press, Row, Screen, Txt, c, radius, space, type IconName } from "@nova/kit";
+import { EMERGENCY_NUMBER } from "@nova/data";
 import { goBack } from "../src/lib/nav";
 
 const SAFETY: readonly { icon: IconName; title: string; body: string }[] = [
@@ -51,7 +51,7 @@ const FAQ = [
   },
   {
     q: "Where does my money go?",
-    a: "You hand the fare to your rider in cash. Gera owns the vehicles, so the rider passes that cash on to us and is paid separately for their work.",
+    a: "You hand the fare to your rider in cash. Nova owns the vehicles, so the rider passes that cash on to us and is paid separately for their work.",
   },
 ];
 
@@ -110,7 +110,7 @@ export default function Help() {
 
         {/* Said plainly: what happens, and who is on the other end. */}
         <Txt v="label" tone="muted">
-          Gera's control room watches every live trip. The Safety button on a trip sends them your location and who
+          Nova's control room watches every live trip. The Safety button on a trip sends them your location and who
           you're with, and they call you back. If you're in danger, call {EMERGENCY_NUMBER} first.
         </Txt>
       </View>

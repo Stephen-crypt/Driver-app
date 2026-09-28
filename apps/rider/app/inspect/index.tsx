@@ -19,8 +19,8 @@ import {
   shadow,
   space,
   useOverlay,
-} from "@gera/kit";
-import { myStaffRole } from "@gera/data";
+} from "@nova/kit";
+import { myStaffRole } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 
 interface Recent {

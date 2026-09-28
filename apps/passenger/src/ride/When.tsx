@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef } from "react";
 import { ScrollView, StyleSheet, View } from "react-native";
-import { Press, Txt, c, radius, selection, space } from "@gera/kit";
-import { addDays, dayLabel, isoWeekday, kigaliToday, timeSlots } from "@gera/data";
+import { Press, Txt, c, radius, selection, space } from "@nova/kit";
+import { addDays, dayLabel, isoWeekday, kigaliToday, timeSlots } from "@nova/data";
 
 export type BookingMode = "now" | "later" | "regular";
 

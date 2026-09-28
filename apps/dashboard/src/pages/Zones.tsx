@@ -20,7 +20,7 @@ interface Zone {
 // What each kind is for, and which crossing is worth an alert by default.
 const KINDS: Record<Kind, { label: string; help: string; color: string; enter: boolean; exit: boolean }> = {
   restricted: { label: "Restricted", help: "Riders should not go in: road works, closed roads, secure sites.", color: "#c42419", enter: true, exit: false },
-  service: { label: "Service area", help: "Where Gera operates. Leaving it is worth knowing about.", color: "#0057e7", enter: false, exit: true },
+  service: { label: "Service area", help: "Where Nova operates. Leaving it is worth knowing about.", color: "#0057e7", enter: false, exit: true },
   operating: { label: "Operating", help: "A smaller area a team or shift works in.", color: "#0a3a9c", enter: false, exit: true },
   parking: { label: "Parking", help: "Where riders wait between trips.", color: "#5e6676", enter: false, exit: false },
   pickup: { label: "Pickup", help: "A marked pickup point: a mall, the airport, a bus park.", color: "#0e7c4a", enter: false, exit: false },

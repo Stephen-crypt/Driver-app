@@ -1,8 +1,8 @@
 import { Linking, StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { goBack } from "../src/lib/nav";
-import { Button, Group, Row, Divider, Screen, Txt, Well, c, radius, space, type IconName } from "@gera/kit";
-import { EMERGENCY_NUMBER } from "@gera/data";
+import { Button, Group, Row, Divider, Screen, Txt, Well, c, radius, space, type IconName } from "@nova/kit";
+import { EMERGENCY_NUMBER } from "@nova/data";
 
 const RULES: readonly { icon: IconName; title: string; body: string }[] = [
   {

@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { requestQuote, completeTrip } from "../src/trips";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
-function fakeClient(invokeResult: unknown, error: unknown = null): GeraClient {
+function fakeClient(invokeResult: unknown, error: unknown = null): NovaClient {
   return {
     functions: { invoke: vi.fn().mockResolvedValue({ data: invokeResult, error }) },
-  } as unknown as GeraClient;
+  } as unknown as NovaClient;
 }
 
 // The route is part of every quote request: the server prices it.

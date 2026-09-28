@@ -9,7 +9,7 @@ import type {
   Receipt as RealReceipt,
   straightLineEta as realStraightLineEta,
   VehicleClass as RealVehicleClass,
-} from "@gera/core";
+} from "@nova/core";
 import type {
   AVERAGE_SPEED_MPS as BundleAverageSpeedMps,
   DISPATCH_RADII_M as BundleDispatchRadiiM,

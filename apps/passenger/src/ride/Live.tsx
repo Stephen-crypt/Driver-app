@@ -23,9 +23,9 @@ import {
   space,
   type IconName,
   type VehicleKind,
-} from "@gera/kit";
-import { waitingChargeFor } from "@gera/core";
-import type { RiderCard, RiderPosition, TripSnapshot, WaitStatus } from "@gera/data";
+} from "@nova/kit";
+import { waitingChargeFor } from "@nova/core";
+import type { RiderCard, RiderPosition, TripSnapshot, WaitStatus } from "@nova/data";
 
 function minutes(seconds: number | null | undefined): string {
   if (!seconds || seconds < 60) return "1";

@@ -2,12 +2,12 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { OverlayProvider, c, useGeraFonts } from "@gera/kit";
+import { OverlayProvider, c, useNovaFonts } from "@nova/kit";
 
 export default function RootLayout() {
   // Nothing renders until the faces load: a screen that paints in the system
   // font and then jumps to Barlow a moment later looks broken, not fast.
-  const fontsReady = useGeraFonts();
+  const fontsReady = useNovaFonts();
   if (!fontsReady) return <View style={{ flex: 1, backgroundColor: c.surface }} />;
 
   return (

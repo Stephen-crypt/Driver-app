@@ -7,7 +7,7 @@ import {
   Button,
   Chip,
   CountdownRing,
-  GeraMap,
+  NovaMap,
   Odometer,
   Paper,
   Press,
@@ -26,7 +26,7 @@ import {
   tap,
   tokens,
   type VehicleKind,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   distanceBetween,
   distanceLabel,
@@ -36,7 +36,7 @@ import {
   secondsLeft,
   type LiveOffer,
   type TripPoints,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../lib/supabase";
 import type { Coords } from "../lib/location";
 import { PassengerNote, useDrain } from "./parts";
@@ -120,7 +120,7 @@ export function OfferSheet({
         <View style={styles.mapArea}>
           {points ? (
             <Animated.View entering={fadeIn} style={StyleSheet.absoluteFill}>
-              <GeraMap
+              <NovaMap
                 center={points.pickup}
                 markers={markers}
                 route={[points.pickup, points.dropoff]}

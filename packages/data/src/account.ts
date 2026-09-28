@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export type PaymentKind = "cash" | "mtn_momo" | "airtel_money" | "card";
@@ -30,7 +30,7 @@ export const PAYMENT_KINDS: readonly {
 ];
 
 export async function listPaymentMethods(
-  client: GeraClient,
+  client: NovaClient,
   userId: string,
 ): Promise<PaymentMethod[]> {
   const { data, error } = await client
@@ -50,7 +50,7 @@ export async function listPaymentMethods(
  * behaviour we want, but the app should not be the thing that discovers it.
  */
 export async function setDefaultPaymentMethod(
-  client: GeraClient,
+  client: NovaClient,
   userId: string,
   kind: PaymentKind,
 ): Promise<void> {
@@ -73,7 +73,7 @@ export async function setDefaultPaymentMethod(
 /** Registers this install for push. The token is the key, so re-registering
  *  the same device moves it to the current user rather than piling up rows. */
 export async function registerDeviceToken(
-  client: GeraClient,
+  client: NovaClient,
   userId: string,
   token: string,
   platform: "android" | "ios",
@@ -86,7 +86,7 @@ export async function registerDeviceToken(
 }
 
 export async function rateTrip(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   rating: number,
   comment?: string,
@@ -105,7 +105,7 @@ export async function rateTrip(
  * and a dedicated path would have been a second copy of the rule.
  */
 export async function cancelTrip(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   as: "passenger" | "rider",
 ): Promise<void> {
@@ -129,7 +129,7 @@ export interface Contact {
  * decides.
  */
 export async function getTripContact(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
 ): Promise<Contact | null> {
   const { data, error } = await client.rpc("trip_contact", { p_trip_id: tripId });
@@ -161,7 +161,7 @@ export interface TripHistoryItem {
 export const tripTime = (t: Pick<TripHistoryItem, "createdAt" | "scheduledFor">): string => t.scheduledFor ?? t.createdAt;
 
 export async function listTrips(
-  client: GeraClient,
+  client: NovaClient,
   column: "passenger_id" | "rider_id",
   _userId: string,
   limit = 30,

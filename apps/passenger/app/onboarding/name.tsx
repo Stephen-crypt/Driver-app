@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt, notify } from "@gera/kit";
-import { normaliseRwandanPhone } from "@gera/data";
+import { Banner, Button, Field, Screen, StepTrack, Txt, notify } from "@nova/kit";
+import { normaliseRwandanPhone } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 
 function normalisePhone(raw: string | undefined): string | null {

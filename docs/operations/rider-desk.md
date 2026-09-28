@@ -8,7 +8,7 @@ Read this before you sign up your first rider. The technical steps take ten minu
 
 ## 1. What a rider must have before you touch the app
 
-None of this is Gera's rule. It is Rwandan law, and the liability lands on you as the operator, not on the rider.
+None of this is Nova's rule. It is Rwandan law, and the liability lands on you as the operator, not on the rider.
 
 | Requirement | Where it comes from | Notes |
 |---|---|---|
@@ -165,7 +165,7 @@ Answer three carefully. A rider who thinks the cash in their pocket is theirs wi
 - [ ] Registered as a data controller with NCSA (Law N° 058/2021 — you store phone numbers and live GPS, it applies)
 - [ ] Business insurance
 - [ ] Mobile money business number for riders to remit cash to
-- [ ] Pindo account funded, `Gera` sender ID registered
+- [ ] Pindo account funded, `Nova` sender ID registered
 - [ ] Someone named as the person who answers the safety line (see below)
 - [ ] 15–20 verified, funded riders in **one** sector
 - [ ] You have personally taken five trips end to end
@@ -219,6 +219,6 @@ Kinds: `national_id`, `driving_licence`
 Against the cloud rather than your laptop:
 
 ```bash
-GERA_DB_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
+NOVA_DB_URL="postgresql://postgres.<ref>:<password>@aws-0-eu-central-1.pooler.supabase.com:5432/postgres" \
   pnpm review queue
 ```

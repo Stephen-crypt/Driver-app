@@ -1,6 +1,6 @@
-# Gera interface system: Signal & Hill
+# Nova interface system: Signal & Hill
 
-This is the reference for how the passenger app, the rider app and the control room look and move. It is written for whoever builds the next screen: every rule here has a component in `@gera/kit` (apps) or `apps/dashboard/src/styles.css` (web) that already does it.
+This is the reference for how the passenger app, the rider app and the control room look and move. It is written for whoever builds the next screen: every rule here has a component in `@nova/kit` (apps) or `apps/dashboard/src/styles.css` (web) that already does it.
 
 ## What the product is, and who it is for
 
@@ -12,9 +12,9 @@ Company-run motos and cabs in Kigali, with three audiences:
 
 ## The direction
 
-**Signal**: Gera reads like good transport wayfinding. Barlow comes from highway signage. Numbers are set in Barlow Condensed, the way vests, plates and departure boards are, and important figures roll into place like an odometer rather than popping in.
+**Signal**: Nova reads like good transport wayfinding. Barlow comes from highway signage. Numbers are set in Barlow Condensed, the way vests, plates and departure boards are, and important figures roll into place like an odometer rather than popping in.
 
-**Hill**: Kigali's hills and Rwanda's Imigongo geometry (zigzags and diamonds, traditionally black, white and red soil) appear as quiet texture in exactly three places: the welcome screens, receipts, and empty states. They are drawn in Gera blue, never as decoration on working screens.
+**Hill**: Kigali's hills and Rwanda's Imigongo geometry (zigzags and diamonds, traditionally black, white and red soil) appear as quiet texture in exactly three places: the welcome screens, receipts, and empty states. They are drawn in Nova blue, never as decoration on working screens.
 
 There is one brand hue, blue. Green, red and amber are signals only (done, danger, warning) and are never used as backgrounds.
 
@@ -25,7 +25,7 @@ There is one brand hue, blue. Green, red and amber are signals only (done, dange
 | Ground | `#F2F3F7` | Page |
 | Card | `#FFFFFF` | Groups, sheets |
 | Ink | `#0B0D12` | Primary text |
-| Gera blue | `#0057E7` | Actions, links, the one accent |
+| Nova blue | `#0057E7` | Actions, links, the one accent |
 | Vest blue | `#0A3A9C` | Vest patches, the online slab |
 | Scrim | `rgba(11,13,18,0.48)` | Behind modal sheets |
 
@@ -70,7 +70,7 @@ Rules:
 
 ## The pieces
 
-Screens are built from these, so they behave the same everywhere. All live in `@gera/kit` unless marked.
+Screens are built from these, so they behave the same everywhere. All live in `@nova/kit` unless marked.
 
 | Piece | What it is for |
 |---|---|
@@ -100,4 +100,4 @@ Screens are built from these, so they behave the same everywhere. All live in `@
 
 ## Assets
 
-Every illustration is drawn in code (SVG) so it stays sharp, themable and small. [illustration-prompts.md](illustration-prompts.md) has prompts for the two raster welcome images, if they are ever redrawn, and for a cab version.
+Every illustration is drawn in code (SVG) so it stays sharp, themable and small. The app icons are drawn by `scripts/gen-icons.mjs`: the Nova "N" as a switchback road with its lane markings, white on blue for passengers and the inverse for riders. [illustration-prompts.md](illustration-prompts.md) has prompts for the two raster welcome images, if they are ever redrawn, and for a cab version.

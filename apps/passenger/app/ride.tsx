@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
   Button,
   FloatButton,
-  GeraMap,
+  NovaMap,
   ModalSheet,
   Paper,
   SuccessMark,
@@ -21,7 +21,7 @@ import {
   useSettledHeight,
   type MapMarker,
   type VehicleKind,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
   addDays,
@@ -58,7 +58,7 @@ import {
   type TripSnapshot,
   type TripTotal,
   type WaitStatus,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
 import * as loc from "../src/lib/location";
@@ -371,7 +371,7 @@ export default function Ride() {
   const sos = () => {
     overlay.actions({
       title: "Safety",
-      message: `Gera's control room sees an alert the moment you send it, with where you are and who you're with.`,
+      message: `Nova's control room sees an alert the moment you send it, with where you are and who you're with.`,
       options: [
         {
           label: `Call ${EMERGENCY_NUMBER}`,
@@ -517,7 +517,7 @@ export default function Ride() {
 
   return (
     <View style={styles.root}>
-      <GeraMap
+      <NovaMap
         center={from ?? loc.KIGALI_FALLBACK}
         markers={markers}
         route={from && to && (!trip || trip.state === "requested" || trip.state === "offered") ? [from, to] : undefined}

@@ -1,14 +1,14 @@
 import { describe, it, expect, vi } from "vitest";
 import { getTrip, isTripLive, LIVE_TRIP_STATES } from "../src/trip-watch";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
-function client(data: unknown, error: unknown = null): GeraClient {
+function client(data: unknown, error: unknown = null): NovaClient {
   const chain = {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue({ data, error }),
   };
-  return { from: vi.fn().mockReturnValue(chain) } as unknown as GeraClient;
+  return { from: vi.fn().mockReturnValue(chain) } as unknown as NovaClient;
 }
 
 describe("isTripLive", () => {

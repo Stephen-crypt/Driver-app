@@ -18,7 +18,7 @@ import {
   money,
   radius,
   space,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   dailyEarnings,
   describeLedgerRow,
@@ -26,7 +26,7 @@ import {
   getNetOwed,
   listLedger,
   type LedgerRow,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 

@@ -6,7 +6,7 @@
 //
 // The signature check is not optional. Without it this endpoint is a public
 // button that spends the SMS balance, and an attacker who finds the URL can
-// drain it and post any text they like under the Gera sender ID.
+// drain it and post any text they like under the Nova sender ID.
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
 
 interface HookPayload {
@@ -28,7 +28,7 @@ Deno.serve(async (req: Request) => {
 
   const hookSecret = Deno.env.get("SEND_SMS_HOOK_SECRET");
   const pindoToken = Deno.env.get("PINDO_API_TOKEN");
-  const sender = Deno.env.get("PINDO_SENDER_ID") ?? "Gera";
+  const sender = Deno.env.get("PINDO_SENDER_ID") ?? "Nova";
 
   // Fail closed. A missing secret must never degrade into "skip the check" -
   // that is how a misconfigured deploy silently becomes an open relay.
@@ -56,7 +56,7 @@ Deno.serve(async (req: Request) => {
 
   // Kept to one segment on purpose: an SMS over 160 characters bills as two,
   // and this is the single most-sent message in the product.
-  const text = `Your Gera code is ${otp}. It expires in 10 minutes.`;
+  const text = `Your Nova code is ${otp}. It expires in 10 minutes.`;
 
   const res = await fetch(PINDO_URL, {
     method: "POST",

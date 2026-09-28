@@ -15,8 +15,8 @@ import {
   radius,
   space,
   useOverlay,
-} from "@gera/kit";
-import { statusFor } from "@gera/ui";
+} from "@nova/kit";
+import { statusFor } from "@nova/ui";
 import {
   cancelTrip,
   daysLabel,
@@ -30,7 +30,7 @@ import {
   type RecurringSchedule,
   type TripHistoryItem,
   type UpcomingRide,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 

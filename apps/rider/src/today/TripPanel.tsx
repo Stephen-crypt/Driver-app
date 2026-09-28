@@ -14,7 +14,7 @@ import {
   money,
   radius,
   space,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   distanceBetween,
   distanceLabel,
@@ -22,8 +22,8 @@ import {
   type TripPoints,
   type WaitStatus,
   kigaliTime,
-} from "@gera/data";
-import { waitingChargeFor } from "@gera/core";
+} from "@nova/data";
+import { waitingChargeFor } from "@nova/core";
 import type { Coords } from "../lib/location";
 import { DrainBar, PassengerNote } from "./parts";
 import { clock } from "./useNow";

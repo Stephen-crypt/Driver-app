@@ -1,6 +1,6 @@
 // Metro does not understand pnpm workspaces on its own: without this it resolves
-// the entry point against the repo root and cannot see @gera/core, @gera/data or
-// @gera/ui, which live outside this app's own node_modules.
+// the entry point against the repo root and cannot see @nova/core, @nova/data or
+// @nova/ui, which live outside this app's own node_modules.
 const { getDefaultConfig } = require("expo/metro-config");
 const path = require("path");
 

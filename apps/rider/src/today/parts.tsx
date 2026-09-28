@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { StyleSheet, View } from "react-native";
 import Animated, { Easing, ReduceMotion, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { Txt, c, radius, space } from "@gera/kit";
+import { Txt, c, radius, space } from "@nova/kit";
 
 /**
  * Time that runs out drains, left to right, at the speed it is really going:

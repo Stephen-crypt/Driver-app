@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Modal, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, IconButton, Keypad, PinBoxes, SuccessMark, Swap, Txt, c, notify, space } from "@gera/kit";
-import { startTrip } from "@gera/data";
+import { Button, IconButton, Keypad, PinBoxes, SuccessMark, Swap, Txt, c, notify, space } from "@nova/kit";
+import { startTrip } from "@nova/data";
 import { supabase } from "../lib/supabase";
 
 /**

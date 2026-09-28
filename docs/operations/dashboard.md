@@ -1,6 +1,6 @@
 # The staff dashboard
 
-`apps/dashboard` is the web app for the people who run Gera: the control room, operations, the fleet, finance, safety and support. It is where an emergency alert lands, where riders are approved and given a vehicle, and where cash is recorded.
+`apps/dashboard` is the web app for the people who run Nova: the control room, operations, the fleet, finance, safety and support. It is where an emergency alert lands, where riders are approved and given a vehicle, and where cash is recorded.
 
 ## Running it
 
@@ -19,15 +19,15 @@ To deploy, `pnpm build` produces a static site in `dist/` that any static host s
 Staff roles can only be granted from the command line, with the service key. There is no way to do it from the dashboard or the apps, by design.
 
 ```bash
-pnpm staff add ange@gera.rw admin "Ange"          # prints a password once
-pnpm staff add claudine@gera.rw control_room "Claudine"
-pnpm staff add innocent@gera.rw inspector "Innocent"   # works in the Gera Rider app
-pnpm staff role claudine@gera.rw safety
-pnpm staff disable claudine@gera.rw               # takes effect on their next click
+pnpm staff add ange@nova.rw admin "Ange"          # prints a password once
+pnpm staff add claudine@nova.rw control_room "Claudine"
+pnpm staff add innocent@nova.rw inspector "Innocent"   # works in the Nova Rider app
+pnpm staff role claudine@nova.rw safety
+pnpm staff disable claudine@nova.rw               # takes effect on their next click
 pnpm staff list
 ```
 
-Against the cloud project, set `GERA_API_URL`, `GERA_SERVICE_KEY` and `GERA_DB_URL` first.
+Against the cloud project, set `NOVA_API_URL`, `NOVA_SERVICE_KEY` and `NOVA_DB_URL` first.
 
 ## Who can do what
 
@@ -94,7 +94,7 @@ While a trip is live, the server works out speed from the rider's GPS, using poi
 | Kind | For | Alerts by default |
 |---|---|---|
 | Restricted | Closed roads, road works, secure sites | when a rider goes in |
-| Service area | Where Gera operates | when a rider leaves |
+| Service area | Where Nova operates | when a rider leaves |
 | Operating | A team's or shift's area | when a rider leaves |
 | Parking, Pickup | Waiting areas, marked pickup points | none |
 
@@ -108,7 +108,7 @@ The margin is 1,500 m to start with (Prices & settings → Route alert margin). 
 
 ## Inspections
 
-Inspectors work from the **Gera Rider app**: on its first screen, tap **Staff sign in** and use the email and password from the staff script. An inspector account opens straight onto the inspection screens. It has nothing to open on this dashboard.
+Inspectors work from the **Nova Rider app**: on its first screen, tap **Staff sign in** and use the email and password from the staff script. An inspector account opens straight onto the inspection screens. It has nothing to open on this dashboard.
 
 - **Finding who to check:** scan the QR on the rider's phone (Me → My QR code) or the sticker on the vehicle, or type a vest number or plate.
 - **The check:** identity, documents, vest and helmets, then brakes, lights, tyres, mirrors, bodywork and safety kit. An optional alcohol test records negative, positive (with the reading) or refused, plus the device. Add photos and notes.

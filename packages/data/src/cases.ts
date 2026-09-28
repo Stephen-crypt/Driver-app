@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 /** What a passenger can report. Vehicle faults are the rider app's. */
@@ -67,7 +67,7 @@ const toCase = (r: CaseRow): MyCase => ({
 });
 
 export async function openCase(
-  client: GeraClient,
+  client: NovaClient,
   kind: PassengerCaseKind,
   tripId: string | null,
   description: string,
@@ -78,7 +78,7 @@ export async function openCase(
 }
 
 /** The signed-in person's own reports; RLS returns nothing else. */
-export async function listMyCases(client: GeraClient, userId: string, limit = 30): Promise<MyCase[]> {
+export async function listMyCases(client: NovaClient, userId: string, limit = 30): Promise<MyCase[]> {
   const { data, error } = await client
     .from("support_cases")
     .select("id, number, kind, category, status, description, resolution, trip_id, created_at, resolved_at")

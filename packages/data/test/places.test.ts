@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { searchLandmarks } from "../src/places";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
-function client(data: unknown, error: unknown = null): GeraClient {
-  return { rpc: vi.fn().mockResolvedValue({ data, error }) } as unknown as GeraClient;
+function client(data: unknown, error: unknown = null): NovaClient {
+  return { rpc: vi.fn().mockResolvedValue({ data, error }) } as unknown as NovaClient;
 }
 
 describe("searchLandmarks", () => {

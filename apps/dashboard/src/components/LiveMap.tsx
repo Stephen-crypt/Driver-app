@@ -69,7 +69,7 @@ export function LiveMap({
     L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
       maxZoom: 19,
       attribution: "© OpenStreetMap",
-      className: "gera-tiles",
+      className: "nova-tiles",
     }).addTo(m);
     zoneLayer.current = L.layerGroup().addTo(m);
     draftLayer.current = L.layerGroup().addTo(m);

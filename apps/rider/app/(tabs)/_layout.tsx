@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { View } from "react-native";
 import { Redirect, Tabs } from "expo-router";
-import { TabBar, c, type TabBarProps } from "@gera/kit";
-import { myStaffRole } from "@gera/data";
+import { TabBar, c, type TabBarProps } from "@nova/kit";
+import { myStaffRole } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 

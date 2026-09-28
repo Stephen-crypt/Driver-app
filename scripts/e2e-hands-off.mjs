@@ -12,14 +12,14 @@ import { execFileSync } from "node:child_process";
 
 const API = "http://127.0.0.1:54321";
 const JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long";
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
-const ANON = process.env.GERA_ANON_KEY;
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
+const ANON = process.env.NOVA_ANON_KEY;
 if (!ANON) {
-  console.error("Set GERA_ANON_KEY from `supabase status`.");
+  console.error("Set NOVA_ANON_KEY from `supabase status`.");
   process.exit(1);
 }
 
-const TIMEOUT_MS = Number(process.env.GERA_HANDS_OFF_TIMEOUT_MS ?? 120_000);
+const TIMEOUT_MS = Number(process.env.NOVA_HANDS_OFF_TIMEOUT_MS ?? 120_000);
 const PASSENGER = crypto.randomUUID();
 const suffix = String(Math.floor(Math.random() * 1e6)).padStart(6, "0");
 

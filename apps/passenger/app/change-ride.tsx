@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banner, Button, Screen, Txt, notify, space } from "@gera/kit";
-import { changeRideTime, dateLabel, kigaliTime, timeSlots } from "@gera/data";
+import { Banner, Button, Screen, Txt, notify, space } from "@nova/kit";
+import { changeRideTime, dateLabel, kigaliTime, timeSlots } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
 import { Times } from "../src/ride/When";

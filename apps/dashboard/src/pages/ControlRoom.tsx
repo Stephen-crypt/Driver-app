@@ -179,9 +179,9 @@ export function ControlRoom({ staff }: { staff: Staff }) {
   // Title flashes while an alert is unacknowledged, so it is seen from another tab.
   const unacked = alerts.filter((a) => !a.acknowledged_at).length;
   useEffect(() => {
-    document.title = unacked > 0 ? `(${unacked}) SOS - Gera Control` : "Gera Control";
+    document.title = unacked > 0 ? `(${unacked}) SOS - Nova Control` : "Nova Control";
     return () => {
-      document.title = "Gera Control";
+      document.title = "Nova Control";
     };
   }, [unacked]);
 

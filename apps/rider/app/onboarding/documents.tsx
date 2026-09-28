@@ -2,14 +2,14 @@ import { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { Banner, Button, Chip, Divider, Group, Row, Screen, SkeletonRows, StepTrack, Txt, c, notify, space, useOverlay } from "@gera/kit";
+import { Banner, Button, Chip, Divider, Group, Row, Screen, SkeletonRows, StepTrack, Txt, c, notify, space, useOverlay } from "@nova/kit";
 import {
   listMyDocuments,
   uploadDocument,
   DOCUMENT_LABELS,
   type RiderDocument,
   type DocumentKind,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
@@ -185,7 +185,7 @@ export default function Documents() {
       ) : null}
 
       <Txt key="privacy" v="caption" tone="muted">
-        Only the Gera fleet office sees your documents. They are never shown to passengers.
+        Only the Nova fleet office sees your documents. They are never shown to passengers.
       </Txt>
     </Screen>
   );

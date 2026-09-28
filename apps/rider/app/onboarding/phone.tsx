@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt, space } from "@gera/kit";
-import { requestOtp } from "@gera/data";
+import { Banner, Button, Field, Screen, StepTrack, Txt, space } from "@nova/kit";
+import { requestOtp } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 
@@ -45,7 +45,7 @@ export default function PhoneScreen() {
         accessibilityLabel="Phone number"
       />
       <Txt v="caption" tone="muted">
-        Passengers see your first name and your vest number. Your phone number stays with Gera.
+        Passengers see your first name and your vest number. Your phone number stays with Nova.
       </Txt>
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
     </Screen>

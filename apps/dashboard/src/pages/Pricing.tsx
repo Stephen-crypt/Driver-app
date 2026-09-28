@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { quoteFare, type FarePolicy, type VehicleClass } from "@gera/core";
+import { quoteFare, type FarePolicy, type VehicleClass } from "@nova/core";
 import { can, kigaliDateTime, money, rpc, type Staff, type StaffRole } from "../lib/supabase";
 import { Flash, useUi } from "../components/ui";
 
@@ -177,7 +177,7 @@ const FIELDS = [
   ["perKmRwf", "Per km", "RWF"],
   ["perMinuteRwf", "Per minute", "RWF"],
   ["minimumRwf", "Minimum fare", "RWF"],
-  ["commissionPct", "Gera's share", "%"],
+  ["commissionPct", "Nova's share", "%"],
 ] as const;
 
 function PriceCard({
@@ -291,7 +291,7 @@ function PriceCard({
               Discard
             </button>
           </div>
-          {invalid ? <span className="small" style={{ color: "var(--bad)" }}>Prices can't be negative and Gera's share can't exceed 90%.</span> : null}
+          {invalid ? <span className="small" style={{ color: "var(--bad)" }}>Prices can't be negative and Nova's share can't exceed 90%.</span> : null}
         </div>
       ) : null}
     </section>

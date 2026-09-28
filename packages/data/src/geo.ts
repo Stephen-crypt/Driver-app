@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export interface TripPoints {
@@ -7,7 +7,7 @@ export interface TripPoints {
 }
 
 /** Both ends of a trip, for the map. The server decides who may see them. */
-export async function getTripPoints(client: GeraClient, tripId: string): Promise<TripPoints | null> {
+export async function getTripPoints(client: NovaClient, tripId: string): Promise<TripPoints | null> {
   const { data, error } = await client.rpc("trip_points", { p_trip_id: tripId }).maybeSingle();
   if (error) throw dataError(error.message);
   if (!data) return null;
@@ -29,7 +29,7 @@ export interface NearbyLandmark {
  * is within a kilometre - better "Current location" than a confident wrong name.
  */
 export async function nearestLandmark(
-  client: GeraClient,
+  client: NovaClient,
   at: { readonly lat: number; readonly lng: number },
 ): Promise<NearbyLandmark | null> {
   const { data, error } = await client

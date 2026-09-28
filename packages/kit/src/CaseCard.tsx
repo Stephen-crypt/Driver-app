@@ -8,7 +8,7 @@ const DOT: Record<Status, string> = { open: c.warning, in_progress: c.accent, re
 
 /**
  * One report, as the person who filed it sees it: the number to quote on the
- * phone, what they said, and - once someone has dealt with it - Gera's answer,
+ * phone, what they said, and - once someone has dealt with it - Nova's answer,
  * set apart so it reads as a reply rather than more of their own words.
  */
 export function CaseCard({
@@ -53,7 +53,7 @@ export function CaseCard({
       {resolution ? (
         <View style={styles.reply}>
           <Txt v="caption" tone="accent">
-            Gera replied
+            Nova replied
           </Txt>
           <Txt v="body">{resolution}</Txt>
         </View>

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Chip, ChoiceRow, Divider, Group, Screen, Txt, Well, c, radius, space, type IconName } from "@gera/kit";
-import { PAYMENT_KINDS, listPaymentMethods, setDefaultPaymentMethod, type PaymentKind } from "@gera/data";
+import { Banner, Button, Chip, ChoiceRow, Divider, Group, Screen, Txt, Well, c, radius, space, type IconName } from "@nova/kit";
+import { PAYMENT_KINDS, listPaymentMethods, setDefaultPaymentMethod, type PaymentKind } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
@@ -55,7 +55,7 @@ export default function Payment() {
   return (
     <Screen
       title="How you pay"
-      subtitle="Cash is how Gera works today. We'd rather show you what's coming than pretend it's here."
+      subtitle="Cash is how Nova works today. We'd rather show you what's coming than pretend it's here."
       onBack={() => goBack(router)}
       footer={<Button label="Done" onPress={() => goBack(router)} />}
       gap={space.lg}

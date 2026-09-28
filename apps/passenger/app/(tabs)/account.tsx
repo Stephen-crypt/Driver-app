@@ -14,8 +14,8 @@ import {
   c,
   space,
   useOverlay,
-} from "@gera/kit";
-import { EMERGENCY_NUMBER, deleteSavedPlace, listSavedPlaces, type SavedPlace } from "@gera/data";
+} from "@nova/kit";
+import { EMERGENCY_NUMBER, deleteSavedPlace, listSavedPlaces, type SavedPlace } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
@@ -73,7 +73,7 @@ export default function Account() {
 
   const signOut = async () => {
     const ok = await overlay.confirm({
-      title: "Sign out of Gera?",
+      title: "Sign out of Nova?",
       message: "Your trips and saved places stay on your account.",
       confirmLabel: "Sign out",
       cancelLabel: "Stay signed in",
@@ -144,7 +144,7 @@ export default function Account() {
         <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />
         {version ? (
           <Txt v="caption" tone="muted" align="center">
-            Gera {version}
+            Nova {version}
           </Txt>
         ) : null}
       </View>

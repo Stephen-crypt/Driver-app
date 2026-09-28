@@ -1,11 +1,11 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 /** Same keys, same order, as public.inspection_items(). */
 export const INSPECTION_ITEMS = [
   { key: "identity", label: "Rider matches the name on their ID", group: "rider" },
   { key: "documents", label: "Driving licence and national ID on them", group: "rider" },
-  { key: "vest", label: "Wearing the Gera vest, number visible", group: "rider" },
+  { key: "vest", label: "Wearing the Nova vest, number visible", group: "rider" },
   { key: "helmets", label: "Own helmet, and a clean one for the passenger", group: "rider" },
   { key: "brakes", label: "Brakes", group: "vehicle" },
   { key: "lights", label: "Lights and indicators", group: "vehicle" },
@@ -34,7 +34,7 @@ interface LookupRow {
   last_inspection: LookupResult["lastInspection"];
 }
 
-export async function inspectLookup(client: GeraClient, code: string): Promise<LookupResult> {
+export async function inspectLookup(client: NovaClient, code: string): Promise<LookupResult> {
   const { data, error } = await client.rpc("inspect_lookup", { p_code: code.trim() });
   if (error) throw new Error(inspectError(error.message));
   const r = data as LookupRow;
@@ -66,7 +66,7 @@ export interface InspectionInput {
   readonly at: { lat: number; lng: number } | null;
 }
 
-export async function recordInspection(client: GeraClient, i: InspectionInput): Promise<{ id: string; caseNumber: number | null }> {
+export async function recordInspection(client: NovaClient, i: InspectionInput): Promise<{ id: string; caseNumber: number | null }> {
   const { data, error } = await client.rpc("record_inspection", {
     p_rider_id: i.riderId,
     p_vehicle_id: i.vehicleId,
@@ -87,7 +87,7 @@ export async function recordInspection(client: GeraClient, i: InspectionInput): 
 }
 
 export async function uploadInspectionPhoto(
-  client: GeraClient,
+  client: NovaClient,
   inspectorId: string,
   file: { uri: string; mimeType: string; extension: string },
 ): Promise<string> {
@@ -98,14 +98,14 @@ export async function uploadInspectionPhoto(
   return path;
 }
 
-export async function myRiderQr(client: GeraClient): Promise<string | null> {
+export async function myRiderQr(client: NovaClient): Promise<string | null> {
   const { data, error } = await client.rpc("my_rider_qr");
   if (error) throw dataError(error.message);
   return (data as string | null) ?? null;
 }
 
 /** The staff role of whoever is signed in, or null for everyone else. */
-export async function myStaffRole(client: GeraClient): Promise<{ role: string; name: string } | null> {
+export async function myStaffRole(client: NovaClient): Promise<{ role: string; name: string } | null> {
   const { data, error } = await client.rpc("my_staff");
   if (error) return null;
   const row = (data as { role: string; display_name: string }[] | null)?.[0];

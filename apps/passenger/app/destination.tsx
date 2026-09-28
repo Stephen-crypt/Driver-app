@@ -10,7 +10,7 @@ import {
   Enter,
   Field,
   FloatButton,
-  GeraMap,
+  NovaMap,
   Group,
   IconButton,
   Paper,
@@ -25,8 +25,8 @@ import {
   space,
   useOverlay,
   type LatLng,
-} from "@gera/kit";
-import { listSavedPlaces, savePlace, searchLandmarks, type Place, type SavedPlace } from "@gera/data";
+} from "@nova/kit";
+import { listSavedPlaces, savePlace, searchLandmarks, type Place, type SavedPlace } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
@@ -118,7 +118,7 @@ export default function Destination() {
   if (mapMode) {
     return (
       <View style={styles.root}>
-        <GeraMap
+        <NovaMap
           center={pin ?? here ?? loc.KIGALI_FALLBACK}
           markers={[
             ...(here ? [{ id: "me", at: here, kind: "me" as const }] : []),

@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export type VehicleClass = "moto" | "cab" | "cab_xl";
@@ -17,7 +17,7 @@ const point = (c: Coords) => `POINT(${c.lng} ${c.lat})`;
  * path where one rider's presence can overwrite another's.
  */
 export async function setPresence(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   args: {
     readonly status: PresenceStatus;
@@ -44,7 +44,7 @@ export async function setPresence(
  * flipped back to `online` by the next tick and offered a second trip.
  */
 export async function heartbeat(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   at: Coords,
 ): Promise<void> {
@@ -56,7 +56,7 @@ export async function heartbeat(
 }
 
 export async function getPresence(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
 ): Promise<{ status: PresenceStatus; vehicleClass: VehicleClass } | null> {
   const { data, error } = await client
@@ -75,7 +75,7 @@ export async function getPresence(
  * have handed in. This is exposure, not earnings, and it is the number that
  * decides whether they can work - a rider over the ceiling must remit first.
  */
-export async function getCashHeld(client: GeraClient, riderId: string): Promise<number> {
+export async function getCashHeld(client: NovaClient, riderId: string): Promise<number> {
   const { data, error } = await client.rpc("rider_cash_held", { p_rider_id: riderId });
   if (error) throw dataError(error.message);
   return Number(data ?? 0);
@@ -89,7 +89,7 @@ export async function getCashHeld(client: GeraClient, riderId: string): Promise<
  * carrying 50,000 of our cash that they are 30,000 in credit, which is true of
  * the arithmetic and useless as a fact about their day.
  */
-export async function getNetOwed(client: GeraClient, riderId: string): Promise<number> {
+export async function getNetOwed(client: NovaClient, riderId: string): Promise<number> {
   const { data, error } = await client.rpc("rider_net_owed", { p_rider_id: riderId });
   if (error) throw dataError(error.message);
   return Number(data ?? 0);
@@ -100,7 +100,7 @@ export async function getNetOwed(client: GeraClient, riderId: string): Promise<n
  * carrying more of the company's cash than the ceiling allows. Asking the
  * server rather than re-deriving it in the app keeps one copy of the rule.
  */
-export async function canGoOnline(client: GeraClient, riderId: string): Promise<boolean> {
+export async function canGoOnline(client: NovaClient, riderId: string): Promise<boolean> {
   const { data, error } = await client.rpc("can_go_online", { p_rider_id: riderId });
   if (error) throw dataError(error.message);
   return data === true;
@@ -144,7 +144,7 @@ interface OfferRow {
  * offer that lapsed four seconds ago invites them to tap accept and be refused.
  */
 export async function getLiveOffer(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
 ): Promise<LiveOffer | null> {
   const { data, error } = await client
@@ -178,7 +178,7 @@ export async function getLiveOffer(
 }
 
 export async function acceptOffer(
-  client: GeraClient,
+  client: NovaClient,
   offerId: string,
 ): Promise<{ id: string; state: string }> {
   const { data, error } = await client.rpc("accept_offer", {
@@ -191,7 +191,7 @@ export async function acceptOffer(
   return data as { id: string; state: string };
 }
 
-export async function declineOffer(client: GeraClient, offerId: string): Promise<void> {
+export async function declineOffer(client: NovaClient, offerId: string): Promise<void> {
   const { error } = await client.rpc("decline_offer", { p_offer_id: offerId });
   if (error) throw dataError(error.message);
 }
@@ -210,7 +210,7 @@ export interface ActiveTrip {
 }
 
 export async function getActiveTrip(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
 ): Promise<ActiveTrip | null> {
   const { data, error } = await client
@@ -255,7 +255,7 @@ export async function getActiveTrip(
  * startTrip() - trip_transition refuses in_progress while the PIN is unchecked.
  */
 export async function advanceTrip(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   to: "arrived",
 ): Promise<{ id: string; state: string }> {
@@ -292,7 +292,7 @@ export interface Earnings {
  * the two disagree.
  */
 export async function getEarningsSince(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   since: Date,
 ): Promise<Earnings> {
@@ -362,7 +362,7 @@ export const DOCUMENT_LABELS: Record<DocumentKind, string> = {
  * What the rider still owes, one row per required kind whether uploaded or
  * not - so the checklist is the server's idea of "required", not the app's.
  */
-export async function listMyDocuments(client: GeraClient): Promise<RiderDocument[]> {
+export async function listMyDocuments(client: NovaClient): Promise<RiderDocument[]> {
   const { data, error } = await client.rpc("my_documents");
   if (error) throw dataError(error.message);
   return ((data ?? []) as RiderDocument[]).map((r) => ({
@@ -386,7 +386,7 @@ const BUCKET = "rider-documents";
  * go online unvetted.
  */
 export async function uploadDocument(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   kind: DocumentKind,
   file: { uri: string; mimeType: string; extension: string },

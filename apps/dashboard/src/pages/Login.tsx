@@ -22,9 +22,9 @@ export function Login() {
     <div className="login">
       <form className="card stack" onSubmit={submit}>
         <div className="row" style={{ gap: 12 }}>
-          <span className="vest lg">G</span>
+          <span className="vest lg">N</span>
           <div>
-            <h1>Gera</h1>
+            <h1>Nova</h1>
             <div className="muted">Staff sign-in</div>
           </div>
         </div>

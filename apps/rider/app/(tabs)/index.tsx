@@ -8,7 +8,7 @@ import {
   Button,
   Chip,
   FloatButton,
-  GeraMap,
+  NovaMap,
   LiveDot,
   Paper,
   Press,
@@ -28,7 +28,7 @@ import {
   space,
   useOverlay,
   useSettledHeight,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
   acceptOffer,
@@ -65,7 +65,7 @@ import {
   type TripPoints,
   type VehicleClass,
   type WaitStatus,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { registerForPush } from "../../src/lib/push";
 import * as loc from "../../src/lib/location";
@@ -612,7 +612,7 @@ export default function Today() {
 
   return (
     <View style={styles.root}>
-      <GeraMap
+      <NovaMap
         center={here ?? loc.KIGALI_FALLBACK}
         markers={markers}
         route={here && target ? [here, target] : undefined}

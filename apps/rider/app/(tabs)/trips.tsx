@@ -14,8 +14,8 @@ import {
   money,
   space,
   type ChipTone,
-} from "@gera/kit";
-import { listPlannedRides, listTrips, whenLabel, type PlannedRide, tripTime, type TripHistoryItem } from "@gera/data";
+} from "@nova/kit";
+import { listPlannedRides, listTrips, whenLabel, type PlannedRide, tripTime, type TripHistoryItem } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 

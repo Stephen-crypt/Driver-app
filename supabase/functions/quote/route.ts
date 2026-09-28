@@ -12,7 +12,7 @@ export interface Point {
 export const ROAD_FACTOR = 1.2;
 /** Faster than anything moves across Kigali, so a floor, not an estimate. */
 export const FASTEST_MPS = 45_000 / 3600;
-/** Longer than any ride Gera offers. */
+/** Longer than any ride Nova offers. */
 export const MAX_DISTANCE_M = 150_000;
 
 // Rwanda, with a margin for pickups right on the border.

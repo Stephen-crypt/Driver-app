@@ -23,8 +23,8 @@ import {
   radius,
   space,
   type VehicleKind,
-} from "@gera/kit";
-import { statusFor } from "@gera/ui";
+} from "@nova/kit";
+import { statusFor } from "@nova/ui";
 import {
   getRiderCard,
   getTripDetail,
@@ -34,7 +34,7 @@ import {
   type TripDetail,
   type TripPoints,
   type TripTotal,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
 

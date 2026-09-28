@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 import type { Coords } from "./rider";
 
@@ -25,7 +25,7 @@ export interface ShiftSummary {
 
 export type VehicleConditionKey = "good" | "minor_issue" | "needs_repair";
 
-export async function getOpenShift(client: GeraClient, riderId: string): Promise<Shift | null> {
+export async function getOpenShift(client: NovaClient, riderId: string): Promise<Shift | null> {
   const { data, error } = await client
     .from("shifts")
     .select("id, vehicle_id, started_at")
@@ -43,7 +43,7 @@ export async function getOpenShift(client: GeraClient, riderId: string): Promise
  * failed. The checklist is sent whole - the server decides, not the screen.
  */
 export async function startShift(
-  client: GeraClient,
+  client: NovaClient,
   checks: Readonly<Record<string, boolean>>,
   at: Coords | null,
 ): Promise<Shift> {
@@ -58,7 +58,7 @@ export async function startShift(
 }
 
 export async function endShift(
-  client: GeraClient,
+  client: NovaClient,
   condition: VehicleConditionKey,
   notes: string,
   at: Coords | null,
@@ -112,7 +112,7 @@ export type StartTripResult =
 
 /** The rider types what the passenger reads out. A wrong PIN is an answer, not an error. */
 export async function startTrip(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   pin: string,
 ): Promise<StartTripResult> {
@@ -134,7 +134,7 @@ export async function startTrip(
 }
 
 /** The passenger's PIN, once a rider is assigned. Null before that. */
-export async function getRidePin(client: GeraClient, tripId: string): Promise<string | null> {
+export async function getRidePin(client: NovaClient, tripId: string): Promise<string | null> {
   const { data, error } = await client.rpc("trip_ride_pin", { p_trip_id: tripId });
   if (error) throw dataError(error.message);
   return (data as string | null) ?? null;
@@ -152,7 +152,7 @@ export interface WaitStatus {
   readonly chargeRwf: number;
 }
 
-export async function getWaitStatus(client: GeraClient, tripId: string): Promise<WaitStatus | null> {
+export async function getWaitStatus(client: NovaClient, tripId: string): Promise<WaitStatus | null> {
   const { data, error } = await client
     .rpc("trip_wait_status", { p_trip_id: tripId })
     .maybeSingle();
@@ -184,7 +184,7 @@ export function waitedSecondsNow(arrivedAt: string | null, now = Date.now()): nu
 }
 
 export async function reportNoShow(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   reason: string,
   at: Coords | null,
@@ -211,7 +211,7 @@ export interface TripTotal {
 }
 
 /** What a finished trip actually cost, from the completion record. */
-export async function getTripTotal(client: GeraClient, tripId: string): Promise<TripTotal | null> {
+export async function getTripTotal(client: NovaClient, tripId: string): Promise<TripTotal | null> {
   const { data, error } = await client
     .rpc("trip_total_rwf", { p_trip_id: tripId })
     .maybeSingle();
@@ -235,7 +235,7 @@ export const REPORT_KINDS: readonly { kind: ReportKind; label: string; hint: str
 ];
 
 export async function reportIssue(
-  client: GeraClient,
+  client: NovaClient,
   kind: ReportKind,
   note: string,
   tripId: string | null,

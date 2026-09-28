@@ -21,9 +21,9 @@ import {
   notify,
   radius,
   space,
-} from "@gera/kit";
-import { VEHICLE_CONDITIONS, type VehicleCondition } from "@gera/core";
-import { endShift, getOpenShift, type Shift, type ShiftSummary } from "@gera/data";
+} from "@nova/kit";
+import { VEHICLE_CONDITIONS, type VehicleCondition } from "@nova/core";
+import { endShift, getOpenShift, type Shift, type ShiftSummary } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 import * as loc from "../../src/lib/location";

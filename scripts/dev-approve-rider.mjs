@@ -9,7 +9,7 @@
 //   node scripts/dev-approve-rider.mjs +250730123456 --class cab
 import { execFileSync } from "node:child_process";
 
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 const psql = (sql) =>
   execFileSync("docker", [

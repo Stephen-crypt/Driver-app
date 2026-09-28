@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export interface QuoteRequest {
@@ -38,7 +38,7 @@ export interface CompleteTripResult {
 }
 
 export async function requestQuote(
-  client: GeraClient,
+  client: NovaClient,
   req: QuoteRequest,
 ): Promise<QuoteResult> {
   const { data, error } = await client.functions.invoke("quote", { body: req });
@@ -57,7 +57,7 @@ export interface CreateTripArgs {
 }
 
 export async function createTripFromQuote(
-  client: GeraClient,
+  client: NovaClient,
   args: CreateTripArgs,
 ): Promise<{ id: string; state: string }> {
   const { data, error } = await client.rpc("create_trip_from_quote", {
@@ -80,7 +80,7 @@ export interface CompleteTripArgs {
 }
 
 export async function completeTrip(
-  client: GeraClient,
+  client: NovaClient,
   args: CompleteTripArgs,
 ): Promise<CompleteTripResult> {
   if (!args.idempotencyKey) throw new Error("idempotencyKey is required");
@@ -104,7 +104,7 @@ export interface TripDetail {
 }
 
 /** One of the signed-in person's trips, as a receipt shows it. RLS limits it to their own. */
-export async function getTripDetail(client: GeraClient, tripId: string): Promise<TripDetail | null> {
+export async function getTripDetail(client: NovaClient, tripId: string): Promise<TripDetail | null> {
   const { data, error } = await client
     .from("trips")
     .select("id, state, vehicle_class, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, created_at, scheduled_for, rider_id")

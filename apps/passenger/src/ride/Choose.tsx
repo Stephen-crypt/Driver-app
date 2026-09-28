@@ -17,8 +17,8 @@ import {
   radius,
   selection,
   space,
-} from "@gera/kit";
-import { dateLabel, daysLabel, type QuoteResult } from "@gera/data";
+} from "@nova/kit";
+import { dateLabel, daysLabel, type QuoteResult } from "@nova/data";
 import {
   LaterPicker,
   RegularPicker,

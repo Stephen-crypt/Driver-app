@@ -1,17 +1,17 @@
 import { createElement, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { c } from "./theme";
-import { buildMapHtml, mapState, type GeraMapProps } from "./mapHtml";
+import { buildMapHtml, mapState, type NovaMapProps } from "./mapHtml";
 
 export type { LatLng, MapMarker, MarkerKind } from "./mapHtml";
 
 /**
- * The web build of GeraMap: the same Leaflet page in an iframe instead of a
+ * The web build of NovaMap: the same Leaflet page in an iframe instead of a
  * native WebView, driven the same way - loaded once, updated by message. It
  * exists for the browser preview and for a future web dashboard; the phones
  * never load it.
  */
-export function GeraMap(props: GeraMapProps) {
+export function NovaMap(props: NovaMapProps) {
   const frame = useRef<HTMLIFrameElement | null>(null);
   const ready = useRef(false);
   const html = useMemo(() => buildMapHtml(props.center, props.zoom ?? 15), []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -20,8 +20,8 @@ export function GeraMap(props: GeraMapProps) {
   latest.current = state;
 
   const push = (s: string) => {
-    const win = frame.current?.contentWindow as (Window & { gera?: { update: (x: unknown) => void } }) | null;
-    win?.gera?.update(JSON.parse(s));
+    const win = frame.current?.contentWindow as (Window & { nova?: { update: (x: unknown) => void } }) | null;
+    win?.nova?.update(JSON.parse(s));
   };
 
   useEffect(() => {

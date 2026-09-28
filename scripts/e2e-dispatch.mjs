@@ -4,11 +4,11 @@ import { execFileSync } from "node:child_process";
 
 const API = "http://127.0.0.1:54321";
 const JWT_SECRET = "super-secret-jwt-token-with-at-least-32-characters-long";
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
-const ANON = process.env.GERA_ANON_KEY;
-const SERVICE = process.env.GERA_SERVICE_KEY;
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
+const ANON = process.env.NOVA_ANON_KEY;
+const SERVICE = process.env.NOVA_SERVICE_KEY;
 if (!ANON || !SERVICE) {
-  console.error("Set GERA_ANON_KEY and GERA_SERVICE_KEY from `supabase status`.");
+  console.error("Set NOVA_ANON_KEY and NOVA_SERVICE_KEY from `supabase status`.");
   process.exit(1);
 }
 

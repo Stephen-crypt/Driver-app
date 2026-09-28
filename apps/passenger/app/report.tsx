@@ -15,8 +15,8 @@ import {
   notify,
   space,
   type IconName,
-} from "@gera/kit";
-import { EMERGENCY_NUMBER, PASSENGER_CASE_KINDS, openCase, type MyCase, type PassengerCaseKind } from "@gera/data";
+} from "@nova/kit";
+import { EMERGENCY_NUMBER, PASSENGER_CASE_KINDS, openCase, type MyCase, type PassengerCaseKind } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
 

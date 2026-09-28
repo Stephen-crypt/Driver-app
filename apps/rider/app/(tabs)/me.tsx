@@ -20,8 +20,8 @@ import {
   shadow,
   space,
   useOverlay,
-} from "@gera/kit";
-import { EMERGENCY_NUMBER, getOpenShift, getRiderProfile, type RiderProfile, type Shift } from "@gera/data";
+} from "@nova/kit";
+import { EMERGENCY_NUMBER, getOpenShift, getRiderProfile, type RiderProfile, type Shift } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 
@@ -119,7 +119,7 @@ export default function Me() {
             Show your QR code
           </Txt>
           <Txt v="label" tone="inverse" style={styles.soft}>
-            For a Gera inspector at a checkpoint
+            For a Nova inspector at a checkpoint
           </Txt>
         </View>
         <Ionicons name="chevron-forward" size={20} color={c.onAccent} />
@@ -168,7 +168,7 @@ export default function Me() {
       <View key="out" style={styles.out}>
         <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />
         <Txt v="caption" tone="muted" align="center">
-          Gera Rider {Constants.expoConfig?.version ?? ""}
+          Nova Rider {Constants.expoConfig?.version ?? ""}
         </Txt>
       </View>
     </Screen>

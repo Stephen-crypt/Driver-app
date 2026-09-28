@@ -1,15 +1,15 @@
 import type { Session } from "@supabase/supabase-js";
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { normaliseRwandanPhone } from "./phone";
 
-export async function requestOtp(client: GeraClient, phone: string): Promise<void> {
+export async function requestOtp(client: NovaClient, phone: string): Promise<void> {
   const e164 = normaliseRwandanPhone(phone);
   const { error } = await client.auth.signInWithOtp({ phone: e164 });
   if (error) throw error;
 }
 
 export async function verifyOtp(
-  client: GeraClient,
+  client: NovaClient,
   phone: string,
   token: string,
 ): Promise<Session> {

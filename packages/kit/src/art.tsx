@@ -12,7 +12,7 @@ import { Button, type IconName } from "./controls";
 // Imigongo.
 //
 // Rwanda's Imigongo panels are geometric - zigzags, chevrons, diamonds -
-// traditionally in black, white and red soil. Gera borrows the geometry, not
+// traditionally in black, white and red soil. Nova borrows the geometry, not
 // the palette, and uses it in exactly three places: the welcome screens,
 // receipts and empty states. It is texture, never a background behind text.
 // ---------------------------------------------------------------------------

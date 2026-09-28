@@ -1,6 +1,6 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
-export type GeraClient = SupabaseClient;
+export type NovaClient = SupabaseClient;
 
 /**
  * Typed structurally on purpose. supabase-js persists the session through
@@ -8,17 +8,17 @@ export type GeraClient = SupabaseClient;
  * AsyncStorage - but this package is shared by both apps and any future Node
  * tooling, so it must not import React Native. The caller supplies the adapter.
  */
-export interface GeraAuthStorage {
+export interface NovaAuthStorage {
   getItem(key: string): Promise<string | null>;
   setItem(key: string, value: string): Promise<void>;
   removeItem(key: string): Promise<void>;
 }
 
-export function createGeraClient(
+export function createNovaClient(
   url: string,
   anonKey: string,
-  storage?: GeraAuthStorage,
-): GeraClient {
+  storage?: NovaAuthStorage,
+): NovaClient {
   if (!url) throw new Error("SUPABASE_URL is required");
   if (!anonKey) throw new Error("SUPABASE_ANON_KEY is required");
 

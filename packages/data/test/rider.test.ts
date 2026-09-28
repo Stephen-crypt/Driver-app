@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { secondsLeft, getLiveOffer, heartbeat, acceptOffer } from "../src/rider";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
 describe("secondsLeft", () => {
   const now = new Date("2026-09-25T12:00:00Z").getTime();
@@ -22,7 +22,7 @@ describe("heartbeat", () => {
   it("never sends status, so dispatch cannot be overwritten", async () => {
     const update = vi.fn().mockReturnThis();
     const chain = { update, eq: vi.fn().mockResolvedValue({ error: null }) };
-    const client = { from: vi.fn().mockReturnValue(chain) } as unknown as GeraClient;
+    const client = { from: vi.fn().mockReturnValue(chain) } as unknown as NovaClient;
 
     await heartbeat(client, "d1", { lat: -1.94, lng: 30.11 });
 
@@ -43,7 +43,7 @@ describe("getLiveOffer", () => {
     }
     chain.maybeSingle = vi.fn().mockResolvedValue({ data, error: null });
     return {
-      client: { from: vi.fn().mockReturnValue(chain) } as unknown as GeraClient,
+      client: { from: vi.fn().mockReturnValue(chain) } as unknown as NovaClient,
       chain,
     };
   }
@@ -85,7 +85,7 @@ describe("getLiveOffer", () => {
 describe("acceptOffer", () => {
   it("derives the idempotency key from the offer so a retry cannot double-accept", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: { id: "t1", state: "accepted" }, error: null });
-    const c = { rpc } as unknown as GeraClient;
+    const c = { rpc } as unknown as NovaClient;
 
     await acceptOffer(c, "o1");
     await acceptOffer(c, "o1");

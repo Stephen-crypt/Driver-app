@@ -17,7 +17,7 @@ import {
   font,
   space,
   type IconName,
-} from "@gera/kit";
+} from "@nova/kit";
 
 const PROMISES: readonly { icon: IconName; title: string; body: string }[] = [
   {
@@ -72,10 +72,9 @@ export default function Welcome() {
         <ImigongoBand height={22} opacity={0.2} style={styles.band} />
 
         <View style={styles.body}>
-          {/* kugera: to arrive, to reach. The name is the promise. */}
           <Enter i={2}>
             <Txt v="hero" style={styles.wordmark}>
-              Gera
+              Nova
             </Txt>
           </Enter>
           <Enter i={3}>
@@ -99,7 +98,7 @@ export default function Welcome() {
           </View>
 
           {/* The PIN, shown the way it will look on the trip screen - the one
-              piece of Gera a first-time passenger has never seen before. */}
+              piece of Nova a first-time passenger has never seen before. */}
           <Enter i={7} style={styles.pinDemo}>
             <PinPatches pin="4821" size="sm" roll />
             <Txt v="label" tone="muted" style={styles.flex}>
@@ -112,15 +111,15 @@ export default function Welcome() {
       {/* Primary action in the bottom third, within one-handed reach. */}
       <Enter i={8} style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
         <Button label="Get started" onPress={() => router.push("/onboarding/phone")} />
-        <Button label="I want to ride for Gera" variant="quiet" compact onPress={() => setRiderInfo(true)} />
+        <Button label="I want to ride for Nova" variant="quiet" compact onPress={() => setRiderInfo(true)} />
       </Enter>
 
-      <ModalSheet visible={riderInfo} onClose={() => setRiderInfo(false)} title="Ride for Gera">
+      <ModalSheet visible={riderInfo} onClose={() => setRiderInfo(false)} title="Ride for Nova">
         <View style={styles.sheet}>
           <View style={styles.fact}>
             <Ionicons name="key" size={18} color={c.accent} />
             <Txt v="body" tone="muted" style={styles.flex}>
-              Riders use a separate app, Gera Rider. We provide the vehicle: you don't buy it, fuel it or fix it.
+              Riders use a separate app, Nova Rider. We provide the vehicle: you don't buy it, fuel it or fix it.
             </Txt>
           </View>
           <View style={styles.fact}>

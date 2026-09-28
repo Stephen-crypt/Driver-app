@@ -16,7 +16,7 @@ import { OFFER_TTL_SECONDS } from "../../src/dispatch/eta";
  * TypeScript against last month's SQL and failed on a difference that was not
  * drift. A migration file is history; only the database holds the current rule.
  */
-const CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const CONTAINER = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 function query(sql: string): string[] {
   let out: string;
@@ -28,7 +28,7 @@ function query(sql: string): string[] {
     throw new Error(
       [
         `Could not reach the local database (container ${CONTAINER}).`,
-        "Start it with: supabase start   (or set GERA_DB_CONTAINER)",
+        "Start it with: supabase start   (or set NOVA_DB_CONTAINER)",
         String(error),
       ].join(String.fromCharCode(10)),
     );

@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export type LedgerKind =
@@ -20,7 +20,7 @@ export interface LedgerRow {
 }
 
 export async function listLedger(
-  client: GeraClient,
+  client: NovaClient,
   riderId: string,
   since: Date,
 ): Promise<LedgerRow[]> {
@@ -129,7 +129,7 @@ export interface RiderProfile {
   readonly ratingCount: number;
 }
 
-export async function getRiderProfile(client: GeraClient, riderId: string): Promise<RiderProfile> {
+export async function getRiderProfile(client: NovaClient, riderId: string): Promise<RiderProfile> {
   const [profile, rider, vehicle] = await Promise.all([
     client.from("profiles").select("first_name, phone").eq("id", riderId).maybeSingle(),
     client

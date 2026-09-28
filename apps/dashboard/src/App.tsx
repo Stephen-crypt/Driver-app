@@ -111,9 +111,9 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
     <nav className="nav" aria-label="Sections" ref={ref}>
       {marker ? <span className="nav-marker" style={{ transform: `translateY(${marker.y}px)`, height: marker.h }} aria-hidden="true" /> : null}
       <div className="brand">
-        <span className="vest">G</span>
+        <span className="vest">N</span>
         <div>
-          <div className="brand-word">Gera</div>
+          <div className="brand-word">Nova</div>
           <div className="brand-sub">Control</div>
         </div>
       </div>
@@ -202,7 +202,7 @@ function NoSections() {
       <div className="card stack">
         <h1>Inspections are in the app</h1>
         <p className="muted">
-          Inspectors work from the Gera Rider app: tap Staff sign in on its first screen and use this
+          Inspectors work from the Nova Rider app: tap Staff sign in on its first screen and use this
           email and password.
         </p>
         <button className="btn secondary" onClick={() => void supabase.auth.signOut()}>
@@ -219,7 +219,7 @@ function NotStaff() {
       <div className="card stack">
         <h1>Not a staff account</h1>
         <p className="muted">
-          This dashboard is for Gera staff. Ask an administrator to give your account a role - it
+          This dashboard is for Nova staff. Ask an administrator to give your account a role - it
           can only be done from the staff script, not from here.
         </p>
         <button className="btn secondary" onClick={() => void supabase.auth.signOut()}>

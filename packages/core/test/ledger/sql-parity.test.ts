@@ -7,7 +7,7 @@ import {
   type LedgerEntry,
 } from "../../src/ledger/entries";
 
-const DB_CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB_CONTAINER = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 function sql(query: string): string {
   // -q (quiet) suppresses psql's per-statement command tags (BEGIN,

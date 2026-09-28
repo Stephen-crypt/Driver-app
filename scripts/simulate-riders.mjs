@@ -11,14 +11,14 @@
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
-const API = process.env.GERA_API_URL ?? "http://127.0.0.1:54321";
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
+const API = process.env.NOVA_API_URL ?? "http://127.0.0.1:54321";
 // The fixed defaults `supabase start` uses locally. This script is local-only.
 const JWT_SECRET =
-  process.env.GERA_JWT_SECRET ??
+  process.env.NOVA_JWT_SECRET ??
   "super-secret-jwt-token-with-at-least-32-characters-long";
 const ANON =
-  process.env.GERA_ANON_KEY ??
+  process.env.NOVA_ANON_KEY ??
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0";
 
 function psql(sql) {

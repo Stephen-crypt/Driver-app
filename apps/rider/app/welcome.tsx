@@ -4,13 +4,13 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { Button, Enter, ImigongoBand, Txt, VestPatch, Well, c, ease, font, radius, space, type IconName } from "@gera/kit";
+import { Button, Enter, ImigongoBand, Txt, VestPatch, Well, c, ease, font, radius, space, type IconName } from "@nova/kit";
 
 /**
  * What a rider actually wants to know before they sign up, in the order they
  * ask it: whose vehicle, what do I earn, and what happens to the cash.
  *
- * Gera owns the vehicles. A rider who believes the cash in their pocket is
+ * Nova owns the vehicles. A rider who believes the cash in their pocket is
  * theirs will spend it, so this screen says otherwise before they agree to
  * anything.
  */
@@ -69,12 +69,12 @@ export default function RiderWelcome() {
         <View style={styles.body}>
           <Enter i={2}>
             <Txt v="hero" style={styles.wordmark}>
-              Gera Rider
+              Nova Rider
             </Txt>
           </Enter>
           <Enter i={3}>
             <Txt v="heading" tone="muted">
-              Ride a Gera vehicle. Earn on every trip.
+              Ride a Nova vehicle. Earn on every trip.
             </Txt>
           </Enter>
 

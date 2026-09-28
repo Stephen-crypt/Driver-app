@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export interface Place {
@@ -23,7 +23,7 @@ interface LandmarkRow {
  * an empty search box should not look like a directory listing.
  */
 export async function searchLandmarks(
-  client: GeraClient,
+  client: NovaClient,
   query: string,
   limit = 8,
 ): Promise<Place[]> {
@@ -61,7 +61,7 @@ export interface RouteResult {
  * quote at all, so the caller falls back rather than failing.
  */
 export async function getRoute(
-  client: GeraClient,
+  client: NovaClient,
   origin: { lat: number; lng: number },
   destination: { lat: number; lng: number },
 ): Promise<RouteResult | null> {
@@ -92,7 +92,7 @@ export interface SavedPlace {
  * and making them type it is the difference between four taps and one.
  */
 export async function listSavedPlaces(
-  client: GeraClient,
+  client: NovaClient,
   _passengerId: string,
 ): Promise<SavedPlace[]> {
   // Via RPC, not a table select. PostgREST serialises a geography column as hex
@@ -121,7 +121,7 @@ export async function listSavedPlaces(
 }
 
 export async function savePlace(
-  client: GeraClient,
+  client: NovaClient,
   passengerId: string,
   place: { label: string; lng: number; lat: number; note?: string },
 ): Promise<void> {
@@ -134,7 +134,7 @@ export async function savePlace(
   if (error) throw dataError(error.message);
 }
 
-export async function deleteSavedPlace(client: GeraClient, id: string): Promise<void> {
+export async function deleteSavedPlace(client: NovaClient, id: string): Promise<void> {
   const { error } = await client.from("saved_places").delete().eq("id", id);
   if (error) throw dataError(error.message);
 }

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { shareTripText, etaLabel, raiseSos, getRiderPosition } from "../src/safety";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
 describe("etaLabel", () => {
   it("rounds to whole minutes", () => {
@@ -48,7 +48,7 @@ describe("shareTripText", () => {
 describe("raiseSos", () => {
   it("can be called with nothing at all", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: "alert-1", error: null });
-    const client = { rpc } as unknown as GeraClient;
+    const client = { rpc } as unknown as NovaClient;
     // Somebody in trouble should not be filling in a form.
     await expect(raiseSos(client)).resolves.toBe("alert-1");
     expect(rpc).toHaveBeenCalledWith("raise_sos", {
@@ -58,7 +58,7 @@ describe("raiseSos", () => {
 
   it("passes position and trip when it has them", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: "alert-2", error: null });
-    const client = { rpc } as unknown as GeraClient;
+    const client = { rpc } as unknown as NovaClient;
     await raiseSos(client, { tripId: "t1", at: { lng: 30.1, lat: -1.9 } });
     expect(rpc).toHaveBeenCalledWith("raise_sos", expect.objectContaining({
       p_trip_id: "t1", p_lng: 30.1, p_lat: -1.9,
@@ -69,7 +69,7 @@ describe("raiseSos", () => {
 describe("getRiderPosition", () => {
   it("returns null before the first fix, rather than throwing", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: [], error: null });
-    const client = { rpc } as unknown as GeraClient;
+    const client = { rpc } as unknown as NovaClient;
     expect(await getRiderPosition(client, "t1")).toBeNull();
   });
 
@@ -78,7 +78,7 @@ describe("getRiderPosition", () => {
       data: [{ lng: 30.1, lat: -1.94, recorded_at: "2026-09-25T12:00:00Z", metres_away: 900, eta_seconds: 120 }],
       error: null,
     });
-    const client = { rpc } as unknown as GeraClient;
+    const client = { rpc } as unknown as NovaClient;
     const p = await getRiderPosition(client, "t1");
     expect(p?.metresAway).toBe(900);
     expect(p?.etaSeconds).toBe(120);

@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, Txt, space } from "@gera/kit";
-import { myStaffRole } from "@gera/data";
+import { Banner, Button, Field, Screen, Txt, space } from "@nova/kit";
+import { myStaffRole } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
 
@@ -41,7 +41,7 @@ export default function StaffLogin() {
   return (
     <Screen
       title="Staff sign in"
-      subtitle="For Gera inspectors. Riders sign in with their phone number."
+      subtitle="For Nova inspectors. Riders sign in with their phone number."
       onBack={() => goBack(router)}
       footer={
         <View style={styles.footer}>

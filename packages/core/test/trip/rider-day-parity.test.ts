@@ -3,7 +3,7 @@ import { execFileSync } from "node:child_process";
 import { waitingChargeFor, graceRemaining } from "../../src/trip/waiting";
 import { SHIFT_CHECKS } from "../../src/trip/shift";
 
-const DB_CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB_CONTAINER = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 function sql(query: string): string {
   return execFileSync("docker", [

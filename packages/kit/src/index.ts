@@ -4,7 +4,7 @@ export * from "./VestPatch";
 export * from "./controls";
 export * from "./layout";
 export * from "./motion";
-export * from "./GeraMap";
+export * from "./NovaMap";
 export * from "./TabBar";
 export * from "./Field";
 export * from "./CaseCard";

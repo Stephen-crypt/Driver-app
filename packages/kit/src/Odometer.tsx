@@ -29,7 +29,7 @@ interface Props {
 
 /**
  * Numbers that matter arrive the way they do on a departure board or a
- * vehicle's odometer: each digit turns to its value, left to right. It is Gera's
+ * vehicle's odometer: each digit turns to its value, left to right. It is Nova's
  * one signature movement, kept for figures a person acts on - a fare, an ETA,
  * earnings, the vest number that tells a passenger which moto is theirs.
  *

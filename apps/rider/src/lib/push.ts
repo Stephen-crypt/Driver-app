@@ -1,6 +1,6 @@
 import { Platform } from "react-native";
 import Constants, { ExecutionEnvironment } from "expo-constants";
-import { theme } from "@gera/ui";
+import { theme } from "@nova/ui";
 
 /**
  * expo-notifications is loaded LAZILY, and that is not a style choice.

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { INSPECTION_ITEMS, bestResultFor, inspectLookup } from "../src/inspect";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
 describe("the checklist", () => {
   it("has the same keys as public.inspection_items(), in order", () => {
@@ -22,7 +22,7 @@ describe("bestResultFor", () => {
 describe("inspectLookup", () => {
   it("explains a code that matches nobody", async () => {
     const rpc = vi.fn(() => Promise.resolve({ data: null, error: { message: "not_found" } }));
-    await expect(inspectLookup({ rpc } as unknown as GeraClient, " 9999 ")).rejects.toThrow(/Nobody matches/);
+    await expect(inspectLookup({ rpc } as unknown as NovaClient, " 9999 ")).rejects.toThrow(/Nobody matches/);
     expect(rpc).toHaveBeenCalledWith("inspect_lookup", { p_code: "9999" });
   });
 });

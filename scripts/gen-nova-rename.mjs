@@ -16,7 +16,7 @@
 import { readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 const TMP = process.env.TEMP ?? "/tmp";
 
 const psql = (sql) =>

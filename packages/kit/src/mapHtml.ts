@@ -16,7 +16,7 @@ export interface MapMarker {
   readonly tag?: string;
 }
 
-export interface GeraMapProps {
+export interface NovaMapProps {
   readonly center: LatLng;
   readonly markers?: readonly MapMarker[];
   /** Draws a line from the first point to the last. */
@@ -33,7 +33,7 @@ export interface GeraMapProps {
 
 
 /** Everything the page needs on each update, serialised once. */
-export function mapState(p: GeraMapProps): string {
+export function mapState(p: NovaMapProps): string {
   return JSON.stringify({
     markers: p.markers ?? [],
     route: p.route ?? null,
@@ -117,7 +117,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
     entry.raf = requestAnimationFrame(step);
   }
 
-  window.gera = {
+  window.nova = {
     update: function(s){
       var seen = {};
       (s.markers || []).forEach(function(m){

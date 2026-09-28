@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Enter, HillScene, LiveDot, StepTrack, Txt, c, space, useOverlay } from "@gera/kit";
+import { Button, Enter, HillScene, LiveDot, StepTrack, Txt, c, space, useOverlay } from "@nova/kit";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 

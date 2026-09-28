@@ -1,5 +1,5 @@
 {
-  "name": "@gera/kit",
+  "name": "@nova/kit",
   "version": "0.0.0",
   "private": true,
   "main": "./src/index.ts",
@@ -8,7 +8,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@gera/ui": "workspace:*"
+    "@nova/ui": "workspace:*"
   },
   "peerDependencies": {
     "@expo-google-fonts/barlow": "*",

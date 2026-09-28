@@ -21,7 +21,7 @@ import {
   notify,
   radius,
   space,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   INSPECTION_ITEMS,
   bestResultFor,
@@ -33,7 +33,7 @@ import {
   type InspectionItem,
   type InspectionResult,
   type LookupResult,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
 import * as loc from "../../src/lib/location";
@@ -229,7 +229,7 @@ export default function Check() {
         </View>
         {unverified ? (
           <Banner tone="bad" icon="warning">
-            This rider is not approved to ride for Gera. Record what you find and note where they were.
+            This rider is not approved to ride for Nova. Record what you find and note where they were.
           </Banner>
         ) : null}
         {found.lastInspection ? (

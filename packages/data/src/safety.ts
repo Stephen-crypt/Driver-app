@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 
 export interface RiderPosition {
@@ -15,7 +15,7 @@ export interface RiderPosition {
  * an ordinary state and not an error.
  */
 export async function getRiderPosition(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
 ): Promise<RiderPosition | null> {
   const { data, error } = await client.rpc("trip_rider_position", { p_trip_id: tripId });
@@ -42,7 +42,7 @@ export async function getRiderPosition(
 
 /** The rider's own position, published while a trip is live. */
 export async function publishTrackPoint(
-  client: GeraClient,
+  client: NovaClient,
   tripId: string,
   at: { lng: number; lat: number },
   accuracyM?: number,
@@ -64,7 +64,7 @@ export async function publishTrackPoint(
  * more than no alert.
  */
 export async function raiseSos(
-  client: GeraClient,
+  client: NovaClient,
   args: {
     readonly tripId?: string;
     readonly at?: { lng: number; lat: number };
@@ -97,7 +97,7 @@ export function shareTripText(args: {
   readonly etaSeconds?: number | null;
 }): string {
   const lines = [
-    `I'm taking a Gera ride from ${args.pickupLabel} to ${args.dropoffLabel}.`,
+    `I'm taking a Nova ride from ${args.pickupLabel} to ${args.dropoffLabel}.`,
   ];
   if (args.riderName) {
     lines.push(

@@ -24,10 +24,10 @@ import { commissionFor } from "../../src/ledger/entries";
 /**
  * The local database container. Its name is derived from the checkout's
  * directory name, so a checkout named anything else - or a CI runner that
- * reaches its database another way - must set GERA_DB_CONTAINER. The test stays
+ * reaches its database another way - must set NOVA_DB_CONTAINER. The test stays
  * mandatory either way; only where it looks is configurable.
  */
-const CONTAINER = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
+const CONTAINER = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
 
 function psql(sql: string): string {
   try {

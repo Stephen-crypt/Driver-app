@@ -55,7 +55,7 @@ export function Reports() {
     const url = URL.createObjectURL(new Blob([body], { type: "text/csv" }));
     const a = document.createElement("a");
     a.href = url;
-    a.download = `gera-${s.day}.csv`;
+    a.download = `nova-${s.day}.csv`;
     a.click();
     URL.revokeObjectURL(url);
   };

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { StyleSheet, View } from "react-native";
 import { WebView } from "react-native-webview";
 import { c } from "./theme";
-import { buildMapHtml, mapState, type GeraMapProps, type LatLng } from "./mapHtml";
+import { buildMapHtml, mapState, type NovaMapProps, type LatLng } from "./mapHtml";
 
 export type { LatLng, MapMarker, MarkerKind } from "./mapHtml";
 
@@ -15,7 +15,7 @@ export type { LatLng, MapMarker, MarkerKind } from "./mapHtml";
  * rebuilt the whole document on every marker change, so a moving rider made
  * the map flash white and refetch every tile once a second.
  */
-export function GeraMap({
+export function NovaMap({
   center,
   markers = [],
   route,
@@ -25,7 +25,7 @@ export function GeraMap({
   zoom = 15,
   onPressMap,
   style,
-}: GeraMapProps) {
+}: NovaMapProps) {
   const web = useRef<WebView>(null);
   const ready = useRef(false);
 
@@ -38,7 +38,7 @@ export function GeraMap({
 
   useEffect(() => {
     if (!ready.current) return;
-    web.current?.injectJavaScript(`window.gera && window.gera.update(${state}); true;`);
+    web.current?.injectJavaScript(`window.nova && window.nova.update(${state}); true;`);
   }, [state]);
 
   return (
@@ -52,7 +52,7 @@ export function GeraMap({
         overScrollMode="never"
         onLoadEnd={() => {
           ready.current = true;
-          web.current?.injectJavaScript(`window.gera && window.gera.update(${latest.current}); true;`);
+          web.current?.injectJavaScript(`window.nova && window.nova.update(${latest.current}); true;`);
         }}
         onMessage={(e) => {
           if (!onPressMap) return;

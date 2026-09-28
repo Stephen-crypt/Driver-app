@@ -1,5 +1,5 @@
 /*
- * Colours come from @gera/ui at startup (main.tsx sets them as custom
+ * Colours come from @nova/ui at startup (main.tsx sets them as custom
  * properties), so the dashboard and the two apps cannot drift apart. The
  * fallbacks below are only for the instant before that script runs.
  */
@@ -237,7 +237,7 @@ kbd {
 .notice.good { background: var(--good-soft); color: var(--good); }
 .notice.warn { background: var(--warn-soft); color: var(--warn); }
 
-/* The vest patch - Gera's one signature, the same shape as on the phones. */
+/* The vest patch - Nova's one signature, the same shape as on the phones. */
 .vest {
   position: relative;
   display: inline-flex;
@@ -316,7 +316,7 @@ kbd {
 .list-item:last-child { border-bottom: 0; }
 .list-item:hover { background: var(--ground); }
 
-/* Leaflet markers drawn in the Gera shapes */
+/* Leaflet markers drawn in the Nova shapes */
 .m-centre { position: absolute; transform: translate(-50%, -50%); }
 .m-rider {
   display: flex; align-items: center; justify-content: center;
@@ -348,7 +348,7 @@ kbd {
 .timeline time { width: 70px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
 /* Muted like the apps: the markers carry the colour, the city stays quiet. */
-.gera-tiles { filter: saturate(.35) brightness(1.04) contrast(.9); }
+.nova-tiles { filter: saturate(.35) brightness(1.04) contrast(.9); }
 
 /* ---- cases: the queue beside the open case ----------------------------------- */
 .nav .count.quiet { background: var(--ink-soft); }

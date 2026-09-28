@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import { startTrip, waitedSecondsNow, shiftErrorMessage, reportNoShow } from "../src/shift";
 import { dailyEarnings, describeLedgerRow, type LedgerRow } from "../src/earnings";
-import type { GeraClient } from "../src/client";
+import type { NovaClient } from "../src/client";
 
 const rpcClient = (result: { data?: unknown; error?: { message: string } | null }) => {
   const rpc = vi.fn(() => Promise.resolve({ data: result.data ?? null, error: result.error ?? null }));
-  return { client: { rpc } as unknown as GeraClient, rpc };
+  return { client: { rpc } as unknown as NovaClient, rpc };
 };
 
 describe("startTrip", () => {

@@ -7,7 +7,7 @@ import {
   Banner,
   Chip,
   Enter,
-  GeraMap,
+  NovaMap,
   LiveDot,
   Paper,
   Press,
@@ -19,7 +19,7 @@ import {
   space,
   tap,
   useSettledHeight,
-} from "@gera/kit";
+} from "@nova/kit";
 import {
   getActivePassengerTrip,
   listUpcoming,
@@ -32,7 +32,7 @@ import {
   registerDeviceToken,
   type SavedPlace,
   type TripSnapshot,
-} from "@gera/data";
+} from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { registerForPush } from "../../src/lib/push";
 import * as loc from "../../src/lib/location";
@@ -185,7 +185,7 @@ export default function Home() {
 
   return (
     <View style={styles.root}>
-      <GeraMap
+      <NovaMap
         center={here ?? loc.KIGALI_FALLBACK}
         markers={here ? [{ id: "me", at: here, kind: "me" }] : []}
         topInset={insets.top}
@@ -228,7 +228,7 @@ export default function Home() {
               <Segmented label="How to book" options={MODES} value={mode} onChange={setMode} />
             </Enter>
 
-            {/* The home screen's whole job, drawn the way every route in Gera is
+            {/* The home screen's whole job, drawn the way every route in Nova is
                 drawn: a ring where you are, a square where you are going. The
                 square is the question. */}
             <Enter i={3}>

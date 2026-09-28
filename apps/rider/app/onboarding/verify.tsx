@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banner, Button, OtpBoxes, Press, Screen, StepTrack, Txt, notify, space, useOverlay } from "@gera/kit";
-import { requestOtp, verifyOtp } from "@gera/data";
+import { Banner, Button, OtpBoxes, Press, Screen, StepTrack, Txt, notify, space, useOverlay } from "@nova/kit";
+import { requestOtp, verifyOtp } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
 

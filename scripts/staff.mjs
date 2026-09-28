@@ -12,14 +12,14 @@
 // Roles: admin, operations, control_room, fleet, safety, support, finance
 //
 // Against the cloud project instead of the local stack:
-//   GERA_API_URL=https://<ref>.supabase.co GERA_SERVICE_KEY=... \
-//   GERA_DB_URL="postgresql://..." node scripts/staff.mjs list
+//   NOVA_API_URL=https://<ref>.supabase.co NOVA_SERVICE_KEY=... \
+//   NOVA_DB_URL="postgresql://..." node scripts/staff.mjs list
 import crypto from "node:crypto";
 import { execFileSync } from "node:child_process";
 
 const ROLES = ["admin", "operations", "control_room", "fleet", "safety", "support", "finance", "inspector"];
-const DB = process.env.GERA_DB_CONTAINER ?? "supabase_db_driver_app";
-const DB_URL = process.env.GERA_DB_URL ?? "";
+const DB = process.env.NOVA_DB_CONTAINER ?? "supabase_db_driver_app";
+const DB_URL = process.env.NOVA_DB_URL ?? "";
 
 function psql(sql) {
   const args = DB_URL
@@ -46,7 +46,7 @@ const [, , command, ...rest] = process.argv;
 
 function usage(msg) {
   if (msg) console.error(msg + "\n");
-  console.log(`Gera staff accounts
+  console.log(`Nova staff accounts
 
   add <email> <role> "<name>"   create an account (or re-enable one) and print its password
   role <email> <role>           change someone's role
@@ -61,12 +61,12 @@ async function add(email, role, name) {
   if (!email || !role || !name) usage("add needs an email, a role and a name.");
   if (!ROLES.includes(role)) usage(`Unknown role '${role}'.`);
 
-  const api = process.env.GERA_API_URL ?? "http://127.0.0.1:54321";
-  const service = process.env.GERA_SERVICE_KEY ?? localKeys().SERVICE_ROLE_KEY;
+  const api = process.env.NOVA_API_URL ?? "http://127.0.0.1:54321";
+  const service = process.env.NOVA_SERVICE_KEY ?? localKeys().SERVICE_ROLE_KEY;
 
   let userId = psql(`select id from auth.users where lower(email) = lower(${lit(email)});`);
   // A generated password, shown once. Staff change it after first sign-in; it
-  // is never chosen by whoever runs this script, so it is never "Gera2026".
+  // is never chosen by whoever runs this script, so it is never "Nova2026".
   const password = crypto.randomBytes(12).toString("base64url");
 
   if (!userId) {

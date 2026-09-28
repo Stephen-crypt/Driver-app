@@ -18,8 +18,8 @@ import {
   radius,
   selection,
   space,
-} from "@gera/kit";
-import type { TripTotal } from "@gera/data";
+} from "@nova/kit";
+import type { TripTotal } from "@nova/data";
 
 const PRAISE = ["Safe riding", "On time", "Friendly", "Knew the way", "Clean helmet"];
 

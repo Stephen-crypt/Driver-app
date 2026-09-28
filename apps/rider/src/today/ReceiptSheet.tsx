@@ -13,8 +13,8 @@ import {
   money,
   radius,
   space,
-} from "@gera/kit";
-import type { CompleteTripResult } from "@gera/data";
+} from "@nova/kit";
+import type { CompleteTripResult } from "@nova/data";
 
 /**
  * The moment money changes hands, so it gets the whole screen. The number to

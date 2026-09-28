@@ -17,10 +17,10 @@ importers:
 
   apps/dashboard:
     dependencies:
-      '@gera/core':
+      '@nova/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gera/ui':
+      '@nova/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@supabase/supabase-js':
@@ -78,16 +78,16 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.1.1
         version: 15.1.1(expo-font@57.0.4)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      '@gera/core':
+      '@nova/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gera/data':
+      '@nova/data':
         specifier: workspace:*
         version: link:../../packages/data
-      '@gera/kit':
+      '@nova/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gera/ui':
+      '@nova/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@react-native-async-storage/async-storage':
@@ -181,16 +181,16 @@ importers:
       '@expo/vector-icons':
         specifier: ^15.1.1
         version: 15.1.1(expo-font@57.0.4)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      '@gera/core':
+      '@nova/core':
         specifier: workspace:*
         version: link:../../packages/core
-      '@gera/data':
+      '@nova/data':
         specifier: workspace:*
         version: link:../../packages/data
-      '@gera/kit':
+      '@nova/kit':
         specifier: workspace:*
         version: link:../../packages/kit
-      '@gera/ui':
+      '@nova/ui':
         specifier: workspace:*
         version: link:../../packages/ui
       '@react-native-async-storage/async-storage':
@@ -312,7 +312,7 @@ importers:
       '@expo/vector-icons':
         specifier: '*'
         version: 15.1.1(expo-font@57.0.4)(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
-      '@gera/ui':
+      '@nova/ui':
         specifier: workspace:*
         version: link:../ui
       expo-font:
@@ -327,6 +327,12 @@ importers:
       react-native:
         specifier: '*'
         version: 0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3)
+      react-native-gesture-handler:
+        specifier: '*'
+        version: 2.32.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      react-native-reanimated:
+        specifier: '*'
+        version: 4.5.1(react-native-worklets@0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
       react-native-safe-area-context:
         specifier: '*'
         version: 5.7.0(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
@@ -336,6 +342,9 @@ importers:
       react-native-webview:
         specifier: '*'
         version: 13.16.1(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
+      react-native-worklets:
+        specifier: '*'
+        version: 0.10.1(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(react-native@0.86.3(@babel/core@7.29.7)(@react-native/metro-config@0.87.1(@babel/core@7.29.7))(@types/react@19.2.18)(react@19.2.3))(react@19.2.3)
 
   packages/ui:
     devDependencies:

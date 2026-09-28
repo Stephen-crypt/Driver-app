@@ -1,4 +1,4 @@
-import type { GeraClient } from "./client";
+import type { NovaClient } from "./client";
 import { dataError } from "./client";
 import type { CreateTripArgs } from "./trips";
 
@@ -93,7 +93,7 @@ export function scheduleErrorMessage(raw: string): string {
 // ---------------------------------------------------------------------------
 
 export async function scheduleTrip(
-  client: GeraClient,
+  client: NovaClient,
   args: CreateTripArgs & { readonly scheduledFor: Date },
 ): Promise<{ id: string; state: string }> {
   const { data, error } = await client.rpc("schedule_trip_from_quote", {
@@ -110,7 +110,7 @@ export async function scheduleTrip(
 }
 
 export async function createRecurringSchedule(
-  client: GeraClient,
+  client: NovaClient,
   args: CreateTripArgs & {
     readonly days: readonly number[];
     readonly time: string;
@@ -149,7 +149,7 @@ export interface UpcomingRide {
   readonly riderVest: string | null;
 }
 
-export async function listUpcoming(client: GeraClient, _passengerId: string): Promise<UpcomingRide[]> {
+export async function listUpcoming(client: NovaClient, _passengerId: string): Promise<UpcomingRide[]> {
   // The function reads the signed-in passenger's own rides; it adds the rider
   // planned for each, whom the passenger cannot read from profiles directly.
   const { data, error } = await client.rpc("my_upcoming_rides");
@@ -180,7 +180,7 @@ export async function listUpcoming(client: GeraClient, _passengerId: string): Pr
 }
 
 /** Moves one booked ride to another time the same day. */
-export async function changeRideTime(client: GeraClient, tripId: string, time: string): Promise<string> {
+export async function changeRideTime(client: NovaClient, tripId: string, time: string): Promise<string> {
   const { data, error } = await client.rpc("change_ride_time", { p_trip_id: tripId, p_time: time });
   if (error) throw new Error(scheduleErrorMessage(error.message));
   return data as string;
@@ -188,7 +188,7 @@ export async function changeRideTime(client: GeraClient, tripId: string, time: s
 
 /** Changes a regular trip from now on. Rides moved one by one keep their time. */
 export async function changeSchedule(
-  client: GeraClient,
+  client: NovaClient,
   scheduleId: string,
   change: { days: readonly number[]; time: string; endDate: string },
 ): Promise<{ moved: number; cancelled: number; added: number }> {
@@ -211,7 +211,7 @@ export interface PlannedRide {
 }
 
 /** Rides operations has planned for the signed-in rider, the next seven days. */
-export async function listPlannedRides(client: GeraClient): Promise<PlannedRide[]> {
+export async function listPlannedRides(client: NovaClient): Promise<PlannedRide[]> {
   const { data, error } = await client.rpc("my_planned_rides");
   if (error) throw dataError(error.message);
   return ((data ?? []) as { id: string; scheduled_for: string; pickup_label: string; dropoff_label: string; passenger_name: string }[]).map((r) => ({
@@ -236,7 +236,7 @@ export interface RecurringSchedule {
   readonly status: "active" | "cancelled";
 }
 
-export async function listSchedules(client: GeraClient, passengerId: string): Promise<RecurringSchedule[]> {
+export async function listSchedules(client: NovaClient, passengerId: string): Promise<RecurringSchedule[]> {
   const { data, error } = await client
     .from("recurring_schedules")
     .select("id, days, time_of_day, start_date, end_date, pickup_label, dropoff_label, amount_rwf, vehicle_class, status")
@@ -271,14 +271,14 @@ export async function listSchedules(client: GeraClient, passengerId: string): Pr
 }
 
 /** Cancels the schedule and every ride of it still to come. Returns how many. */
-export async function cancelSchedule(client: GeraClient, scheduleId: string): Promise<number> {
+export async function cancelSchedule(client: NovaClient, scheduleId: string): Promise<number> {
   const { data, error } = await client.rpc("cancel_recurring_schedule", { p_schedule_id: scheduleId });
   if (error) throw dataError(error.message);
   return (data as number | null) ?? 0;
 }
 
 /** Sets one day of a schedule aside; the rest of the schedule carries on. */
-export async function skipOccurrence(client: GeraClient, tripId: string): Promise<void> {
+export async function skipOccurrence(client: NovaClient, tripId: string): Promise<void> {
   const { error } = await client.rpc("trip_transition", {
     p_trip_id: tripId,
     p_to: "skipped",

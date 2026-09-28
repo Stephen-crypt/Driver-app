@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withTiming } from "react-native-reanimated";
-import { Button, IconButton, Screen, Txt, c, ease, notify, radius, space } from "@gera/kit";
+import { Button, IconButton, Screen, Txt, c, ease, notify, radius, space } from "@nova/kit";
 import { goBack } from "../../src/lib/nav";
 
 const FRAME = 250;
