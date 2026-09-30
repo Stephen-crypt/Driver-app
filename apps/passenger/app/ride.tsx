@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, Share, StyleSheet, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -8,7 +8,6 @@ import {
   NovaMap,
   ModalSheet,
   Paper,
-  SuccessMark,
   Swap,
   Txt,
   VEHICLE_NAME,
@@ -21,6 +20,7 @@ import {
   useSettledHeight,
   type MapMarker,
   type VehicleKind,
+  ChatSheet,
 } from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
@@ -58,11 +58,24 @@ import {
   type TripSnapshot,
   type TripTotal,
   type WaitStatus,
+  QUICK_REPLIES,
 } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
 import * as loc from "../src/lib/location";
 import { CLASSES, Choose, type VehicleClass } from "../src/ride/Choose";
+import { Ticket } from "../src/ride/Ticket";
+import { useSession } from "../src/lib/session";
+import { useTripChat } from "../src/lib/chat";
+
+// NOVA asks why. The reason goes on the trip's record, so a rider who is always
+// "taking too long", or a pickup pin that is always wrong, both show up.
+const PASSENGER_CANCEL_REASONS = [
+  { label: "The rider is taking too long", icon: "time" },
+  { label: "I booked by mistake", icon: "close-circle" },
+  { label: "My pickup point is wrong", icon: "location" },
+  { label: "I found another way", icon: "walk" },
+] as const;
 import { Assigned, Ended, Searching } from "../src/ride/Live";
 import { Completed } from "../src/ride/Completed";
 import { endDateOf, type BookingMode, type LaterPlan, type RegularPlan } from "../src/ride/When";
@@ -89,7 +102,13 @@ export default function Ride() {
   });
   // Set once a ride is booked ahead: what to tell the passenger instead of a
   // live trip, because there is not one yet.
-  const [bookedAhead, setBookedAhead] = useState<{ title: string; detail: string } | null>(null);
+  const [bookedAhead, setBookedAhead] = useState<{
+    id: string;
+    kind: "ride" | "regular";
+    when: string;
+    detail: string;
+    amountRwf: number;
+  } | null>(null);
 
   // Two ways in: a destination to book, or a trip id to resume.
   const resumeId = one(params.trip);
@@ -108,7 +127,11 @@ export default function Ride() {
 
   const [road, setRoad] = useState<{ distanceM: number; durationS: number } | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<VehicleClass, QuoteResult>>>({});
-  const [selected, setSelected] = useState<VehicleClass>("moto");
+  // A tile on the home screen may have chosen the vehicle already.
+  const [selected, setSelected] = useState<VehicleClass>(() => {
+    const v = one(params.vehicle);
+    return v === "cab" || v === "cab_xl" ? v : "moto";
+  });
 
   const [trip, setTrip] = useState<TripSnapshot | null>(null);
   const [points, setPoints] = useState<TripPoints | null>(null);
@@ -124,6 +147,9 @@ export default function Ride() {
   const [error, setError] = useState<string | null>(null);
   const [paperH, onPaperLayout] = useSettledHeight(420);
   const [riderSheet, setRiderSheet] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const sheetScroll = useRef<ScrollView>(null);
+  const { userId } = useSession();
   const overlay = useOverlay();
 
   // ---- resuming ----------------------------------------------------------------
@@ -193,6 +219,21 @@ export default function Ride() {
 
   // ---- the live trip ---------------------------------------------------------------
   const live = trip ? isTripLive(trip.state) : false;
+
+  const chat = useTripChat(trip?.id ?? null, userId, live && !!trip?.riderId);
+  const lastUnread = useRef(0);
+  useEffect(() => {
+    if (chatOpen) void chat.markRead();
+  }, [chatOpen, chat.lines.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  // A message while the thread is closed shows as a toast, so it is not
+  // missed behind the map.
+  useEffect(() => {
+    if (!chatOpen && chat.unread > lastUnread.current) {
+      const last = chat.lines[chat.lines.length - 1];
+      if (last && !last.mine) overlay.toast({ message: `${rider?.firstName ?? "Your rider"}: ${last.body}`, icon: "chatbubble" });
+    }
+    lastUnread.current = chat.unread;
+  }, [chat.unread]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!trip || !live) return;
@@ -280,14 +321,18 @@ export default function Ride() {
       };
       if (mode === "later" && later.time) {
         const at = kigaliInstant(later.date, later.time);
-        await scheduleTrip(supabase, { ...args, scheduledFor: at });
+        const booked = await scheduleTrip(supabase, { ...args, scheduledFor: at });
         notify("success");
+        sheetScroll.current?.scrollTo({ y: 0, animated: false });
         setBookedAhead({
-          title: `Booked for ${whenLabel(at.toISOString()).toLowerCase()}`,
-          detail: `We'll start finding your rider ten minutes before. The price is locked at ${quote.amountRwf.toLocaleString("en-US")} RWF.`,
+          id: booked.id,
+          kind: "ride",
+          when: whenLabel(at.toISOString()),
+          detail: "We'll start finding your rider ten minutes before. It shows in Activity, where you can change the time or cancel.",
+          amountRwf: quote.amountRwf,
         });
       } else if (mode === "regular" && regular.time) {
-        await createRecurringSchedule(supabase, {
+        const schedule = await createRecurringSchedule(supabase, {
           ...args,
           days: regular.days,
           time: regular.time,
@@ -295,9 +340,13 @@ export default function Ride() {
           endDate: endDateOf(regular),
         });
         notify("success");
+        sheetScroll.current?.scrollTo({ y: 0, animated: false });
         setBookedAhead({
-          title: `${daysLabel(regular.days)} at ${regular.time}`,
-          detail: `Each ride is booked a week ahead and shows in Activity, where you can skip a day or cancel the lot. Every ride is ${quote.amountRwf.toLocaleString("en-US")} RWF.`,
+          id: schedule.id,
+          kind: "regular",
+          when: `${daysLabel(regular.days)} at ${regular.time}`,
+          detail: "Each ride is booked a week ahead and shows in Activity, where you can skip a day or cancel the lot.",
+          amountRwf: quote.amountRwf,
         });
       } else {
         const created = await createTripFromQuote(supabase, args);
@@ -328,27 +377,29 @@ export default function Ride() {
     }
   };
 
-  const cancel = async () => {
+  const cancelWith = async (reason: string) => {
     if (!trip) return;
-    const ok = await overlay.confirm({
-      title: "Cancel this trip?",
-      message: trip.riderId
-        ? `${rider?.firstName ?? "Your rider"} is already on the way to you.`
-        : "We'll stop looking for a rider.",
-      confirmLabel: "Cancel trip",
-      cancelLabel: "Keep my ride",
-      tone: "danger",
-    });
-    if (!ok) return;
     setBusy(true);
     try {
-      await cancelTrip(supabase, trip.id, "passenger");
+      await cancelTrip(supabase, trip.id, "passenger", reason);
       setTrip(await getTrip(supabase, trip.id));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not cancel.");
     } finally {
       setBusy(false);
     }
+  };
+
+  const cancel = () => {
+    if (!trip) return;
+    overlay.actions({
+      title: "Cancel this trip?",
+      message: trip.riderId
+        ? `${rider?.firstName ?? "Your rider"} is already on the way to you. Tell us why, so we can put it right.`
+        : "We'll stop looking for a rider. Tell us why.",
+      options: PASSENGER_CANCEL_REASONS.map((r) => ({ label: r.label, icon: r.icon, tone: "danger" as const, onPress: () => void cancelWith(r.label) })),
+      cancelLabel: "Keep my ride",
+    });
   };
 
   const share = async () => {
@@ -430,17 +481,17 @@ export default function Ride() {
     stage = "booked";
     body = (
       <View style={styles.booked}>
-        <View style={styles.bookedHead}>
-          <SuccessMark size={52} />
-          <View style={styles.flex}>
-            <Txt v="label" tone="good">
-              {mode === "regular" ? "Regular trip set up" : "Ride booked"}
-            </Txt>
-            <Txt v="h2">{bookedAhead.title}</Txt>
-          </View>
-        </View>
-        <Txt v="body" tone="muted">
-          To {dropLabel}. {bookedAhead.detail}
+        <Ticket
+          id={bookedAhead.id}
+          kind={bookedAhead.kind}
+          when={bookedAhead.when}
+          from={pickupLabel}
+          to={dropLabel}
+          vehicle={selected}
+          amountRwf={bookedAhead.amountRwf}
+        />
+        <Txt v="label" tone="muted">
+          {bookedAhead.detail}
         </Txt>
         <Button label="See upcoming rides" onPress={() => router.replace("/activity")} />
         <Button label="Done" variant="quiet" compact onPress={() => router.replace("/")} />
@@ -484,7 +535,8 @@ export default function Ride() {
         now={now}
         busy={busy}
         onCall={call}
-        onShare={share}
+        onMessage={() => setChatOpen(true)}
+        unread={chat.unread}
         onSos={sos}
         onCancel={cancel}
         onRider={() => setRiderSheet(true)}
@@ -538,6 +590,7 @@ export default function Ride() {
           {/* Booking ahead adds a day and time picker; on a short phone the
               sheet would push the Book button off the screen without this. */}
           <ScrollView
+            ref={sheetScroll}
             style={{ maxHeight: height * 0.74 }}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
@@ -547,6 +600,17 @@ export default function Ride() {
           </ScrollView>
         </Paper>
       </View>
+
+      <ChatSheet
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        name={rider?.firstName ?? "Your rider"}
+        lines={chat.lines}
+        quickReplies={QUICK_REPLIES.passenger}
+        onSend={(t) => void chat.send(t).catch(() => overlay.toast({ message: "Couldn't send that. Try again.", tone: "bad" }))}
+        sending={chat.sending}
+        open={live && !!trip?.riderId}
+      />
 
       <ModalSheet visible={riderSheet && !!rider} onClose={() => setRiderSheet(false)}>
         {rider ? (
@@ -589,7 +653,6 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.surface },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   booked: { gap: space.md },
-  bookedHead: { flexDirection: "row", alignItems: "center", gap: space.md },
   back: { position: "absolute", left: space.md },
   profile: { gap: space.md },
   profileHead: { flexDirection: "row", alignItems: "center", gap: space.lg },

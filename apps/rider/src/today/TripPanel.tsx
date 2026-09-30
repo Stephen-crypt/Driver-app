@@ -45,6 +45,8 @@ export interface TripPanelProps {
   readonly onFinish: () => void;
   readonly onNoShow: () => void;
   readonly onCall: () => void;
+  readonly onMessage: () => void;
+  readonly unread: number;
   readonly onNavigate: (to: Coords) => void;
   readonly onCancel: () => void;
 }
@@ -80,6 +82,7 @@ export function TripPanel(p: TripPanelProps) {
         <QuickActions>
           <QuickAction icon="navigate" label="Navigate" tone="accent" onPress={() => points && p.onNavigate(points.pickup)} disabled={!points} />
           <QuickAction icon="call" label="Call" onPress={p.onCall} />
+          <QuickAction icon="chatbubble" label="Message" onPress={p.onMessage} badge={p.unread > 0} />
           <QuickAction icon="close" label="Cancel" onPress={p.onCancel} disabled={p.busy} />
         </QuickActions>
         {error}
@@ -123,6 +126,7 @@ export function TripPanel(p: TripPanelProps) {
         </View>
         <QuickActions>
           <QuickAction icon="call" label="Call" onPress={p.onCall} />
+          <QuickAction icon="chatbubble" label="Message" onPress={p.onMessage} badge={p.unread > 0} />
           <QuickAction icon="navigate" label="Map" onPress={() => points && p.onNavigate(points.pickup)} disabled={!points} />
           {charging ? (
             <QuickAction icon="person-remove" label="Didn't come" tone="bad" onPress={p.onNoShow} disabled={p.busy} />
@@ -166,6 +170,7 @@ export function TripPanel(p: TripPanelProps) {
       <QuickActions>
         <QuickAction icon="navigate" label="Navigate" tone="accent" onPress={() => points && p.onNavigate(points.dropoff)} disabled={!points} />
         <QuickAction icon="call" label="Call" onPress={p.onCall} />
+        <QuickAction icon="chatbubble" label="Message" onPress={p.onMessage} badge={p.unread > 0} />
       </QuickActions>
       {error}
       <SlideToConfirm label="Slide to finish trip" tone="good" onConfirm={p.onFinish} disabled={p.busy} icon="checkmark" />

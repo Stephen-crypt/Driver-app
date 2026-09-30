@@ -147,14 +147,16 @@ export function HillScene({ icon, width = 200 }: { readonly icon: IconName; read
   return (
     <View style={{ width, height: h }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
       <Svg width={width} height={h} viewBox="0 0 200 120">
-        <Circle cx={100} cy={52} r={34} fill={c.accentSoft} />
-        <Path d="M0 94 C 34 70, 74 76, 106 88 S 168 70, 200 82 V120 H0 Z" fill="#D9E3FA" />
-        <Path d="M0 104 C 46 88, 92 102, 132 96 S 178 88, 200 98 V120 H0 Z" fill="#EAF0FD" />
+        {/* A yellow sun over midnight hills: the brand's two colours, and the
+            one place the yellow is used as a picture. */}
+        <Circle cx={100} cy={52} r={34} fill={c.highlight} />
+        <Path d="M0 94 C 34 70, 74 76, 106 88 S 168 70, 200 82 V120 H0 Z" fill={c.accentSoft} />
+        <Path d="M0 104 C 46 88, 92 102, 132 96 S 178 88, 200 98 V120 H0 Z" fill={c.surfaceHigh} />
         <Path d={zig(200, 108, 6, 14)} stroke={c.accent} strokeOpacity={0.2} strokeWidth={1.6} fill="none" />
-        <Rect x={0} y={116} width={200} height={4} fill="#EAF0FD" />
+        <Rect x={0} y={116} width={200} height={4} fill={c.surfaceHigh} />
       </Svg>
       <View style={[styles.sun, { top: h * (52 / 120) - 20, left: width / 2 - 20 }]}>
-        <Ionicons name={icon} size={30} color={c.accent} />
+        <Ionicons name={icon} size={30} color={c.onHighlight} />
       </View>
     </View>
   );

@@ -4,7 +4,7 @@ import Animated from "react-native-reanimated";
 import * as Haptics from "expo-haptics";
 import { Ionicons } from "@expo/vector-icons";
 import { fadeIn, swapIn } from "./anim";
-import { c, radius, shadow, space, tokens } from "./theme";
+import { c, font, radius, shadow, space, tokens } from "./theme";
 import { Txt, type Tone } from "./Txt";
 import { Press } from "./Press";
 import { Odometer } from "./Odometer";
@@ -39,7 +39,7 @@ export function notify(kind: "success" | "warning" | "error") {
 
 // ---------------------------------------------------------------------------
 
-type ButtonVariant = "primary" | "secondary" | "quiet" | "danger" | "dangerSolid" | "dark";
+type ButtonVariant = "primary" | "highlight" | "secondary" | "quiet" | "danger" | "dangerSolid" | "dark";
 
 interface ButtonProps {
   readonly label: string;
@@ -59,6 +59,9 @@ interface ButtonProps {
 
 const BUTTON: Record<ButtonVariant, { bg: string; fg: Tone; spinner: string }> = {
   primary: { bg: c.accent, fg: "inverse", spinner: c.onAccent },
+  // The brand's yellow, for the one button on a screen that is the whole
+  // point of it: booking, accepting an offer.
+  highlight: { bg: c.highlight, fg: "onHighlight", spinner: c.onHighlight },
   dark: { bg: c.textStrong, fg: "inverse", spinner: c.onAccent },
   secondary: { bg: c.surfaceHigh, fg: "strong", spinner: c.textStrong },
   quiet: { bg: "transparent", fg: "accent", spinner: c.accent },
@@ -79,7 +82,7 @@ export function Button({
 }: ButtonProps) {
   const b = BUTTON[variant];
   const off = disabled || loading;
-  const strong = variant === "primary" || variant === "dark" || variant === "dangerSolid";
+  const strong = variant === "primary" || variant === "highlight" || variant === "dark" || variant === "dangerSolid";
   return (
     <Press
       onPress={() => {
@@ -295,7 +298,7 @@ export function Avatar({ name, size = 44, tone = "accent" }: { readonly name: st
       <Txt
         v="bodyStrong"
         tone={tone === "dark" ? "inverse" : "accent"}
-        style={{ fontSize: size * 0.42, lineHeight: size * 0.52, fontFamily: "BarlowCondensed_700Bold" }}
+        style={{ fontSize: size * 0.42, lineHeight: size * 0.52, fontFamily: font.numBold }}
       >
         {(name.trim().charAt(0) || "?").toUpperCase()}
       </Txt>
@@ -314,12 +317,15 @@ export function QuickAction({
   onPress,
   tone,
   disabled,
+  badge,
 }: {
   readonly icon: IconName;
   readonly label: string;
   readonly onPress: () => void;
   readonly tone?: "bad" | "accent";
   readonly disabled?: boolean;
+  /** Something new behind this action: an unread message. */
+  readonly badge?: boolean;
 }) {
   const fg = tone === "bad" ? c.danger : tone === "accent" ? c.onAccent : c.textStrong;
   return (
@@ -332,11 +338,12 @@ export function QuickAction({
       scaleTo={0.94}
       style={[styles.quick, disabled && styles.disabled]}
       accessibilityRole="button"
-      accessibilityLabel={label}
+      accessibilityLabel={badge ? `${label}, new` : label}
       accessibilityState={{ disabled: !!disabled }}
     >
       <View style={[styles.quickWell, tone === "bad" && styles.quickWellBad, tone === "accent" && styles.quickWellAccent]}>
         <Ionicons name={icon} size={22} color={fg} />
+        {badge ? <View style={styles.quickBadge} /> : null}
       </View>
       <Txt v="caption" tone={tone === "bad" ? "bad" : "muted"} align="center" lines={1}>
         {label}
@@ -411,4 +418,15 @@ const styles = StyleSheet.create({
   },
   quickWellBad: { backgroundColor: c.dangerSoft },
   quickWellAccent: { backgroundColor: c.accent },
+  quickBadge: {
+    position: "absolute",
+    top: 4,
+    right: 4,
+    width: 13,
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: c.highlight,
+    borderWidth: 2,
+    borderColor: c.surfaceRaised,
+  },
 });

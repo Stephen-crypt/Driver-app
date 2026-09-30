@@ -204,6 +204,7 @@ export function Choose({
       {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
 
       <Button
+        variant="highlight"
         label={label}
         trailing={quote && !missing ? money(quote.amountRwf) : undefined}
         onPress={onBook}

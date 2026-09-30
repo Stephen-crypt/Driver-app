@@ -12,22 +12,27 @@ Company-run motos and cabs in Kigali, with three audiences:
 
 ## The direction
 
-**Signal**: Nova reads like good transport wayfinding. Barlow comes from highway signage. Numbers are set in Barlow Condensed, the way vests, plates and departure boards are, and important figures roll into place like an odometer rather than popping in.
+**Signal**: Nova reads like good transport wayfinding. Headlines and every figure that matters are set in Montserrat's heavy cuts; everything read at length is Inter. Important figures roll into place like an odometer rather than popping in.
 
-**Hill**: Kigali's hills and Rwanda's Imigongo geometry (zigzags and diamonds, traditionally black, white and red soil) appear as quiet texture in exactly three places: the welcome screens, receipts, and empty states. They are drawn in Nova blue, never as decoration on working screens.
+**Hill**: Kigali's hills and Rwanda's Imigongo geometry (zigzags and diamonds, traditionally black, white and red soil) appear as quiet texture in exactly three places: the welcome screens, receipts, and empty states. They are drawn in midnight blue, never as decoration on working screens.
 
-There is one brand hue, blue. Green, red and amber are signals only (done, danger, warning) and are never used as backgrounds.
+The colours and type come from the URUMURI brand book. Midnight blue is the working colour. Urumuri yellow is the accent, and it is kept for the few things a person has to find at a glance: the vest patch, the PIN, being online, the button that accepts an offer, the button that books. Green, red and amber are signals only (done, danger, warning) and are never used as backgrounds.
 
 ## Tokens
 
 | Token | Value | Use |
 |---|---|---|
-| Ground | `#F2F3F7` | Page |
+| Ground (light grey) | `#F5F7FA` | Page |
 | Card | `#FFFFFF` | Groups, sheets |
-| Ink | `#0B0D12` | Primary text |
-| Nova blue | `#0057E7` | Actions, links, the one accent |
-| Vest blue | `#0A3A9C` | Vest patches, the online slab |
+| Silver | `#E5E7EB` | Hairlines |
+| Charcoal | `#1F2937` | Headings, figures |
+| Slate | `#4B5563` | Body text |
+| Midnight blue | `#0A2342` | Buttons, links, the active tab, the route origin |
+| Urumuri yellow | `#F4C20D` | Vest patches, the PIN, the online slab, Accept and Book. Always with midnight type; never white |
+| Success, error, warning | `#15803D`, `#B91C1C`, `#B45309` | As text and icons, on their own tints. The brand book's brighter `#16A34A` and `#DC2626` fail as text on the page ground, so these are the same hues one step deeper |
 | Scrim | `rgba(11,13,18,0.48)` | Behind modal sheets |
+
+**Type**: Montserrat for headlines and figures (SemiBold 18, Bold 22 to 28, ExtraBold 40 and 56 for the fare and the PIN), Inter for body (Regular 16/24), labels (Medium 14/20) and captions (Medium 12/18). The brand book's ramp starts at 48 for an H1, which is a poster size; on a phone the screen title takes the H3 step. Figures use tabular numerals so a ticking number never shuffles sideways.
 
 **Corner radius** is a hierarchy, not one value everywhere. A sheet is 28, a card 20, a control 14, an icon well 12, a chip is a pill, and buttons are pills.
 
@@ -83,7 +88,11 @@ Screens are built from these, so they behave the same everywhere. All live in `@
 | `TripProgress`, `StepTrack` | Where a trip or a sign-up is, as segments. |
 | `ChoiceRow`, `CheckMark`, `RadioMark` | Checklists and one-of-several choices. The box dips as it fills; with an icon the row takes a soft blue wash. |
 | `Segmented` | Two to four options side by side. An option with a `tone` (OK, Fail) turns the pill that colour. |
-| `QuickAction` | A round action with its name under it: call, navigate, cancel. |
+| `QuickAction` | A round action with its name under it: call, message, navigate, cancel. A yellow dot on its corner marks something unread. |
+| `ChatSheet` | The thread between passenger and rider, open only while the trip is on. Fixed replies sit above the composer, so the common answer is one tap. |
+| `Timeline` | What happened, in order: a dot per step, a line between, the time on the right and an optional note (a cancellation's reason) under it. |
+| `Ticket` (passenger app) | A booked-ahead ride: the time, a QR code carrying the trip's id, a short reference (`NV-` and six characters), the route and the locked price, with a torn edge. |
+| `ServiceTiles` (passenger app) | The four things a passenger can ask for on the home screen: a moto or a cab now, a ride booked ahead, or a regular trip. A tile takes a drawn picture when one exists. |
 | `SlideToConfirm` | Anything that must not happen by accident: going online, arriving, finishing a trip. |
 | `SuccessMark`, `LiveDot`, `Skeleton`, `EmptyState` | Done, live, loading, and nothing yet. |
 | `DrainBar` (rider app) | Time running out. |
@@ -100,4 +109,4 @@ Screens are built from these, so they behave the same everywhere. All live in `@
 
 ## Assets
 
-Every illustration is drawn in code (SVG) so it stays sharp, themable and small. The app icons are drawn by `scripts/gen-icons.mjs`: the Nova "N" as a switchback road with its lane markings, white on blue for passengers and the inverse for riders. [illustration-prompts.md](illustration-prompts.md) has prompts for the two raster welcome images, if they are ever redrawn, and for a cab version.
+Every illustration is drawn in code (SVG) so it stays sharp, themable and small. The app icons are drawn by `scripts/gen-icons.mjs`: the Nova "N" as a switchback road with its lane markings, yellow on midnight for passengers and the inverse for riders. [illustration-prompts.md](illustration-prompts.md) has prompts for the two raster welcome images, the four home-screen service tiles, and a cab version.

@@ -19,3 +19,5 @@ export * from "./art";
 export * from "./Otp";
 export * from "./Disclosure";
 export * from "./choice";
+export * from "./Chat";
+export * from "./Timeline";

@@ -160,8 +160,8 @@ export function LiveMap({
     g.clearLayers();
     if (!draft || draft.length === 0) return;
     const pts = draft as [number, number][];
-    (pts.length >= 3 ? L.polygon(pts, { color: "#0057e7", weight: 2, dashArray: "6 4", fillOpacity: 0.12 }) : L.polyline(pts, { color: "#0057e7", weight: 2, dashArray: "6 4" })).addTo(g);
-    for (const p of pts) L.circleMarker(p, { radius: 5, color: "#0057e7", fillColor: "#fff", fillOpacity: 1, weight: 2 }).addTo(g);
+    (pts.length >= 3 ? L.polygon(pts, { color: "#0a2342", weight: 2, dashArray: "6 4", fillOpacity: 0.12 }) : L.polyline(pts, { color: "#0a2342", weight: 2, dashArray: "6 4" })).addTo(g);
+    for (const p of pts) L.circleMarker(p, { radius: 5, color: "#0a2342", fillColor: "#fff", fillOpacity: 1, weight: 2 }).addTo(g);
   }, [draft]);
 
   useEffect(() => {

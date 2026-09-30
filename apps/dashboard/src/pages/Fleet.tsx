@@ -39,7 +39,7 @@ async function printSticker(v: Vehicle, reissue: boolean) {
   .s { width: 72mm; border: 2px solid #0b0d12; border-radius: 6mm; padding: 5mm; text-align: center; }
   .q svg { width: 56mm; height: 56mm; }
   .p { font: 700 9mm/1 "Barlow Condensed", "Arial Narrow", sans-serif; letter-spacing: .5mm; margin-top: 2mm; }
-  .v { display: inline-block; background: #0057e7; color: #fff; font: 700 7mm/1 "Barlow Condensed", sans-serif; padding: 1.5mm 3mm; border-radius: 2mm; margin-top: 2mm; }
+  .v { display: inline-block; background: #f4c20d; color: #0a2342; font: 800 6.5mm/1 Montserrat, "Segoe UI", sans-serif; padding: 1.5mm 3mm; border-radius: 2mm; margin-top: 2mm; }
   .t { font-size: 3.2mm; color: #5e6676; margin-top: 2mm; }
 </style>
 <div class="s"><div class="q">${svg}</div><div class="p">${esc(v.plate)}</div>${v.vest ? `<div class="v">${esc(v.vest)}</div>` : ""}<div class="t">Nova inspectors scan this to verify</div></div>

@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View, type LayoutChangeEvent } from "react-nativ
 import Animated, { interpolateColor, useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { dur, ease } from "./anim";
-import { c, radius } from "./theme";
+import { c, font, radius } from "./theme";
 import { Txt } from "./Txt";
 import { selection, type IconName } from "./controls";
 
@@ -157,6 +157,6 @@ const styles = StyleSheet.create({
   // Longhands, not flex: 0 - on the web that shorthand sets a zero basis and
   // the segment collapses to its minimum width, cutting the label off.
   itemCompact: { flexGrow: 0, flexShrink: 0, flexBasis: "auto", minHeight: 34, paddingHorizontal: 14, minWidth: 44 },
-  onText: { fontFamily: "Barlow_600SemiBold" },
+  onText: { fontFamily: font.semibold },
   disabled: { opacity: 0.35 },
 });

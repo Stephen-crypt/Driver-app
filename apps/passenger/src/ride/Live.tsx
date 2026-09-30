@@ -91,7 +91,8 @@ export function Assigned({
   now,
   busy,
   onCall,
-  onShare,
+  onMessage,
+  unread,
   onSos,
   onCancel,
   onRider,
@@ -104,7 +105,8 @@ export function Assigned({
   readonly now: number;
   readonly busy: boolean;
   readonly onCall: () => void;
-  readonly onShare: () => void;
+  readonly onMessage: () => void;
+  readonly unread: number;
   readonly onSos: () => void;
   readonly onCancel: () => void;
   readonly onRider: () => void;
@@ -164,7 +166,9 @@ export function Assigned({
         <Press onPress={onRider} scaleTo={0.985} style={styles.rider} accessibilityRole="button" accessibilityLabel={`${rider.firstName}, vest ${rider.vestNumber ?? "unknown"}, plate ${rider.plate ?? "unknown"}. More about your rider`}>
           {rider.vestNumber ? <VestPatch value={rider.vestNumber} size="md" roll label={`Vest ${rider.vestNumber}`} /> : null}
           <Enter i={3} style={styles.flex}>
-            <Txt v="heading">{rider.firstName}</Txt>
+            <Txt v="heading" lines={1}>
+              {rider.firstName}
+            </Txt>
             <View style={styles.riderMeta}>
               <VehicleGlyph kind={rider.vehicleClass} size={15} colour={c.textMuted} />
               <Txt v="label" tone="muted">
@@ -222,8 +226,8 @@ export function Assigned({
       ) : null}
 
       <QuickActions>
+        <QuickAction icon="chatbubble" label="Message" onPress={onMessage} badge={unread > 0} />
         <QuickAction icon="call" label="Call" onPress={onCall} />
-        <QuickAction icon="share-social" label="Share trip" onPress={onShare} />
         <QuickAction icon="shield-half" label="Safety" onPress={onSos} tone="bad" />
         {!moving ? <QuickAction icon="close" label="Cancel" onPress={onCancel} disabled={busy} /> : null}
       </QuickActions>
@@ -291,7 +295,7 @@ const styles = StyleSheet.create({
     borderColor: c.textStrong,
     backgroundColor: c.surfaceRaised,
   },
-  plateText: { fontSize: 20, lineHeight: 24, letterSpacing: 1 },
+  plateText: { fontSize: 16, lineHeight: 20, letterSpacing: 0.5 },
   pin: {
     flexDirection: "row",
     alignItems: "center",

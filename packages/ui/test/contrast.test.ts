@@ -64,7 +64,22 @@ describe("the shipped theme", () => {
   it("the vest patch numeral clears AAA - it is read from a moving moto", () => {
     // A PIN or a vest number is read at arm's length, in sun, often on the
     // move. AA is the floor for body text; this is the one place held higher.
+    expect(contrastRatio(theme.onHighlight, theme.highlight)).toBeGreaterThanOrEqual(7);
+  });
+
+  it("type on the deep accent ground is readable", () => {
     expect(contrastRatio(theme.onAccent, theme.accentDeep)).toBeGreaterThanOrEqual(7);
+  });
+
+  it("the highlight tint reads with the same type as the highlight", () => {
+    expect(contrastRatio(theme.onHighlight, theme.highlightSoft)).toBeGreaterThanOrEqual(AA);
+  });
+
+  it("the highlight is never a text colour on the page", () => {
+    // Yellow type on a light page cannot be made legible; the theme keeps it a
+    // ground. If this ever passes, the yellow has been changed to something
+    // that is no longer the brand's.
+    expect(contrastRatio(theme.highlight, theme.surface)).toBeLessThan(AA);
   });
 
   it("stacks three distinct surface levels, so a card can sit inside a card", () => {

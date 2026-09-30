@@ -17,7 +17,8 @@ interface Detail {
   rider: { id: string; name: string; phone: string | null } | null;
   total: { total_rwf?: number; fare_rwf?: number; waiting_charge_rwf?: number } | null;
   rating: { rating: number; comment: string | null } | null;
-  events: { at: string; from: string; to: string; actor: string }[];
+  events: { at: string; from: string; to: string; actor: string; reason: string | null }[];
+  messages: { at: string; from: "passenger" | "rider"; body: string; read_at: string | null }[];
   no_show: { reason: string; waited_seconds: number } | null;
   sos: { at: string; resolution: string | null }[];
 }
@@ -124,6 +125,7 @@ export function TripDetail() {
                 <time>{kigaliTime(e.at)}</time>
                 <span>
                   {WORDS[e.to] ?? e.to} <span className="small muted">by {e.actor}</span>
+                  {e.reason ? <span className="reason">“{e.reason}”</span> : null}
                 </span>
               </li>
             ))}
@@ -131,6 +133,23 @@ export function TripDetail() {
           </ol>
         </section>
         <div className="stack">
+          {d.messages.length > 0 ? (
+            <section className="card">
+              <h2>Messages</h2>
+              <ol className="thread">
+                {d.messages.map((m, i) => (
+                  <li key={i} className={m.from}>
+                    <span className="who">
+                      {m.from === "passenger" ? d.passenger.name : (d.rider?.name ?? "Rider")}
+                      <time>{kigaliTime(m.at)}</time>
+                    </span>
+                    <span className="body">{m.body}</span>
+                    {m.read_at ? null : <span className="small muted">Not read</span>}
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ) : null}
           {d.no_show ? (
             <div className="notice warn">
               No-show reported after {Math.round(d.no_show.waited_seconds / 60)} min: “{d.no_show.reason}”

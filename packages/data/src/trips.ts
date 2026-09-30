@@ -137,3 +137,29 @@ export async function getTripDetail(client: NovaClient, tripId: string): Promise
     riderId: r.rider_id,
   };
 }
+
+export interface TripEvent {
+  readonly to: string;
+  readonly actor: string;
+  readonly at: string;
+  /** The reason given for a cancellation, when there was one. Other events
+   *  carry internal codes in the same field, and those are not surfaced. */
+  readonly reason: string | null;
+}
+
+/** What happened to a trip, in order. RLS limits it to the trip's two people. */
+export async function getTripEvents(client: NovaClient, tripId: string): Promise<TripEvent[]> {
+  const { data, error } = await client
+    .from("trip_events")
+    .select("to_state, actor, created_at, meta")
+    .eq("trip_id", tripId)
+    .order("created_at", { ascending: true });
+  if (error) throw dataError(error.message);
+  type Row = { to_state: string; actor: string; created_at: string; meta: Record<string, unknown> | null };
+  return ((data ?? []) as Row[]).map((r) => ({
+    to: r.to_state,
+    actor: r.actor,
+    at: r.created_at,
+    reason: r.to_state.startsWith("cancelled_by_") && typeof r.meta?.reason === "string" ? r.meta.reason : null,
+  }));
+}

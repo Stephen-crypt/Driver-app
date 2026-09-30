@@ -108,11 +108,14 @@ export async function cancelTrip(
   client: NovaClient,
   tripId: string,
   as: "passenger" | "rider",
+  /** Why, in the person's words. Kept on the trip's record, for the desk. */
+  reason?: string,
 ): Promise<void> {
   const { error } = await client.rpc("trip_transition", {
     p_trip_id: tripId,
     p_to: as === "passenger" ? "cancelled_by_passenger" : "cancelled_by_rider",
     p_idempotency_key: `cancel-${as}-${tripId}`,
+    ...(reason ? { p_meta: { reason } } : {}),
   });
   if (error) throw dataError(error.message);
 }

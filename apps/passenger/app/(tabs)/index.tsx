@@ -4,6 +4,7 @@ import { useFocusEffect, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
+  Avatar,
   Banner,
   Chip,
   Enter,
@@ -11,7 +12,6 @@ import {
   LiveDot,
   Paper,
   Press,
-  Segmented,
   Txt,
   c,
   font,
@@ -37,6 +37,7 @@ import { supabase } from "../../src/lib/supabase";
 import { registerForPush } from "../../src/lib/push";
 import * as loc from "../../src/lib/location";
 import { useSession } from "../../src/lib/session";
+import { ServiceTiles, type Service } from "../../src/home/ServiceTiles";
 
 /**
  * Kinyarwanda first, because it is what people say to each other. Mwaramutse
@@ -56,18 +57,6 @@ const LIVE_COPY: Record<string, string> = {
 
 type Mode = "now" | "later" | "regular";
 
-const MODES = [
-  { value: "now", label: "Ride now" },
-  { value: "later", label: "Schedule" },
-  { value: "regular", label: "Regular" },
-] as const;
-
-const PROMPT: Record<Mode, string> = {
-  now: "Where to?",
-  later: "Where, and when?",
-  regular: "Your regular trip",
-};
-
 function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
   return /home|urugo/i.test(label) ? "home" : /work|office|akazi/i.test(label) ? "briefcase" : "bookmark";
 }
@@ -86,7 +75,6 @@ export default function Home() {
   const [paperH, onPaperLayout] = useSettledHeight(320);
   // NOVA §7: three ways to book, and only three - "later" and "prebook" are
   // the same idea and a fourth button would only confuse.
-  const [mode, setMode] = useState<Mode>("now");
   const [next, setNext] = useState<UpcomingRide | null>(null);
 
   // Where the passenger actually is. The pickup used to be a constant -
@@ -163,9 +151,17 @@ export default function Home() {
     ...(pickupLabel ? { plabel: pickupLabel } : {}),
   };
 
-  const go = (params: Record<string, string> = {}) => {
+  // The search row and the saved places book now. A tile picks its own mode
+  // for that one search, and nothing on this screen remembers it.
+  const go = (params: Record<string, string> = {}, as: Mode = "now") => {
     tap();
-    router.push({ pathname: "/destination", params: { ...pickupParams, mode, ...params } });
+    router.push({ pathname: "/destination", params: { ...pickupParams, mode: as, ...params } });
+  };
+
+  // A tile is a decision already made: the vehicle, or the kind of booking.
+  const pick = (service: Service) => {
+    if (service === "moto" || service === "cab") go({ vehicle: service });
+    else go({}, service);
   };
 
   const choose = (p: SavedPlace) =>
@@ -177,7 +173,7 @@ export default function Home() {
         label: p.label,
         ...(p.note ? { note: p.note } : {}),
         ...pickupParams,
-        mode,
+        mode: "now",
       },
     });
 
@@ -217,22 +213,29 @@ export default function Home() {
               </Enter>
             ) : null}
 
-            <Enter i={1} style={styles.greetingRow}>
-              <Txt v="h2">
-                {greeting()}
-                {name ? `, ${name}` : ""}
-              </Txt>
+            <Enter i={1} style={styles.header}>
+              <Press onPress={() => router.navigate("/account")} scaleTo={0.94} accessibilityRole="button" accessibilityLabel="Your account">
+                <Avatar name={name ?? "?"} size={44} />
+              </Press>
+              <View style={styles.flex}>
+                <Txt v="caption" tone="muted">
+                  {greeting()}
+                </Txt>
+                <Txt v="h2" lines={1}>
+                  {name ?? "Welcome"}
+                </Txt>
+              </View>
             </Enter>
 
             <Enter i={2}>
-              <Segmented label="How to book" options={MODES} value={mode} onChange={setMode} />
+              <ServiceTiles onPick={pick} />
             </Enter>
 
             {/* The home screen's whole job, drawn the way every route in Nova is
                 drawn: a ring where you are, a square where you are going. The
                 square is the question. */}
             <Enter i={3}>
-              <Press onPress={() => go()} scaleTo={0.985} accessibilityRole="button" accessibilityLabel={PROMPT[mode]} style={styles.search}>
+              <Press onPress={() => go()} scaleTo={0.985} accessibilityRole="button" accessibilityLabel="Where to?" style={styles.search}>
                 <View style={styles.rail} pointerEvents="none">
                   <View style={styles.ring} />
                   <View style={styles.railLine} />
@@ -249,7 +252,7 @@ export default function Home() {
                   </View>
                   <View style={styles.searchLine}>
                     <Txt v="title" style={styles.searchText} lines={1}>
-                      {PROMPT[mode]}
+                      Where to?
                     </Txt>
                     <View style={styles.searchIcon}>
                       <Ionicons name="search" size={20} color={c.onAccent} />
@@ -315,7 +318,7 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.surface },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   stack: { gap: space.md },
-  greetingRow: { paddingHorizontal: 2 },
+  header: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: 2 },
   search: {
     flexDirection: "row",
     gap: space.md,

@@ -1,12 +1,11 @@
 import { useFonts } from "expo-font";
 import { StyleSheet } from "react-native";
-import { Barlow_400Regular } from "@expo-google-fonts/barlow/400Regular";
-import { Barlow_500Medium } from "@expo-google-fonts/barlow/500Medium";
-import { Barlow_600SemiBold } from "@expo-google-fonts/barlow/600SemiBold";
-import { Barlow_700Bold } from "@expo-google-fonts/barlow/700Bold";
-import { BarlowCondensed_500Medium } from "@expo-google-fonts/barlow-condensed/500Medium";
-import { BarlowCondensed_600SemiBold } from "@expo-google-fonts/barlow-condensed/600SemiBold";
-import { BarlowCondensed_700Bold } from "@expo-google-fonts/barlow-condensed/700Bold";
+import { Inter_400Regular } from "@expo-google-fonts/inter/400Regular";
+import { Inter_500Medium } from "@expo-google-fonts/inter/500Medium";
+import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
+import { Montserrat_600SemiBold } from "@expo-google-fonts/montserrat/600SemiBold";
+import { Montserrat_700Bold } from "@expo-google-fonts/montserrat/700Bold";
+import { Montserrat_800ExtraBold } from "@expo-google-fonts/montserrat/800ExtraBold";
 import { theme, tokens } from "@nova/ui";
 
 export { theme, tokens };
@@ -15,61 +14,62 @@ export const space = tokens.space;
 export const radius = tokens.radius;
 
 /**
- * Barlow, and Barlow Condensed for numbers.
+ * The URUMURI typefaces: Montserrat for headlines and every figure that
+ * matters, Inter for everything a person reads at length.
  *
- * Barlow is drawn from highway signage: plates, route numbers, kilometre
- * markers. A transport product that reads like the road it runs on is the
- * point. The condensed cut carries every number that matters - a fare, a PIN,
- * a vest, a countdown - because condensed numerals are what vests and plates
- * are stencilled in, and they fit a big figure into a narrow phone.
+ * Montserrat's heavy cuts carry the fares, PINs, vest numbers and countdowns,
+ * with tabular figures so a ticking number never shuffles sideways. Inter is
+ * the interface: rows, labels, body copy. Only the six weights used are
+ * loaded; importing a package root would pull every file into the bundle.
  *
- * Only the seven weights used are loaded. Importing the package root would pull
- * all thirty-six files into the bundle.
+ * The keys keep their old names (num, numBold) so the figures across both
+ * apps did not have to be re-pointed one by one.
  */
 export const font = {
-  regular: "Barlow_400Regular",
-  medium: "Barlow_500Medium",
-  semibold: "Barlow_600SemiBold",
-  bold: "Barlow_700Bold",
-  numMedium: "BarlowCondensed_500Medium",
-  num: "BarlowCondensed_600SemiBold",
-  numBold: "BarlowCondensed_700Bold",
+  regular: "Inter_400Regular",
+  medium: "Inter_500Medium",
+  semibold: "Inter_600SemiBold",
+  bold: "Montserrat_700Bold",
+  numMedium: "Montserrat_600SemiBold",
+  num: "Montserrat_700Bold",
+  numBold: "Montserrat_800ExtraBold",
 } as const;
 
 /** True once the faces are ready, or failed - a font error must not block the app. */
 export function useNovaFonts(): boolean {
   const [loaded, error] = useFonts({
-    Barlow_400Regular,
-    Barlow_500Medium,
-    Barlow_600SemiBold,
-    Barlow_700Bold,
-    BarlowCondensed_500Medium,
-    BarlowCondensed_600SemiBold,
-    BarlowCondensed_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Montserrat_600SemiBold,
+    Montserrat_700Bold,
+    Montserrat_800ExtraBold,
   });
   return loaded || error !== null;
 }
 
 /**
- * The scale. Numbers get their own steps because they are read differently:
- * at a glance, from further away, often while moving.
+ * The scale, from the brand book's type ramp brought down to a phone: the
+ * book's H1 at 48 is a poster size, so screen titles sit at the H3 step and the
+ * hero figure takes the display step. Numbers get their own steps because they
+ * are read differently: at a glance, from further away, often while moving.
  */
 export const type = StyleSheet.create({
   /** A fare or a PIN, the single most important figure on a screen. */
-  hero: { fontFamily: font.numBold, fontSize: 64, lineHeight: 66, letterSpacing: -0.5 },
+  hero: { fontFamily: font.numBold, fontSize: 56, lineHeight: 60, letterSpacing: -1.5 },
   /** A headline figure: this week's earnings, a countdown. */
-  display: { fontFamily: font.numBold, fontSize: 46, lineHeight: 48, letterSpacing: -0.3 },
-  /** Screen titles. Condensed, so a Kinyarwanda title still fits one line. */
-  title: { fontFamily: font.num, fontSize: 32, lineHeight: 36 },
-  /** Sheet and card titles: condensed, one step down from a screen title. */
-  h2: { fontFamily: font.num, fontSize: 26, lineHeight: 30 },
+  display: { fontFamily: font.numBold, fontSize: 40, lineHeight: 44, letterSpacing: -1 },
+  /** Screen titles. */
+  title: { fontFamily: font.num, fontSize: 28, lineHeight: 34, letterSpacing: -0.6 },
+  /** Sheet and card titles, one step down from a screen title. */
+  h2: { fontFamily: font.num, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 },
   /** A figure inside a row or a stat. */
-  figure: { fontFamily: font.num, fontSize: 26, lineHeight: 30 },
-  heading: { fontFamily: font.semibold, fontSize: 18, lineHeight: 24 },
-  body: { fontFamily: font.regular, fontSize: 16, lineHeight: 22 },
-  bodyStrong: { fontFamily: font.semibold, fontSize: 16, lineHeight: 22 },
-  label: { fontFamily: font.medium, fontSize: 14, lineHeight: 19 },
-  caption: { fontFamily: font.medium, fontSize: 12.5, lineHeight: 17 },
+  figure: { fontFamily: font.num, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 },
+  heading: { fontFamily: font.numMedium, fontSize: 18, lineHeight: 24 },
+  body: { fontFamily: font.regular, fontSize: 16, lineHeight: 24 },
+  bodyStrong: { fontFamily: font.semibold, fontSize: 16, lineHeight: 24 },
+  label: { fontFamily: font.medium, fontSize: 14, lineHeight: 20 },
+  caption: { fontFamily: font.medium, fontSize: 12, lineHeight: 18 },
 });
 
 export type TypeVariant = keyof typeof type;

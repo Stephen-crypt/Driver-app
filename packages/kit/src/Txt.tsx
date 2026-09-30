@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import { Text, type StyleProp, type TextStyle } from "react-native";
 import { c, tabular, type, type TypeVariant } from "./theme";
 
-export type Tone = "strong" | "default" | "muted" | "accent" | "good" | "bad" | "warn" | "inverse";
+export type Tone = "strong" | "default" | "muted" | "accent" | "good" | "bad" | "warn" | "inverse" | "onHighlight";
 
 /** The colour of each tone, for anything that draws text itself (icons, odometers). */
 export const TONE: Record<Tone, string> = {
@@ -14,6 +14,7 @@ export const TONE: Record<Tone, string> = {
   bad: c.danger,
   warn: c.warning,
   inverse: c.onAccent,
+  onHighlight: c.onHighlight,
 };
 
 interface Props {

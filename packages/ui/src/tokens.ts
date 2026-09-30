@@ -1,47 +1,56 @@
 /**
- * Every colour here was chosen against the contrast test, not by eye.
- *
- * The obvious iOS blue (#0A84FF) reads beautifully and fails WCAG AA as text on
- * white at 3.65:1 - so the accent is a deeper #0057E7, which is visually within
- * a hair of it and passes in both directions. Same story for muted grey: the
- * common #6B7280 measures 4.36 on the page ground and is out; #5E6676 is in.
+ * The URUMURI brand colours, every one checked against the contrast test below
+ * rather than taken on trust. The brand book's success green (#16A34A) measures
+ * 3.07:1 as text on the page ground and its error red (#DC2626) exactly 4.50,
+ * so the text versions here are the same hues one step deeper; the book's
+ * brighter ones survive as tints and fills. The yellow never carries white type
+ * (1.67:1): it is a ground, with midnight type on it (9.4:1).
  */
 export const palette = {
-  // Ground and card. The page is a shade off white so a white card has an edge
+  // Ground and card: the brand's light grey, so a white card has an edge
   // without needing a border to find it.
-  ground: "#F2F3F7",
+  ground: "#F5F7FA",
   card: "#FFFFFF",
   // A card nested inside a card - a vehicle row inside a sheet.
-  sunken: "#EDEFF4",
-  hairline: "#E2E5EC",
+  sunken: "#EEF1F5",
+  // Silver, the brand's border colour.
+  hairline: "#E5E7EB",
 
-  ink: "#0B0D12",
-  inkSoft: "#3C4250",
-  inkMuted: "#5E6676",
+  // Charcoal for headings, slate for body text.
+  ink: "#1F2937",
+  inkSoft: "#4B5563",
+  inkMuted: "#5F6B7A",
 
-  blue: "#0057E7",
-  // The vest patch and the online slab: the one place blue is a ground, not a
-  // signal. Deep enough that white type on it clears AAA.
-  blueDeep: "#0A3A9C",
-  blueSoft: "#E6EDFD",
+  // Midnight blue, the primary brand colour: buttons, links, the route origin.
+  midnight: "#0A2342",
+  midnightDeep: "#061A33",
+  // The brand book's 10% tint.
+  midnightSoft: "#E7E9EC",
+
+  // Urumuri yellow, the accent: the vest patch, the PIN, being online. A
+  // hi-vis colour for the few things a person has to find at a glance.
+  yellow: "#F4C20D",
+  // The brand book's 20% tint.
+  yellowSoft: "#FDF3CF",
 
   white: "#FFFFFF",
 
-  // Accents, used as small signals - a status chip, an icon - never as ground.
-  green: "#0E7C4A",
-  greenSoft: "#E3F4EB",
-  red: "#C42419",
-  redSoft: "#FBE9E8",
+  // Functional colours, as text and as tints. Never a background.
+  green: "#15803D",
+  greenSoft: "#DCFCE7",
+  red: "#B91C1C",
+  redSoft: "#FEE2E2",
   amber: "#B45309",
   amberSoft: "#FDF1E3",
+  info: "#1D4ED8",
 
-  // Kept for the dark theme below.
-  night: "#0B0D12",
-  nightRaised: "#171A21",
-  nightSunken: "#22262F",
-  nightHairline: "#2E333D",
-  blueBright: "#4D94FF",
-  greenBright: "#34D399",
+  // Kept for the dark theme below: the midnight, deeper.
+  night: "#0A1220",
+  nightRaised: "#131B2B",
+  nightSunken: "#1C2537",
+  nightHairline: "#2A3447",
+  yellowBright: "#F7D14A",
+  greenBright: "#4ADE80",
   redBright: "#F87171",
 } as const;
 

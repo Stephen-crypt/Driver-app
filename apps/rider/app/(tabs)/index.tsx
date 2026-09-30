@@ -28,6 +28,7 @@ import {
   space,
   useOverlay,
   useSettledHeight,
+  ChatSheet,
 } from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
@@ -65,6 +66,7 @@ import {
   type TripPoints,
   type VehicleClass,
   type WaitStatus,
+  QUICK_REPLIES,
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { registerForPush } from "../../src/lib/push";
@@ -75,8 +77,18 @@ import { PinSheet } from "../../src/today/PinSheet";
 import { ReceiptSheet } from "../../src/today/ReceiptSheet";
 import { TripPanel } from "../../src/today/TripPanel";
 import { duration, useNow } from "../../src/today/useNow";
+import { useTripChat } from "../../src/lib/chat";
 
 const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
+
+// A cancellation after accepting counts against a rider, so the reason is
+// recorded with it - a passenger who never answers is not the rider's fault.
+const RIDER_CANCEL_REASONS = [
+  { label: "The passenger isn't answering", icon: "call" },
+  { label: "The pickup point is wrong", icon: "location" },
+  { label: "A problem with the vehicle", icon: "construct" },
+  { label: "The passenger asked me to cancel", icon: "person" },
+] as const;
 
 export default function Today() {
   const router = useRouter();
@@ -106,10 +118,24 @@ export default function Today() {
   const [receipt, setReceipt] = useState<CompleteTripResult | null>(null);
 
   const [busy, setBusy] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paperH, onPaperLayout] = useSettledHeight(320);
 
   const now = useNow(1000, trip?.state === "arrived" || shift != null);
+
+  const chat = useTripChat(trip?.id ?? null, riderId ?? null, !!trip);
+  const lastUnread = useRef(0);
+  useEffect(() => {
+    if (chatOpen) void chat.markRead();
+  }, [chatOpen, chat.lines.length]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (!chatOpen && chat.unread > lastUnread.current) {
+      const last = chat.lines[chat.lines.length - 1];
+      if (last && !last.mine) overlay.toast({ message: `${passengerName}: ${last.body}`, icon: "chatbubble" });
+    }
+    lastUnread.current = chat.unread;
+  }, [chat.unread]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- load ----------------------------------------------------------------
 
@@ -408,20 +434,23 @@ export default function Today() {
     );
   };
 
-  const cancel = async () => {
+  const cancel = () => {
     if (!trip) return;
-    const ok = await overlay.confirm({
+    overlay.actions({
       title: "Cancel this trip?",
-      message: `${passengerName} is waiting for you. Cancelling after accepting counts against your standing.`,
-      confirmLabel: "Cancel trip",
+      message: `${passengerName} is waiting for you. Cancelling after accepting counts against your standing, so say why.`,
+      options: RIDER_CANCEL_REASONS.map((r) => ({
+        label: r.label,
+        icon: r.icon,
+        tone: "danger" as const,
+        onPress: () =>
+          void run(async () => {
+            await cancelTrip(supabase, trip.id, "rider", r.label);
+            setTrip(null);
+          }, "Could not cancel."),
+      })),
       cancelLabel: "Keep the trip",
-      tone: "danger",
     });
-    if (!ok) return;
-    run(async () => {
-      await cancelTrip(supabase, trip.id, "rider");
-      setTrip(null);
-    }, "Could not cancel.");
   };
 
   const sos = () => {
@@ -504,6 +533,8 @@ export default function Today() {
         onFinish={finish}
         onNoShow={noShow}
         onCall={callPassenger}
+        onMessage={() => setChatOpen(true)}
+        unread={chat.unread}
         onNavigate={navigate}
         onCancel={cancel}
       />
@@ -545,23 +576,23 @@ export default function Today() {
     body = (
       <View style={styles.block}>
         {online ? (
-          // The one place blue is a ground: a rider glancing down from the road
-          // knows from the colour alone that work can reach them.
+          // Yellow, like the vest: a rider glancing down from the road knows
+          // from the colour alone that work can reach them.
           <View style={styles.slab}>
-            <LiveDot tone="good" size={10} onDark />
+            <LiveDot tone="good" size={10} />
             <View style={styles.flex}>
-              <Txt v="heading" tone="inverse">
+              <Txt v="heading" tone="onHighlight">
                 You're online
               </Txt>
-              <Txt v="label" tone="inverse" style={styles.soft}>
+              <Txt v="label" tone="onHighlight" style={styles.soft}>
                 Trips come to you. Keep the app open.
               </Txt>
             </View>
             <View style={styles.clock}>
-              <Txt v="caption" tone="inverse" style={styles.soft}>
+              <Txt v="caption" tone="onHighlight" style={styles.soft}>
                 On shift
               </Txt>
-              <Txt v="bodyStrong" tone="inverse" tabularNums>
+              <Txt v="bodyStrong" tone="onHighlight" tabularNums>
                 {duration(shift.startedAt, now)}
               </Txt>
             </View>
@@ -671,6 +702,16 @@ export default function Today() {
           }}
         />
       ) : null}
+      <ChatSheet
+        visible={chatOpen}
+        onClose={() => setChatOpen(false)}
+        name={passengerName}
+        lines={chat.lines}
+        quickReplies={QUICK_REPLIES.rider}
+        onSend={(t) => void chat.send(t).catch(() => overlay.toast({ message: "Couldn't send that. Try again.", tone: "bad" }))}
+        sending={chat.sending}
+        open={!!trip}
+      />
       <ReceiptSheet result={receipt} onDone={() => setReceipt(null)} />
     </View>
   );
@@ -712,7 +753,7 @@ const styles = StyleSheet.create({
     paddingVertical: space.md,
     paddingHorizontal: space.md + 2,
     borderRadius: radius.lg,
-    backgroundColor: c.accentDeep,
+    backgroundColor: c.highlight,
   },
   soft: { opacity: 0.8 },
   clock: { alignItems: "flex-end" },

@@ -110,7 +110,7 @@ export default function Welcome() {
 
       {/* Primary action in the bottom third, within one-handed reach. */}
       <Enter i={8} style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
-        <Button label="Get started" onPress={() => router.push("/onboarding/phone")} />
+        <Button label="Get started" variant="highlight" onPress={() => router.push("/onboarding/phone")} />
         <Button label="I want to ride for Nova" variant="quiet" compact onPress={() => setRiderInfo(true)} />
       </Enter>
 

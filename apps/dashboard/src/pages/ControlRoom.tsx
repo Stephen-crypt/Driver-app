@@ -123,7 +123,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
             .map((z) => ({
               id: z.id,
               ring: z.area.coordinates[0]!.slice(0, -1).map(([lng, lat]) => [lat, lng] as [number, number]),
-              color: z.kind === "restricted" ? "#c42419" : "#0057e7",
+              color: z.kind === "restricted" ? "#b91c1c" : "#0a2342",
               label: z.name,
               muted: z.kind !== "restricted",
             })),
@@ -234,7 +234,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
           id: t.trip_id,
           from: { lat: t.rider_lat!, lng: t.rider_lng! },
           to: t.state === "in_progress" ? { lat: t.dropoff_lat, lng: t.dropoff_lng } : { lat: t.pickup_lat, lng: t.pickup_lng },
-          color: t.state === "in_progress" ? "#0E7C4A" : "#0057E7",
+          color: t.state === "in_progress" ? "#15803D" : "#0A2342",
         })),
     [trips],
   );

@@ -87,6 +87,12 @@ export default function Activity() {
       message: `To ${r.dropoffLabel}${r.riderName ? `. ${r.riderName} is planned to take you.` : ""}`,
       options: [
         {
+          label: "See the ticket",
+          hint: "Reference, QR code and the price",
+          icon: "qr-code",
+          onPress: () => router.push({ pathname: "/trip/[id]", params: { id: r.id } }),
+        },
+        {
           label: "Change the time",
           hint: "Same day, same price",
           icon: "time",

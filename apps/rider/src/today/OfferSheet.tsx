@@ -219,11 +219,11 @@ function AcceptButton({
     >
       <Animated.View style={[styles.acceptFill, fill]} />
       {loading ? (
-        <ActivityIndicator color={c.onAccent} />
+        <ActivityIndicator color={c.onHighlight} />
       ) : (
         <View style={styles.acceptLabel}>
-          <Ionicons name="checkmark-circle" size={22} color={c.onAccent} />
-          <Txt v="heading" tone="inverse">
+          <Ionicons name="checkmark-circle" size={22} color={c.onHighlight} />
+          <Txt v="heading" tone="onHighlight">
             {disabled ? "Offer ended" : "Accept"}
           </Txt>
         </View>
@@ -258,12 +258,14 @@ const styles = StyleSheet.create({
   accept: {
     minHeight: tokens.MIN_TOUCH_TARGET + 12,
     borderRadius: radius.pill,
-    backgroundColor: c.accentDeep,
+    // Full yellow draining to its tint, like a battery: the type is midnight
+    // on both, so it stays legible however much time is left.
+    backgroundColor: c.highlightSoft,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
   },
   acceptGone: { opacity: 0.45 },
-  acceptFill: { ...StyleSheet.absoluteFill, backgroundColor: c.accent, transformOrigin: "left" },
+  acceptFill: { ...StyleSheet.absoluteFill, backgroundColor: c.highlight, transformOrigin: "left" },
   acceptLabel: { flexDirection: "row", alignItems: "center", gap: space.sm },
 });

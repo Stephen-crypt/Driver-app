@@ -13,6 +13,7 @@ import {
   Row,
   Screen,
   Skeleton,
+  Timeline,
   Txt,
   VEHICLE_NAME,
   VehicleGlyph,
@@ -28,15 +29,36 @@ import { statusFor } from "@nova/ui";
 import {
   getRiderCard,
   getTripDetail,
+  getTripEvents,
   getTripPoints,
   getTripTotal,
   type RiderCard,
   type TripDetail,
+  type TripEvent,
   type TripPoints,
+  whenLabel,
   type TripTotal,
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
+import { Ticket } from "../../src/ride/Ticket";
+
+const EVENT_LABEL: Record<string, string> = {
+  requested: "Booked",
+  scheduled: "Booked ahead",
+  offered: "Looking for a rider",
+  accepted: "Rider accepted",
+  arrived: "Rider at the pickup",
+  in_progress: "Trip started",
+  completed: "Arrived",
+  cancelled_by_passenger: "You cancelled",
+  cancelled_by_rider: "Rider cancelled",
+  no_riders: "No riders were free",
+  expired: "Timed out",
+  no_show: "Rider couldn't find you",
+};
+const BAD_STATES = new Set(["cancelled_by_passenger", "cancelled_by_rider", "no_riders", "expired", "no_show"]);
+const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 const when = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
@@ -53,6 +75,7 @@ export default function TripReceipt() {
   const [total, setTotal] = useState<TripTotal | null>(null);
   const [rider, setRider] = useState<RiderCard | null>(null);
   const [points, setPoints] = useState<TripPoints | null>(null);
+  const [events, setEvents] = useState<TripEvent[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -65,6 +88,7 @@ export default function TripReceipt() {
         if (t.state === "completed") getTripTotal(supabase, t.id).then((x) => active && setTotal(x)).catch(() => {});
         if (t.riderId) getRiderCard(supabase, t.id).then((r) => active && setRider(r)).catch(() => {});
         getTripPoints(supabase, t.id).then((p) => active && setPoints(p)).catch(() => {});
+        getTripEvents(supabase, t.id).then((e) => active && setEvents(e)).catch(() => {});
       })
       .catch(() => active && setTrip(null));
     return () => {
@@ -104,56 +128,85 @@ export default function TripReceipt() {
   return (
     <Screen title={trip.dropoffLabel} subtitle={when(at)} onBack={() => goBack(router)}>
       <View style={styles.stack}>
-        <View>
-          <View style={styles.receipt}>
-            <View style={styles.receiptHead}>
-              <Chip label={status.label} tone={done ? "good" : "neutral"} dot={done} />
-              <View style={styles.vehicle}>
-                <VehicleGlyph kind={trip.vehicleClass} size={17} colour={c.textMuted} />
-                <Txt v="label" tone="muted">
-                  {VEHICLE_NAME[trip.vehicleClass as VehicleKind] ?? "Ride"}
-                </Txt>
-              </View>
-            </View>
-
-            <RouteRail
-              from={{ label: trip.pickupLabel, note: trip.pickupNote ?? "Pickup" }}
-              to={{ label: trip.dropoffLabel, note: "Drop-off" }}
-            />
-
-            <Divider />
-
-            {done ? (
-              <View style={styles.money}>
-                <Txt v="label" tone="muted">
-                  Paid in cash
-                </Txt>
-                <View style={styles.total}>
-                  <Odometer value={money(paid)} v="display" />
-                  <Txt v="bodyStrong" tone="muted">
-                    RWF
+        {trip.state === "scheduled" ? (
+          <Ticket
+            id={trip.id}
+            kind="ride"
+            when={trip.scheduledFor ? whenLabel(trip.scheduledFor) : when(at)}
+            from={trip.pickupLabel}
+            to={trip.dropoffLabel}
+            vehicle={trip.vehicleClass}
+            amountRwf={trip.quotedAmountRwf}
+          />
+        ) : (
+          <View>
+            <View style={styles.receipt}>
+              <View style={styles.receiptHead}>
+                <Chip label={status.label} tone={done ? "good" : "neutral"} dot={done} />
+                <View style={styles.vehicle}>
+                  <VehicleGlyph kind={trip.vehicleClass} size={17} colour={c.textMuted} />
+                  <Txt v="label" tone="muted">
+                    {VEHICLE_NAME[trip.vehicleClass as VehicleKind] ?? "Ride"}
                   </Txt>
                 </View>
-                {total && total.waitingChargeRwf > 0 ? (
-                  <View style={styles.lines}>
-                    <Line label="Trip" value={total.fareRwf} />
-                    <Line label="Waiting time" value={total.waitingChargeRwf} />
+              </View>
+  
+              <RouteRail
+                from={{ label: trip.pickupLabel, note: trip.pickupNote ?? "Pickup" }}
+                to={{ label: trip.dropoffLabel, note: "Drop-off" }}
+              />
+  
+              <Divider />
+  
+              {done ? (
+                <View style={styles.money}>
+                  <Txt v="label" tone="muted">
+                    Paid in cash
+                  </Txt>
+                  <View style={styles.total}>
+                    <Odometer value={money(paid)} v="display" />
+                    <Txt v="bodyStrong" tone="muted">
+                      RWF
+                    </Txt>
                   </View>
-                ) : null}
-              </View>
-            ) : (
-              <View style={styles.notCharged}>
-                <Ionicons name="checkmark-circle" size={18} color={c.success} />
-                <Txt v="label" tone="muted">
-                  You weren't charged for this trip.
-                </Txt>
-              </View>
-            )}
-
-            <ImigongoBand height={16} opacity={0.14} style={styles.band} />
+                  {total && total.waitingChargeRwf > 0 ? (
+                    <View style={styles.lines}>
+                      <Line label="Trip" value={total.fareRwf} />
+                      <Line label="Waiting time" value={total.waitingChargeRwf} />
+                    </View>
+                  ) : null}
+                </View>
+              ) : (
+                <View style={styles.notCharged}>
+                  <Ionicons name="checkmark-circle" size={18} color={c.success} />
+                  <Txt v="label" tone="muted">
+                    You weren't charged for this trip.
+                  </Txt>
+                </View>
+              )}
+  
+              <ImigongoBand height={16} opacity={0.14} style={styles.band} />
+            </View>
+            <ZigzagEdge />
           </View>
-          <ZigzagEdge />
-        </View>
+        )}
+
+        {events.length > 1 ? (
+          <Enter i={1}>
+            <Group title="What happened">
+              <View style={styles.timeline}>
+                <Timeline
+                  items={events.map((e) => ({
+                    label: EVENT_LABEL[e.to] ?? e.to,
+                    time: time(e.at),
+                    tone: BAD_STATES.has(e.to) ? ("bad" as const) : ("done" as const),
+                    ...(e.reason && e.to === "cancelled_by_passenger" ? { note: e.reason } : {}),
+                  }))}
+                />
+              </View>
+            </Group>
+          </Enter>
+        ) : null}
 
         {rider ? (
           <Enter i={1}>
@@ -251,5 +304,6 @@ const styles = StyleSheet.create({
   notCharged: { flexDirection: "row", alignItems: "center", gap: space.sm },
   band: { marginHorizontal: -space.md, marginTop: space.xs },
   rider: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md },
+  timeline: { paddingHorizontal: space.md, paddingVertical: space.sm },
   rating: { flexDirection: "row", alignItems: "center", gap: 4 },
 });

@@ -18,7 +18,7 @@ import { scheduleOnRN } from "react-native-worklets";
 import Svg, { Circle } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import { dur, ease, spring } from "./anim";
-import { c, radius, space } from "./theme";
+import { c, font, radius, space } from "./theme";
 import { Txt } from "./Txt";
 import { Odometer } from "./Odometer";
 import { Press } from "./Press";
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
   barCol: { flex: 1, alignItems: "center", justifyContent: "flex-end", height: "100%" },
   bar: { width: "100%", borderRadius: 8 },
   barLabel: { position: "absolute", alignItems: "center" },
-  barFigure: { fontSize: 15, lineHeight: 18, fontFamily: "BarlowCondensed_600SemiBold" },
+  barFigure: { fontSize: 15, lineHeight: 18, fontFamily: font.num },
   barLabels: { flexDirection: "row", gap: 10, marginTop: 6 },
   pulse: { alignItems: "center", justifyContent: "center" },
   pulseRing: { position: "absolute", backgroundColor: c.accent },

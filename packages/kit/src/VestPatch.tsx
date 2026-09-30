@@ -30,6 +30,7 @@ interface Props {
  * The numbered patch on the back of a Kigali moto rider's vest, and Nova's one
  * visual signature. It carries the numbers a person has to match against the
  * real world: the rider's vest number, and the PIN the passenger reads out.
+ * Yellow, like the vest itself: hi-vis is the point of both.
  *
  * The pale band across the middle is the vest's reflective strip. It sits
  * behind the numeral, not over it - the number must stay the clearest thing.
@@ -46,9 +47,9 @@ export function VestPatch({ value, size = "md", label, roll, delay = 0 }: Props)
     >
       <View style={[styles.strip, { top: s.h * 0.56, height: s.h * 0.14 }]} />
       {roll ? (
-        <Odometer value={value} v="hero" tone="inverse" delay={delay} style={[styles.numeral, numeral]} />
+        <Odometer value={value} v="hero" tone="onHighlight" delay={delay} style={[styles.numeral, numeral]} />
       ) : (
-        <Txt tone="inverse" tabularNums style={[styles.numeral, numeral]}>
+        <Txt tone="onHighlight" tabularNums style={[styles.numeral, numeral]}>
           {value}
         </Txt>
       )}
@@ -72,7 +73,7 @@ export function PinPatches({ pin, size = "lg", roll }: { readonly pin: string; r
 
 const styles = StyleSheet.create({
   patch: {
-    backgroundColor: c.accentDeep,
+    backgroundColor: c.highlight,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     right: 0,
-    backgroundColor: "rgba(255,255,255,0.16)",
+    backgroundColor: "rgba(255,255,255,0.38)",
   },
   numeral: { fontFamily: font.numBold, ...tabular },
   row: { flexDirection: "row", gap: 8 },

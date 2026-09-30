@@ -12,18 +12,28 @@ export interface Theme {
   readonly text: string;
   readonly textStrong: string;
   readonly textMuted: string;
+  /** The working colour: buttons, links, the active tab. */
   readonly accent: string;
   /** A tint of the accent, for chips and icon wells. */
   readonly accentSoft: string;
-  /** The accent as a ground: the vest patch, the online slab. */
+  /** The accent as a ground: a dark card, a map marker. */
   readonly accentDeep: string;
   readonly onAccent: string;
+  /**
+   * The brand's yellow: the vest patch, the PIN, being online, the button that
+   * takes an offer. Hi-vis, so it is kept for what must be found at a glance.
+   */
+  readonly highlight: string;
+  readonly highlightSoft: string;
+  /** Type on the highlight. Midnight, never white. */
+  readonly onHighlight: string;
   readonly success: string;
   readonly successSoft: string;
   readonly danger: string;
   readonly dangerSoft: string;
   readonly warning: string;
   readonly warningSoft: string;
+  readonly info: string;
   /** The pickup end of a route. */
   readonly origin: string;
   /** The drop-off end of a route. */
@@ -31,15 +41,13 @@ export interface Theme {
 }
 
 /**
- * The shipped look: light, quiet, one blue.
+ * The shipped look, from the URUMURI brand book: a light ground, midnight blue
+ * as the working colour, and the yellow held back for the handful of things a
+ * passenger or rider has to spot from a distance - a vest number, a PIN, the
+ * fact that they are online.
  *
- * The indigo-and-amber pair it replaces asked the eye to treat two colours as
- * brand at once, which made every screen louder than the task on it. Booking a
- * moto is errand software - the money and the map should carry the only weight,
- * and everything else should get out of the way.
- *
- * Accent colours survive as small signals only: a green status chip, a red
- * cancel, an amber warning. None of them is ever a background.
+ * Green, red and amber survive as small signals only: a status chip, a cancel,
+ * a warning. None of them is ever a background.
  */
 export const lightTheme: Theme = {
   surface: palette.ground,
@@ -49,17 +57,21 @@ export const lightTheme: Theme = {
   text: palette.inkSoft,
   textStrong: palette.ink,
   textMuted: palette.inkMuted,
-  accent: palette.blue,
-  accentSoft: palette.blueSoft,
-  accentDeep: palette.blueDeep,
+  accent: palette.midnight,
+  accentSoft: palette.midnightSoft,
+  accentDeep: palette.midnightDeep,
   onAccent: palette.white,
+  highlight: palette.yellow,
+  highlightSoft: palette.yellowSoft,
+  onHighlight: palette.midnight,
   success: palette.green,
   successSoft: palette.greenSoft,
   danger: palette.red,
   dangerSoft: palette.redSoft,
   warning: palette.amber,
   warningSoft: palette.amberSoft,
-  origin: palette.blue,
+  info: palette.info,
+  origin: palette.midnight,
   destination: palette.green,
 };
 
@@ -76,17 +88,21 @@ export const darkTheme: Theme = {
   text: "#C3C9D4",
   textStrong: palette.white,
   textMuted: "#9AA2B1",
-  accent: palette.blueBright,
-  accentSoft: "#17233A",
-  accentDeep: "#1B4FC4",
+  accent: palette.yellowBright,
+  accentSoft: "#2A2410",
+  accentDeep: "#B48E00",
   onAccent: palette.night,
+  highlight: palette.yellowBright,
+  highlightSoft: "#2A2410",
+  onHighlight: palette.night,
   success: palette.greenBright,
   successSoft: "#12281F",
   danger: palette.redBright,
   dangerSoft: "#2B1614",
   warning: "#FBBF24",
   warningSoft: "#2A2010",
-  origin: palette.blueBright,
+  info: "#93C5FD",
+  origin: palette.yellowBright,
   destination: palette.greenBright,
 };
 

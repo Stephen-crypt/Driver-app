@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "backgroundColor": "#F2F3F7",
+    "backgroundColor": "#F5F7FA",
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "rw.nova.rider",
@@ -22,7 +22,7 @@
     "android": {
       "package": "rw.nova.rider",
       "adaptiveIcon": {
-        "backgroundColor": "#FFFFFF",
+        "backgroundColor": "#F4C20D",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -48,7 +48,7 @@
       [
         "expo-notifications",
         {
-          "color": "#0057E7"
+          "color": "#0A2342"
         }
       ],
       [
@@ -64,7 +64,7 @@
           "image": "./assets/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#F2F3F7"
+          "backgroundColor": "#F5F7FA"
         }
       ]
     ]

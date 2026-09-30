@@ -56,6 +56,7 @@ export default function Destination() {
     plabel: one(params.plabel),
   };
   const mode = one(params.mode);
+  const vehicle = one(params.vehicle);
 
   const [query, setQuery] = useState(one(params.q) ?? "");
   const [results, setResults] = useState<Place[]>([]);
@@ -108,6 +109,7 @@ export default function Destination() {
         ...(pickup.plng ? { plng: pickup.plng } : {}),
         ...(pickup.plabel ? { plabel: pickup.plabel } : {}),
         ...(mode ? { mode } : {}),
+        ...(vehicle ? { vehicle } : {}),
       },
     });
   };

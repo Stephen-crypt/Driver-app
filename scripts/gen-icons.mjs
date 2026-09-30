@@ -152,7 +152,9 @@ function png(width, height, rgba) {
 }
 
 // ---- the files --------------------------------------------------------------------------
-const BLUE = [0x00, 0x57, 0xe7]; // packages/ui tokens: Nova blue
+// packages/ui tokens: the brand's midnight blue and Urumuri yellow.
+const MIDNIGHT = [0x0a, 0x23, 0x42];
+const YELLOW = [0xf4, 0xc2, 0x0d];
 const WHITE = [0xff, 0xff, 0xff];
 
 /**
@@ -161,8 +163,8 @@ const WHITE = [0xff, 0xff, 0xff];
  * launcher is a support call every time they open the wrong one.
  */
 const APPS = {
-  passenger: { field: BLUE, glyph: WHITE },
-  rider: { field: WHITE, glyph: BLUE },
+  passenger: { field: MIDNIGHT, glyph: YELLOW },
+  rider: { field: YELLOW, glyph: MIDNIGHT },
 };
 
 // Where the mark sits in each file, matching the space the platform leaves for
@@ -186,7 +188,7 @@ for (const [app, { field, glyph }] of Object.entries(APPS)) {
   out("android-icon-foreground.png", render({ size: 1024, box: ADAPTIVE, field: null, glyph }));
   out("android-icon-monochrome.png", render({ size: 1024, box: ADAPTIVE, field: null, glyph: WHITE }));
   out("android-icon-background.png", render({ size: 1024, box: ADAPTIVE, field, glyph: field, lanes: false }));
-  // The splash sits on the light page ground in both apps, so its mark is blue
-  // in both - a white road on an off-white splash is an invisible splash.
-  out("splash-icon.png", render({ size: 1024, box: SPLASH, field: null, glyph: BLUE }));
+  // The splash sits on the light page ground in both apps, so its mark is
+  // midnight in both - a yellow road on an off-white splash would glare.
+  out("splash-icon.png", render({ size: 1024, box: SPLASH, field: null, glyph: MIDNIGHT }));
 }

@@ -112,7 +112,7 @@ export default function RiderWelcome() {
       </ScrollView>
 
       <Enter i={9} style={[styles.footer, { paddingBottom: insets.bottom + space.md }]}>
-        <Button label="Get started" onPress={() => router.push("/onboarding/phone")} />
+        <Button label="Get started" variant="highlight" onPress={() => router.push("/onboarding/phone")} />
         <Button label="Staff sign in" variant="quiet" compact onPress={() => router.push("/staff-login")} />
       </Enter>
     </View>
