@@ -119,7 +119,7 @@ export default function InspectHome() {
               <Row
                 title={r.rider_name ?? r.plate ?? "Vehicle"}
                 subtitle={[
-                  new Date(r.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }),
+                  new Date(r.created_at).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }),
                   r.plate && r.rider_name ? r.plate : null,
                   r.alcohol_result ? `alcohol ${r.alcohol_result}` : null,
                 ]

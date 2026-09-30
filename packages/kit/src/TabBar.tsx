@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
+import Animated, { FadeIn } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { ease } from "./anim";
-import { c, space } from "./theme";
+import { c, font, shadow, space } from "./theme";
 import { Txt } from "./Txt";
 import { selection, type IconName } from "./controls";
 
@@ -22,16 +20,14 @@ export interface TabBarProps {
   };
 }
 
-const LANE = 28;
-
 /**
  * Icons are passed by route name rather than through each screen's options:
  * the bar is part of the app's frame, and keeping its icons in one table keeps
  * it consistent.
  *
- * The active tab is marked by a short bar above it - a lane marking, not a
- * pill. Switching tabs happens dozens of times a day, so the marker gliding to
- * the new tab is the only motion here: the icons and labels just change.
+ * The tab you are on is a midnight pill carrying its name and a yellow icon -
+ * the one lit thing in the bar. The others are icons alone; their names are
+ * still read out by a screen reader.
  */
 export function TabBar({
   state,
@@ -40,32 +36,8 @@ export function TabBar({
   icons,
 }: TabBarProps & { readonly icons: Record<string, { on: IconName; off: IconName }> }) {
   const insets = useSafeAreaInsets();
-  const [width, setWidth] = useState(0);
-  const count = state.routes.length;
-  const itemW = count > 0 ? width / count : 0;
-  const x = useSharedValue(0);
-  const placed = useSharedValue(0);
-
-  useEffect(() => {
-    if (itemW <= 0) return;
-    const to = state.index * itemW + (itemW - LANE) / 2;
-    if (placed.get() === 0) {
-      x.set(to);
-      placed.set(1);
-    } else {
-      x.set(withTiming(to, { duration: 240, easing: ease.inOut }));
-    }
-  }, [state.index, itemW]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  const lane = useAnimatedStyle(() => ({ opacity: placed.get(), transform: [{ translateX: x.get() }] }));
-
   return (
-    <View
-      style={[styles.bar, { paddingBottom: Math.max(insets.bottom, space.sm) }]}
-      onLayout={(e) => setWidth(e.nativeEvent.layout.width)}
-      accessibilityRole="tablist"
-    >
-      <Animated.View style={[styles.lane, lane]} pointerEvents="none" />
+    <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, space.sm) + 4 }]} accessibilityRole="tablist">
       {state.routes.map((route, i) => {
         const focused = state.index === i;
         const title = descriptors[route.key]?.options.title ?? route.name;
@@ -85,10 +57,16 @@ export function TabBar({
             }}
             style={styles.item}
           >
-            <Ionicons name={focused ? icon.on : icon.off} size={23} color={focused ? c.textStrong : c.textMuted} />
-            <Txt v="caption" tone={focused ? "strong" : "muted"}>
-              {title}
-            </Txt>
+            <View style={[styles.pill, focused && styles.pillOn]}>
+              <Ionicons name={focused ? icon.on : icon.off} size={22} color={focused ? c.highlight : c.textMuted} />
+              {focused ? (
+                <Animated.View entering={FadeIn.duration(180)}>
+                  <Txt v="label" tone="onHero" style={styles.label} lines={1}>
+                    {title}
+                  </Txt>
+                </Animated.View>
+              ) : null}
+            </View>
           </Pressable>
         );
       })}
@@ -100,9 +78,22 @@ const styles = StyleSheet.create({
   bar: {
     flexDirection: "row",
     backgroundColor: c.surfaceRaised,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: c.border,
+    paddingTop: 10,
+    paddingHorizontal: space.sm,
+    ...shadow.paper,
+    shadowOpacity: 0.06,
   },
-  item: { flex: 1, alignItems: "center", gap: 3, paddingTop: 10, minHeight: 56 },
-  lane: { position: "absolute", top: 0, left: 0, width: LANE, height: 3, borderRadius: 2, backgroundColor: c.accent },
+  item: { flex: 1, alignItems: "center", justifyContent: "center", minHeight: 48 },
+  pill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    height: 46,
+    minWidth: 46,
+    paddingHorizontal: 12,
+    borderRadius: 23,
+    justifyContent: "center",
+  },
+  pillOn: { backgroundColor: c.hero, paddingHorizontal: 18 },
+  label: { fontFamily: font.semibold },
 });

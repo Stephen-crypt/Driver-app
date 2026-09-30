@@ -8,17 +8,17 @@ import {
   Field,
   Odometer,
   Press,
-  RouteRail,
   Skeleton,
   Txt,
-  VehicleTile,
+  VehicleArt,
   c,
+  font,
   money,
   radius,
   selection,
   space,
 } from "@nova/kit";
-import { dateLabel, daysLabel, type QuoteResult } from "@nova/data";
+import { dateLabel, daysLabel, pickupMinutes, type NearbyRiders, type QuoteResult } from "@nova/data";
 import {
   LaterPicker,
   RegularPicker,
@@ -57,6 +57,7 @@ export function Choose({
   error,
   canBook,
   onBook,
+  nearby,
 }: {
   readonly mode: BookingMode;
   readonly later: LaterPlan;
@@ -75,6 +76,8 @@ export function Choose({
   readonly error: string | null;
   readonly canBook: boolean;
   readonly onBook: () => void;
+  /** Free riders near the pickup, per vehicle; null until known. */
+  readonly nearby?: readonly NearbyRiders[] | null;
 }) {
   const router = useRouter();
   const quote = quotes[selected];
@@ -98,12 +101,23 @@ export function Choose({
 
   return (
     <View style={styles.stack}>
-      <Enter i={0}>
-        <RouteRail
-          dense
-          from={{ label: pickupLabel, note: "Pickup" }}
-          to={{ label: destination, note: minutes ? `About ${minutes} min by road` : "Drop-off" }}
-        />
+      {/* The map above draws the route; here it is one line, so the vehicles
+          and the Book button fit on a small phone without scrolling. */}
+      <Enter i={0} style={styles.head}>
+        <View style={styles.flex}>
+          <Txt v="h2">{mode === "later" ? "Book ahead" : mode === "regular" ? "Regular trip" : "Choose your ride"}</Txt>
+          <Txt v="label" tone="muted" lines={1}>
+            {pickupLabel} to {destination}
+          </Txt>
+        </View>
+        {minutes ? (
+          <View style={styles.eta}>
+            <Ionicons name="time" size={13} color={c.accent} />
+            <Txt v="caption" tone="accent" style={styles.etaText}>
+              {minutes} min
+            </Txt>
+          </View>
+        ) : null}
       </Enter>
 
       <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Vehicle">
@@ -124,13 +138,12 @@ export function Choose({
                 accessibilityLabel={`${k.label}, ${q ? `${money(q.amountRwf)} Rwandan francs` : "price loading"}`}
                 style={[styles.option, on && styles.optionOn]}
               >
-                <VehicleTile kind={k.id} size={48} on={on} onGrey />
+                <View style={[styles.artBox, on && styles.artBoxOn]}>
+                  <VehicleArt kind={k.id} size={56} />
+                </View>
                 <View style={styles.flex}>
-                  <Txt v="bodyStrong">{k.label}</Txt>
                   <View style={styles.meta}>
-                    <Txt v="label" tone="muted" lines={1} style={styles.shrink}>
-                      {k.blurb}
-                    </Txt>
+                    <Txt v="section">{k.label}</Txt>
                     <View style={styles.seats}>
                       <Ionicons name="person" size={11} color={c.textMuted} />
                       <Txt v="caption" tone="muted">
@@ -138,6 +151,15 @@ export function Choose({
                       </Txt>
                     </View>
                   </View>
+                  {/* Booking now, how soon one can come says more than the
+                      blurb; booking ahead, it means nothing. */}
+                  {nearby && mode === "now" ? (
+                    <Away nearby={nearby} kind={k.id} />
+                  ) : (
+                    <Txt v="label" tone="muted" lines={1}>
+                      {k.blurb}
+                    </Txt>
+                  )}
                 </View>
                 {/* Every option shows its price, not just the chosen one: a
                     passenger comparing a moto to a cab is comparing prices. */}
@@ -215,12 +237,50 @@ export function Choose({
   );
 }
 
+/** "3 min away" in green, or that none are free: said before booking, not after. */
+function Away({ nearby, kind }: { readonly nearby: readonly NearbyRiders[]; readonly kind: VehicleClass }) {
+  const n = nearby.find((r) => r.vehicleClass === kind);
+  return (
+    <View style={[styles.away, !n && styles.awayNone]}>
+      <Ionicons name={n ? "time" : "remove-circle-outline"} size={11} color={n ? c.success : c.textMuted} />
+      <Txt v="caption" tone={n ? "good" : "muted"} style={styles.awayText}>
+        {n ? `${pickupMinutes(n.nearestM)} min away` : "None free"}
+      </Txt>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  away: {
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-start",
+    gap: 3,
+    marginTop: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: c.successSoft,
+  },
+  awayNone: { backgroundColor: c.surfaceHigh },
+  awayText: { fontFamily: font.semibold },
   flex: { flex: 1, minWidth: 0 },
   shrink: { flexShrink: 1 },
   stack: { gap: space.md },
+  head: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  eta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: radius.pill,
+    backgroundColor: c.tintBlue,
+  },
+  etaText: { fontFamily: font.semibold },
   when: { gap: space.sm },
   options: { gap: space.sm },
+  // A picked vehicle lights up in the brand's yellow, the colour of "go".
   option: {
     flexDirection: "row",
     alignItems: "center",
@@ -229,10 +289,12 @@ const styles = StyleSheet.create({
     paddingRight: space.md,
     borderRadius: radius.lg,
     borderWidth: 2,
-    borderColor: "transparent",
-    backgroundColor: c.surfaceHigh,
+    borderColor: c.border,
+    backgroundColor: c.surfaceRaised,
   },
-  optionOn: { borderColor: c.accent, backgroundColor: c.accentSoft },
+  optionOn: { borderColor: c.highlight, backgroundColor: c.tintYellow },
+  artBox: { width: 64, height: 54, borderRadius: radius.md, backgroundColor: c.surfaceHigh, alignItems: "center", justifyContent: "center" },
+  artBoxOn: { backgroundColor: c.surfaceRaised },
   meta: { flexDirection: "row", alignItems: "center", gap: space.sm },
   seats: { flexDirection: "row", alignItems: "center", gap: 2 },
   price: { alignItems: "flex-end" },

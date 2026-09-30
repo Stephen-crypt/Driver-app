@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt, notify } from "@nova/kit";
+import { AuthNote, AuthScreen, Banner, Button, Field, NameScene, notify } from "@nova/kit";
 import { normaliseRwandanPhone } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 function normalisePhone(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -14,12 +15,15 @@ function normalisePhone(raw: string | undefined): string | null {
 }
 
 export default function NameScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const first = name.trim();
 
   async function submit() {
+    if (!first || busy) return;
     setError(null);
     setBusy(true);
     try {
@@ -41,7 +45,7 @@ export default function NameScreen() {
       const { error: writeError } = await supabase.from("profiles").insert({
         id: auth.user.id,
         role: "passenger",
-        first_name: name.trim(),
+        first_name: first,
         phone,
       });
 
@@ -59,18 +63,32 @@ export default function NameScreen() {
   }
 
   return (
-    <Screen
+    <AuthScreen
+      scene={<NameScene name={name} />}
       title="What should we call you?"
       subtitle="Your rider sees your first name, so they know who they're looking for."
-      stagger={false}
-      footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!name.trim()} />}
+      step={2}
+      steps={3}
+      footer={<Button label="Continue" variant="highlight" onPress={submit} loading={busy} disabled={!first} />}
     >
-      <StepTrack steps={["Your number", "The code", "Your name"]} current={2} />
-      <Field value={name} onChangeText={setName} placeholder="Aline" autoFocus autoCapitalize="words" onSubmitEditing={submit} returnKeyType="done" />
-      <Txt v="caption" tone="muted">
-        Just a first name is fine.
-      </Txt>
-      {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
-    </Screen>
+      {/* The scene above fills in as they type: the card a rider's arrival
+          will show, with this name on it. */}
+      <Field
+        label="First name"
+        value={name}
+        onChangeText={setName}
+        placeholder="Aline"
+        autoFocus
+        autoCapitalize="words"
+        onSubmitEditing={submit}
+        returnKeyType="done"
+      />
+      <AuthNote icon="eye-off">Just a first name is fine. Your surname and number are never shown.</AuthNote>
+      {error ? (
+        <Banner tone="bad" icon="alert-circle">
+          {error}
+        </Banner>
+      ) : null}
+    </AuthScreen>
   );
 }

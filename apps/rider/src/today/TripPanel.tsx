@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import {
+  Avatar,
   Banner,
   Button,
   Odometer,
@@ -69,9 +70,7 @@ export function TripPanel(p: TripPanelProps) {
     return (
       <View style={styles.panel}>
         <TripProgress steps={STEPS} current={0} note={away !== null ? `${distanceLabel(away)} away` : undefined} />
-        <Txt v="h2" lines={1}>
-          Pick up {p.passengerName}
-        </Txt>
+        <Who label="Pick up" name={p.passengerName} />
         {trip.scheduledFor && new Date(trip.scheduledFor).getTime() > p.now ? (
           <Banner tone="warn" icon="calendar">
             {`Booked for ${kigaliTime(trip.scheduledFor)}. Be there on time. Waiting isn't charged before then.`}
@@ -104,9 +103,7 @@ export function TripPanel(p: TripPanelProps) {
     return (
       <View style={styles.panel}>
         <TripProgress steps={STEPS} current={1} />
-        <Txt v="h2" lines={1}>
-          Waiting for {p.passengerName}
-        </Txt>
+        <Who label="Waiting for" name={p.passengerName} />
         <View style={[styles.wait, charging && styles.waitCharged]}>
           <View style={styles.waitHead}>
             <Ionicons name={charging ? "cash" : "time"} size={20} color={charging ? c.warning : c.textMuted} />
@@ -178,7 +175,25 @@ export function TripPanel(p: TripPanelProps) {
   );
 }
 
+/** Who the trip is for: their initial in the yellow, and their first name. */
+function Who({ label, name }: { readonly label: string; readonly name: string }) {
+  return (
+    <View style={styles.who}>
+      <Avatar name={name} size={48} tone="highlight" />
+      <View style={styles.flex}>
+        <Txt v="caption" tone="muted">
+          {label}
+        </Txt>
+        <Txt v="h2" lines={1}>
+          {name}
+        </Txt>
+      </View>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
+  who: { flexDirection: "row", alignItems: "center", gap: space.md },
   flex: { flex: 1, minWidth: 0 },
   panel: { gap: space.md },
   wait: { gap: space.sm, padding: space.md, borderRadius: radius.lg, backgroundColor: c.surfaceHigh },

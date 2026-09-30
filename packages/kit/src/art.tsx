@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { StyleSheet, View, type StyleProp, type ViewStyle } from "react-native";
+import { Image, StyleSheet, View, type ImageSourcePropType, type StyleProp, type ViewStyle } from "react-native";
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import Animated from "react-native-reanimated";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -7,6 +7,7 @@ import { enter } from "./anim";
 import { c, space } from "./theme";
 import { Txt } from "./Txt";
 import { Button, type IconName } from "./controls";
+import { AuthArt } from "./auth";
 
 // ---------------------------------------------------------------------------
 // Imigongo.
@@ -168,17 +169,33 @@ export function EmptyState({
   body,
   action,
   compact,
+  art,
+  accent = "sparkles",
 }: {
   readonly icon: IconName;
+  /** The small yellow token beside the icon. */
+  readonly accent?: IconName;
   readonly title: string;
   readonly body?: string;
   readonly action?: { label: string; onPress: () => void; icon?: IconName };
   /** Inside a card rather than filling a screen. */
   readonly compact?: boolean;
+  /** A drawn picture in place of the hill scene. Decorative: the title says it. */
+  readonly art?: ImageSourcePropType;
 }) {
   return (
     <Animated.View entering={enter(0)} style={[styles.empty, compact && styles.emptyCompact]}>
-      <HillScene icon={icon} width={compact ? 150 : 200} />
+      {art ? (
+        <Image
+          source={art}
+          style={{ width: compact ? 150 : 200, height: compact ? 150 : 200 }}
+          resizeMode="contain"
+          accessibilityElementsHidden
+          importantForAccessibility="no"
+        />
+      ) : (
+        <AuthArt icon={icon} accent={accent} size={compact ? 120 : 150} light />
+      )}
       <View style={styles.emptyText}>
         <Txt v="heading" align="center">
           {title}

@@ -8,7 +8,7 @@ import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleString(undefined, { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 export default function Reports() {
   const router = useRouter();

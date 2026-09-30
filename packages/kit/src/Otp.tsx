@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Platform, Pressable, StyleSheet, TextInput, View } from "react-native";
 import Animated, { useAnimatedStyle, useReducedMotion, useSharedValue, withRepeat, withSequence, withTiming } from "react-native-reanimated";
 import { ease } from "./anim";
-import { c, font, radius, space, tabular } from "./theme";
+import { c, font, radius, shadow, space, tabular } from "./theme";
 import { Txt } from "./Txt";
 
 /**
@@ -83,22 +83,25 @@ function Caret() {
 const styles = StyleSheet.create({
   wrap: { alignSelf: "stretch" },
   row: { flexDirection: "row", gap: space.sm, justifyContent: "space-between" },
+  // White cards; the one waiting for a digit is lit yellow, a filled one is
+  // drawn in midnight, like the digit in it.
   box: {
     flex: 1,
     maxWidth: 56,
-    height: 66,
-    borderRadius: radius.md,
+    height: 64,
+    borderRadius: radius.md + 2,
     backgroundColor: c.surfaceRaised,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: c.border,
     alignItems: "center",
     justifyContent: "center",
+    ...shadow.card,
   },
-  boxFilled: { borderColor: c.border },
-  boxActive: { borderColor: c.accent },
+  boxFilled: { borderColor: c.hero },
+  boxActive: { borderColor: c.highlight, ...shadow.glow },
   boxError: { borderColor: c.danger },
-  digit: { fontFamily: font.numBold, fontSize: 34, lineHeight: 40, ...tabular },
-  caret: { width: 2, height: 30, borderRadius: 1, backgroundColor: c.accent },
+  digit: { fontFamily: font.numBold, fontSize: 30, lineHeight: 36, ...tabular },
+  caret: { width: 2, height: 28, borderRadius: 1, backgroundColor: c.hero },
   hidden: {
     position: "absolute",
     top: 0,

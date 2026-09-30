@@ -65,7 +65,7 @@ export function useTripChat(tripId: string | null, meId: string | null, live: bo
     }
   }, [tripId, meId, unread, load]);
 
-  const lines: ChatLine[] = messages.map((m) => ({ id: m.id, body: m.body, mine: m.senderId === meId, at: m.createdAt }));
+  const lines: ChatLine[] = messages.map((m) => ({ id: m.id, body: m.body, mine: m.senderId === meId, at: m.createdAt, read: m.readAt !== null }));
 
   return { lines, unread, send, sending, markRead };
 }

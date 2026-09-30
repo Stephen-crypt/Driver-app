@@ -19,7 +19,7 @@ const SAFETY: readonly { icon: IconName; title: string; body: string }[] = [
   {
     icon: "share-social",
     title: "Share your trip",
-    body: "On any live trip, tap Share. It sends where you're going, who's taking you and their plate.",
+    body: "On any live trip, open Safety and tap Share this trip. It sends where you're going, who's taking you and their plate.",
   },
   {
     icon: "pricetag",

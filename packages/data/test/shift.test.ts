@@ -122,6 +122,8 @@ describe("pickupLabelFor", () => {
 describe("distanceLabel", () => {
   it("rounds short distances to fifty metres and long ones to a tenth of a km", () => {
     expect(distanceLabel(12)).toBe("50 m");
+    // Rounded before choosing the unit: never "1000 m".
+    expect(distanceLabel(990)).toBe("1.0 km");
     expect(distanceLabel(430)).toBe("450 m");
     expect(distanceLabel(1234)).toBe("1.2 km");
     expect(distanceLabel(15_400)).toBe("15 km");

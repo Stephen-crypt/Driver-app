@@ -17,6 +17,7 @@ import {
   c,
   money,
   radius,
+  shadow,
   space,
 } from "@nova/kit";
 import {
@@ -29,6 +30,7 @@ import {
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 const DAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const DAY_SHORT = ["S", "M", "T", "W", "T", "F", "S"];
@@ -38,7 +40,7 @@ function when(iso: string): string {
   const d = new Date(iso);
   const today = new Date();
   const sameDay = d.toDateString() === today.toDateString();
-  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const time = d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   return sameDay ? `Today, ${time}` : `${d.toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short" })}, ${time}`;
 }
 
@@ -48,6 +50,7 @@ function when(iso: string): string {
  * earned day by day and every line that moved either one.
  */
 export default function Earnings() {
+  useLightStatusBar();
   const { riderId } = useSession();
   const [rows, setRows] = useState<LedgerRow[] | null>(null);
   const [cash, setCash] = useState(0);
@@ -99,35 +102,43 @@ export default function Earnings() {
   const anything = days.some((d) => d.earnedRwf > 0);
 
   return (
-    <Screen title="Earnings" gap={space.lg}>
-      <Segmented
-        label="Period"
-        compact
-        value={span}
-        onChange={(v) => setSpan(v as Span)}
-        options={[
-          { value: "7", label: "7 days" },
-          { value: "14", label: "14 days" },
-        ]}
-      />
-
-      <View style={styles.hero}>
-        <Txt v="label" tone="muted">
-          You earned in the last {n} days
-        </Txt>
-        <View style={styles.heroFigure}>
-          <Odometer key={span} value={money(total)} v="display" accessibilityLabel={`${money(total)} Rwandan francs`} />
-          <Txt v="heading" tone="muted">
-            RWF
-          </Txt>
+    <Screen
+      title="Earnings"
+      brand
+      overlap={anything ? 48 : 0}
+      gap={space.lg}
+      hero={
+        <View style={styles.heroBlock}>
+          <Segmented
+            onHero
+            label="Period"
+            compact
+            value={span}
+            onChange={(v) => setSpan(v as Span)}
+            options={[
+              { value: "7", label: "7 days" },
+              { value: "14", label: "14 days" },
+            ]}
+          />
+          <View style={styles.hero}>
+            <Txt v="label" tone="onHeroMuted">
+              You earned in the last {n} days
+            </Txt>
+            <View style={styles.heroFigure}>
+              <Odometer key={span} value={money(total)} v="hero" tone="light" accessibilityLabel={`${money(total)} Rwandan francs`} />
+              <Txt v="heading" tone="onHeroMuted">
+                RWF
+              </Txt>
+            </View>
+            {trips > 0 ? (
+              <Txt v="label" tone="onHeroMuted">
+                {trips} {trips === 1 ? "trip" : "trips"}, {money(today?.earnedRwf ?? 0)} RWF of it today
+              </Txt>
+            ) : null}
+          </View>
         </View>
-        {trips > 0 ? (
-          <Txt v="label" tone="muted">
-            {trips} {trips === 1 ? "trip" : "trips"}, {money(today?.earnedRwf ?? 0)} RWF of it today
-          </Txt>
-        ) : null}
-      </View>
-
+      }
+    >
       {anything ? (
         <View style={styles.chart}>
           <Bars
@@ -202,7 +213,11 @@ function Balance({
   readonly note: string;
 }) {
   return (
-    <View style={styles.balance} accessible accessibilityLabel={`${label}: ${money(value)} Rwandan francs. ${note}`}>
+    <View
+      style={[styles.balance, { backgroundColor: tone === "warn" ? c.tintAmber : tone === "good" ? c.tintGreen : c.tintBlue }]}
+      accessible
+      accessibilityLabel={`${label}: ${money(value)} Rwandan francs. ${note}`}
+    >
       <Well icon={icon} tone={tone} size={36} />
       <Txt v="label" tone="muted">
         {label}
@@ -223,15 +238,15 @@ function Balance({
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
   heroSkeleton: { gap: space.sm },
+  heroBlock: { gap: space.lg },
   hero: { gap: 2 },
   heroFigure: { flexDirection: "row", alignItems: "baseline", gap: 6 },
-  chart: { paddingTop: space.xs },
+  chart: { padding: space.md, paddingTop: space.lg, borderRadius: radius.lg, backgroundColor: c.surfaceRaised, ...shadow.card },
   balances: { flexDirection: "row", gap: space.sm },
   balance: {
     flex: 1,
     gap: 4,
     padding: space.md,
     borderRadius: radius.lg,
-    backgroundColor: c.surfaceRaised,
   },
 });

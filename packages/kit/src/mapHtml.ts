@@ -6,7 +6,8 @@ export interface LatLng {
   readonly lng: number;
 }
 
-export type MarkerKind = "me" | "pickup" | "dropoff" | "rider";
+/** "radar" is the search in progress: yellow rings going out from the pickup. */
+export type MarkerKind = "me" | "pickup" | "dropoff" | "rider" | "radar";
 
 export interface MapMarker {
   readonly id: string;
@@ -72,6 +73,22 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
          box-shadow:0 3px 10px rgba(0,0,0,.3);overflow:hidden}
   .rider:before{content:'';position:absolute;left:0;right:0;top:56%;height:14%;background:rgba(255,255,255,.38)}
   .rider span{position:relative}
+  /* Looking for a rider: a sweep and rings going out from the pickup, in the
+     yellow - the light going out to find someone. */
+  .radar{position:relative;width:240px;height:240px;pointer-events:none}
+  .radar i{position:absolute;left:0;top:0;width:240px;height:240px;border-radius:50%;box-sizing:border-box;
+           background:rgba(244,194,13,.14);border:2px solid rgba(244,194,13,.75);opacity:0;
+           animation:ring 2.7s cubic-bezier(.23,1,.32,1) infinite}
+  .radar i:nth-child(2){animation-delay:.9s}
+  .radar i:nth-child(3){animation-delay:1.8s}
+  .radar s{position:absolute;left:30px;top:30px;width:180px;height:180px;border-radius:50%;
+           background:conic-gradient(from 0deg, rgba(244,194,13,.42), rgba(244,194,13,0) 28%, rgba(244,194,13,0));
+           animation:sweep 2.4s linear infinite}
+  .radar b{position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
+           background:${c.highlight};border:4px solid ${c.accent};box-sizing:border-box;box-shadow:0 2px 8px rgba(10,35,66,.35)}
+  @keyframes ring{from{transform:scale(.08);opacity:1}to{transform:scale(1);opacity:0}}
+  @keyframes sweep{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){.radar i,.radar s{animation:none}.radar i:first-child{opacity:.5;transform:scale(.55)}}
   .g{animation:drop .32s cubic-bezier(.23,1,.32,1) both}
   @keyframes drop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
   @media (prefers-reduced-motion: reduce){.g{animation:none}}
@@ -90,10 +107,11 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   function icon(m){
     var inner = m.kind === 'me' ? '<div class="me"></div>'
       : m.kind === 'rider' ? '<div class="rider"><span>' + (m.tag || '') + '</span></div>'
+      : m.kind === 'radar' ? '<div class="radar"><s></s><i></i><i></i><i></i><b></b></div>'
       : '<div class="pin ' + m.kind + '"></div>';
     var tag = (m.kind === 'pickup' || m.kind === 'dropoff') && m.tag ? '<div class="tag">' + m.tag + '</div>' : '';
     // A vest number is one to four digits; the patch widens to fit it.
-    var size = m.kind === 'rider' ? [Math.max(34, 14 + 14 * String(m.tag || '').length), 38] : [18,18];
+    var size = m.kind === 'rider' ? [Math.max(34, 14 + 14 * String(m.tag || '').length), 38] : m.kind === 'radar' ? [240,240] : [18,18];
     return L.divIcon({className:'', html:'<div class="g">' + inner + tag + '</div>',
                       iconSize:size, iconAnchor:[size[0]/2, size[1]/2]});
   }
@@ -129,7 +147,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
           glide(markers[m.id], ll);
         } else {
           if (markers[m.id]) map.removeLayer(markers[m.id].marker);
-          markers[m.id] = {key:key, marker:L.marker(ll, {icon:icon(m), interactive:false}).addTo(map)};
+          markers[m.id] = {key:key, marker:L.marker(ll, {icon:icon(m), interactive:false, zIndexOffset: m.kind === 'radar' ? -1000 : 0}).addTo(map)};
         }
       });
       Object.keys(markers).forEach(function(id){

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Banner,
+  BellButton,
   Button,
   Chip,
   FloatButton,
@@ -14,13 +15,13 @@ import {
   Press,
   Skeleton,
   SlideToConfirm,
-  Stat,
-  StatRow,
+  StatTile,
   Swap,
   Txt,
-  VehicleTile,
+  VehicleArt,
   VestPatch,
   c,
+  font,
   money,
   notify,
   radius,
@@ -29,6 +30,7 @@ import {
   useOverlay,
   useSettledHeight,
   ChatSheet,
+  ReasonSheet,
 } from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
@@ -67,6 +69,8 @@ import {
   type VehicleClass,
   type WaitStatus,
   QUICK_REPLIES,
+  countUnread,
+  watchInbox,
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { registerForPush } from "../../src/lib/push";
@@ -119,12 +123,29 @@ export default function Today() {
 
   const [busy, setBusy] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [unread, setUnread] = useState(0);
+  const [cancelOpen, setCancelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paperH, onPaperLayout] = useSettledHeight(320);
 
   const now = useNow(1000, trip?.state === "arrived" || shift != null);
 
   const chat = useTripChat(trip?.id ?? null, riderId ?? null, !!trip);
+
+  // The number on the bell: read on focus, and again whenever one lands.
+  useFocusEffect(
+    useCallback(() => {
+      if (!riderId) return;
+      let active = true;
+      const read = () => countUnread(supabase).then((n) => active && setUnread(n)).catch(() => {});
+      read();
+      const w = watchInbox(supabase, riderId, read);
+      return () => {
+        active = false;
+        w.unsubscribe();
+      };
+    }, [riderId]),
+  );
   const lastUnread = useRef(0);
   useEffect(() => {
     if (chatOpen) void chat.markRead();
@@ -435,22 +456,15 @@ export default function Today() {
   };
 
   const cancel = () => {
+    if (trip) setCancelOpen(true);
+  };
+  const cancelWith = (reason: string) => {
     if (!trip) return;
-    overlay.actions({
-      title: "Cancel this trip?",
-      message: `${passengerName} is waiting for you. Cancelling after accepting counts against your standing, so say why.`,
-      options: RIDER_CANCEL_REASONS.map((r) => ({
-        label: r.label,
-        icon: r.icon,
-        tone: "danger" as const,
-        onPress: () =>
-          void run(async () => {
-            await cancelTrip(supabase, trip.id, "rider", r.label);
-            setTrip(null);
-          }, "Could not cancel."),
-      })),
-      cancelLabel: "Keep the trip",
-    });
+    setCancelOpen(false);
+    void run(async () => {
+      await cancelTrip(supabase, trip.id, "rider", reason);
+      setTrip(null);
+    }, "Could not cancel.");
   };
 
   const sos = () => {
@@ -494,6 +508,9 @@ export default function Today() {
 
   // ---- map -------------------------------------------------------------------
   const markers = [
+    // Online and free: the radar goes out from the rider, the same yellow
+    // rings a passenger sees while looking for them.
+    ...(here && online && !trip ? [{ id: "radar", at: here, kind: "radar" as const }] : []),
     ...(here ? [{ id: "me", at: here, kind: "me" as const }] : []),
     ...(trip && points
       ? trip.state === "in_progress"
@@ -549,7 +566,7 @@ export default function Today() {
         </Txt>
         {profile?.vehicle ? (
           <View style={styles.vehicle}>
-            <VehicleTile kind={profile.vehicle.vehicleClass} size={48} onGrey />
+            <VehicleArt kind={profile.vehicle.vehicleClass} size={64} />
             <View style={styles.flex}>
               <Txt v="bodyStrong">{profile.vehicle.plate}</Txt>
               <Txt v="label" tone="muted">
@@ -581,11 +598,11 @@ export default function Today() {
           <View style={styles.slab}>
             <LiveDot tone="good" size={10} />
             <View style={styles.flex}>
-              <Txt v="heading" tone="onHighlight">
+              <Txt v="section" tone="onHighlight">
                 You're online
               </Txt>
-              <Txt v="label" tone="onHighlight" style={styles.soft}>
-                Trips come to you. Keep the app open.
+              <Txt v="label" tone="onHighlight" style={styles.soft} lines={1}>
+                Keep the app open
               </Txt>
             </View>
             <View style={styles.clock}>
@@ -608,11 +625,11 @@ export default function Today() {
             <Txt v="title">Ready when you are</Txt>
           </>
         )}
-        <StatRow>
-          <Stat label="Earned today" value={money(earnings?.earnedRwf ?? 0)} tone="good" roll />
-          <Stat label="Trips" value={String(earnings?.trips ?? 0)} roll />
-          <Stat label="Cash to hand in" value={money(cashHeld ?? 0)} roll />
-        </StatRow>
+        <View style={styles.tiles}>
+          <StatTile icon="trending-up" label="Earned today" value={money(earnings?.earnedRwf ?? 0)} ground={c.tintGreen} ink={c.success} tone="good" roll />
+          <StatTile icon="navigate" label="Trips today" value={String(earnings?.trips ?? 0)} ground={c.tintBlue} ink={c.accent} roll />
+          <StatTile icon="cash" label="Cash to hand in" value={money(cashHeld ?? 0)} ground={c.tintAmber} ink={c.warning} roll />
+        </View>
         {gpsDenied ? (
           <Banner tone="warn" icon="location">
             Location is off. Dispatch can't find you without it.
@@ -657,29 +674,38 @@ export default function Today() {
           onPress={() => router.navigate("/me")}
           style={styles.idCard}
           accessibilityRole="button"
-          accessibilityLabel={`${profile?.firstName ?? "You"}${profile?.vehicle?.plate ? `, ${profile.vehicle.plate}` : ""}. Open your profile`}
+          accessibilityLabel={`${profile?.firstName ?? "You"}${profile?.vehicle?.plate ? `, ${profile.vehicle.plate}` : ""}, ${online ? "online" : "offline"}. Open your profile`}
         >
           {profile?.vehicle?.vestNumber ? <VestPatch value={profile.vehicle.vestNumber} size="sm" /> : null}
           <View style={styles.shrink}>
-            <Txt v="bodyStrong" lines={1}>
+            <Txt v="bodyStrong" tone="onHero" lines={1}>
               {profile?.firstName ?? " "}
             </Txt>
             <View style={styles.idMeta}>
-              <Txt v="caption" tone="muted" lines={1}>
+              <Txt v="caption" tone="onHeroMuted" lines={1}>
                 {profile?.vehicle?.plate ?? "No vehicle"}
               </Txt>
               {profile?.rating ? (
                 <View style={styles.rating}>
-                  <Ionicons name="star" size={10} color={c.warning} />
-                  <Txt v="caption" tone="muted" tabularNums>
+                  <Ionicons name="star" size={10} color={c.highlight} />
+                  <Txt v="caption" tone="onHeroMuted" tabularNums>
                     {profile.rating.toFixed(1)}
                   </Txt>
                 </View>
               ) : null}
             </View>
           </View>
+          <View style={[styles.state, online && styles.stateOn]}>
+            <View style={[styles.stateDot, online && styles.stateDotOn]} />
+            <Txt v="caption" tone={online ? "onHighlight" : "onHeroMuted"} style={styles.stateText}>
+              {online ? "Online" : trip ? "On a trip" : "Offline"}
+            </Txt>
+          </View>
         </Press>
-        <FloatButton icon="warning" label="Emergency" tone="bad" onPress={sos} />
+        <View style={styles.topRight}>
+          <BellButton count={unread} onPress={() => router.push("/inbox")} />
+          <FloatButton icon="warning" label="Emergency" tone="bad" onPress={sos} />
+        </View>
       </View>
 
       <View style={styles.sheet} onLayout={onPaperLayout}>
@@ -712,6 +738,17 @@ export default function Today() {
         sending={chat.sending}
         open={!!trip}
       />
+      <ReasonSheet
+        visible={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title="Cancel this trip?"
+        message={`${passengerName} is waiting for you. Cancelling after accepting counts against your standing, so say why.`}
+        reasons={RIDER_CANCEL_REASONS}
+        confirmLabel="Cancel trip"
+        keepLabel="Keep the trip"
+        busy={busy}
+        onConfirm={cancelWith}
+      />
       <ReceiptSheet result={receipt} onDone={() => setReceipt(null)} />
     </View>
   );
@@ -735,12 +772,28 @@ const styles = StyleSheet.create({
     gap: space.sm,
     paddingVertical: 6,
     paddingLeft: 6,
-    paddingRight: space.md,
-    borderRadius: 14,
-    backgroundColor: c.surfaceRaised,
-    maxWidth: "75%",
+    paddingRight: 8,
+    borderRadius: 18,
+    backgroundColor: c.hero,
+    maxWidth: "80%",
     ...shadow.float,
   },
+  state: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginLeft: space.xs,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: c.heroRaised,
+  },
+  stateOn: { backgroundColor: c.highlight },
+  stateDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: c.onHeroMuted },
+  stateDotOn: { backgroundColor: c.success },
+  stateText: { fontFamily: font.semibold },
+  tiles: { flexDirection: "row", gap: space.sm },
+  topRight: { flexDirection: "row", alignItems: "center", gap: space.sm },
   idMeta: { flexDirection: "row", alignItems: "center", gap: space.sm },
   rating: { flexDirection: "row", alignItems: "center", gap: 3 },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },

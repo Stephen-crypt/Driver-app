@@ -13,7 +13,7 @@ import {
   Screen,
   Skeleton,
   Txt,
-  VehicleTile,
+  VehicleArt,
   VestPatch,
   c,
   radius,
@@ -24,11 +24,13 @@ import {
 import { EMERGENCY_NUMBER, getOpenShift, getRiderProfile, type RiderProfile, type Shift } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
 const INSET = space.md + 38 + space.md;
 
 export default function Me() {
+  useLightStatusBar();
   const router = useRouter();
   const overlay = useOverlay();
   const { riderId } = useSession();
@@ -68,61 +70,77 @@ export default function Me() {
   };
 
   return (
-    <Screen gap={space.lg}>
-      {/* The rider's badge: the vest number is who they are to a passenger. */}
-      <View key="badge" style={styles.badge}>
-        {profile ? (
-          <>
-            {vest ? <VestPatch value={vest} size="lg" label={`Vest number ${vest}`} roll /> : null}
-            <View style={styles.flex}>
-              <Txt v="title" lines={1}>
-                {profile.firstName}
-              </Txt>
-              <Txt v="label" tone="muted">
-                {profile.phone ?? ""}
-              </Txt>
-              <View style={styles.chips}>
-                {profile.rating ? (
-                  <View style={styles.rating} accessibilityLabel={`Rated ${profile.rating.toFixed(1)} from ${profile.ratingCount} ratings`}>
-                    <Ionicons name="star" size={13} color={c.warning} />
-                    <Txt v="caption" tone="strong" tabularNums>
-                      {profile.rating.toFixed(1)}
-                    </Txt>
-                    <Txt v="caption" tone="muted">
-                      ({profile.ratingCount})
-                    </Txt>
-                  </View>
-                ) : (
-                  <Chip label="No ratings yet" />
-                )}
-                {profile.verification === "verified" ? <Chip label="Verified" tone="good" icon="checkmark" /> : null}
+    <Screen
+      gap={space.lg}
+      brand
+      overlap={40}
+      hero={
+        // The rider's badge: the vest number is who they are to a passenger.
+        <View style={styles.badge}>
+          {profile ? (
+            <>
+              {vest ? <VestPatch value={vest} size="lg" label={`Vest number ${vest}`} roll /> : null}
+              <View style={styles.flex}>
+                <Txt v="title" tone="onHero" lines={1}>
+                  {profile.firstName}
+                </Txt>
+                <Txt v="label" tone="onHeroMuted">
+                  {profile.phone ?? ""}
+                </Txt>
+                <View style={styles.chips}>
+                  {profile.rating ? (
+                    <View style={styles.pill} accessibilityLabel={`Rated ${profile.rating.toFixed(1)} from ${profile.ratingCount} ratings`}>
+                      <Ionicons name="star" size={13} color={c.highlight} />
+                      <Txt v="caption" tone="onHero" tabularNums>
+                        {profile.rating.toFixed(1)}
+                      </Txt>
+                      <Txt v="caption" tone="onHeroMuted">
+                        ({profile.ratingCount})
+                      </Txt>
+                    </View>
+                  ) : (
+                    <View style={styles.pill}>
+                      <Txt v="caption" tone="onHeroMuted">
+                        No ratings yet
+                      </Txt>
+                    </View>
+                  )}
+                  {profile.verification === "verified" ? (
+                    <View style={styles.pill}>
+                      <Ionicons name="checkmark-circle" size={13} color={c.highlight} />
+                      <Txt v="caption" tone="onHero">
+                        Verified
+                      </Txt>
+                    </View>
+                  ) : null}
+                </View>
               </View>
-            </View>
-          </>
-        ) : (
-          <>
-            <Skeleton width={72} height={74} r={14} />
-            <View style={[styles.flex, styles.skText]}>
-              <Skeleton width="60%" height={28} r={8} />
-              <Skeleton width="45%" height={14} />
-            </View>
-          </>
-        )}
-      </View>
-
+            </>
+          ) : (
+            <>
+              <Skeleton width={72} height={74} r={14} />
+              <View style={[styles.flex, styles.skText]}>
+                <Skeleton width="60%" height={28} r={8} />
+                <Skeleton width="45%" height={14} />
+              </View>
+            </>
+          )}
+        </View>
+      }
+    >
       <Press key="qr" onPress={() => router.push("/qr")} style={styles.qr} accessibilityRole="button" accessibilityLabel="Show your QR code to an inspector">
         <View style={styles.qrIcon}>
-          <Ionicons name="qr-code" size={24} color={c.onAccent} />
+          <Ionicons name="qr-code" size={24} color={c.highlight} />
         </View>
         <View style={styles.flex}>
-          <Txt v="bodyStrong" tone="inverse">
+          <Txt v="section" tone="onHighlight">
             Show your QR code
           </Txt>
-          <Txt v="label" tone="inverse" style={styles.soft}>
+          <Txt v="label" tone="onHighlight" style={styles.soft}>
             For a Nova inspector at a checkpoint
           </Txt>
         </View>
-        <Ionicons name="chevron-forward" size={20} color={c.onAccent} />
+        <Ionicons name="chevron-forward" size={20} color={c.onHighlight} />
       </Press>
 
       <Group key="vehicle" title="Your vehicle">
@@ -130,7 +148,7 @@ export default function Me() {
           <Row
             title={profile.vehicle.plate}
             subtitle={`${CLASS_NAME[profile.vehicle.vehicleClass] ?? "Vehicle"}, company vehicle`}
-            leading={<VehicleTile kind={profile.vehicle.vehicleClass} size={38} onGrey />}
+            leading={<VehicleArt kind={profile.vehicle.vehicleClass} size={48} />}
             value={vest ? String(vest) : undefined}
             valueNote={vest ? "vest" : undefined}
           />
@@ -181,22 +199,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: space.md,
-    padding: space.md,
-    marginTop: space.md,
-    borderRadius: radius.lg,
-    backgroundColor: c.surfaceRaised,
-    minHeight: 116,
+    paddingTop: space.sm,
+    minHeight: 100,
   },
   skText: { gap: space.sm },
   chips: { flexDirection: "row", alignItems: "center", gap: space.sm, marginTop: space.sm, flexWrap: "wrap" },
-  rating: {
+  pill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,
-    backgroundColor: c.warningSoft,
+    backgroundColor: c.heroRaised,
   },
   qr: {
     flexDirection: "row",
@@ -204,14 +219,14 @@ const styles = StyleSheet.create({
     gap: space.md,
     padding: space.md,
     borderRadius: radius.lg,
-    backgroundColor: c.accentDeep,
-    ...shadow.float,
+    backgroundColor: c.highlight,
+    ...shadow.glow,
   },
   qrIcon: {
-    width: 44,
-    height: 44,
+    width: 46,
+    height: 46,
     borderRadius: 14,
-    backgroundColor: "rgba(255,255,255,0.14)",
+    backgroundColor: c.hero,
     alignItems: "center",
     justifyContent: "center",
   },

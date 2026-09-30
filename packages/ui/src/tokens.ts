@@ -35,6 +35,19 @@ export const palette = {
 
   white: "#FFFFFF",
 
+  // One step up from midnight: shapes, chips and fields that sit on a
+  // midnight header without disappearing into it.
+  midnightLift: "#16345C",
+  // Secondary text on midnight (8.9:1).
+  midnightMist: "#B4C0D3",
+
+  // Tile grounds. Pale enough to carry charcoal type and a coloured drawing;
+  // one per kind of thing, so a tile is recognised by colour before it is read.
+  tintBlue: "#E8EEF8",
+  tintYellow: "#FEF6D9",
+  tintGreen: "#E4F5EA",
+  tintAmber: "#FDEEDD",
+
   // Functional colours, as text and as tints. Never a background.
   green: "#15803D",
   greenSoft: "#DCFCE7",

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, Txt, space } from "@nova/kit";
+import { AuthNote, AuthScreen, Banner, Button, Field, StaffScene } from "@nova/kit";
 import { myStaffRole } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
+import { useLightStatusBar } from "../src/lib/statusBar";
 
 const INSPECTING = ["inspector", "safety", "admin"];
 
@@ -13,6 +13,7 @@ const INSPECTING = ["inspector", "safety", "admin"];
  * sign in with an email and password, not the phone code riders use.
  */
 export default function StaffLogin() {
+  useLightStatusBar();
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -39,33 +40,21 @@ export default function StaffLogin() {
   };
 
   return (
-    <Screen
+    <AuthScreen
+      scene={<StaffScene />}
       title="Staff sign in"
       subtitle="For Nova inspectors. Riders sign in with their phone number."
       onBack={() => goBack(router)}
-      footer={
-        <View style={styles.footer}>
-          {error ? (
-            <Banner tone="bad" icon="alert-circle">
-              {error}
-            </Banner>
-          ) : null}
-          <Button label="Sign in" onPress={signIn} loading={busy} disabled={!email.includes("@") || password.length < 6} />
-        </View>
-      }
+      footer={<Button label="Sign in" variant="highlight" onPress={signIn} loading={busy} disabled={!email.includes("@") || password.length < 6} />}
     >
-      <View style={styles.stack}>
-        <Field label="Work email" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" />
-        <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={signIn} />
-        <Txt v="caption" tone="muted">
-          Forgotten it? An administrator can reset it with the staff script.
-        </Txt>
-      </View>
-    </Screen>
+      <Field label="Work email" value={email} onChangeText={setEmail} autoCapitalize="none" autoComplete="email" keyboardType="email-address" />
+      <Field label="Password" value={password} onChangeText={setPassword} secureTextEntry autoComplete="password" onSubmitEditing={signIn} />
+      {error ? (
+        <Banner tone="bad" icon="alert-circle">
+          {error}
+        </Banner>
+      ) : null}
+      <AuthNote icon="help-circle">Forgotten it? An administrator can reset it with the staff script.</AuthNote>
+    </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  stack: { gap: space.md },
-  footer: { gap: space.sm },
-});

@@ -1,10 +1,10 @@
 import { useState } from "react";
-import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Banner, Button, Field, Screen, StepTrack, Txt, Well, c, radius, space } from "@nova/kit";
+import { AuthNote, AuthScreen, Banner, Button, Field, IdScene } from "@nova/kit";
 import { normaliseRwandanPhone } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 function normalisePhone(raw: string | undefined): string | null {
   if (!raw) return null;
@@ -22,6 +22,7 @@ function normalisePhone(raw: string | undefined): string | null {
  * fleet.
  */
 export default function DetailsScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const [name, setName] = useState("");
   const [licence, setLicence] = useState("");
@@ -75,14 +76,14 @@ export default function DetailsScreen() {
   }
 
   return (
-    <Screen
+    <AuthScreen
+      scene={<IdScene />}
       title="About you"
-      subtitle="As it appears on your licence and ID."
-      stagger={false}
-      footer={<Button label="Continue" onPress={submit} loading={busy} disabled={!ready} />}
+      subtitle="As it appears on your licence and your national ID."
+      step={2}
+      steps={SIGNUP_STEPS.length}
+      footer={<Button label="Continue" variant="highlight" onPress={submit} loading={busy} disabled={!ready} />}
     >
-      <View style={styles.stack}>
-        <StepTrack steps={SIGNUP_STEPS} current={2} />
         <Field label="First name" value={name} onChangeText={setName} autoCapitalize="words" />
         <Field label="Driving licence number" value={licence} onChangeText={setLicence} autoCapitalize="characters" />
         <Field
@@ -93,28 +94,10 @@ export default function DetailsScreen() {
           maxLength={20}
           hint={idDigits.length > 0 && idDigits.length !== 16 ? "A Rwandan national ID has 16 digits." : "16 digits, on the front of your ID."}
         />
-        <View style={styles.note}>
-          <Well icon="key" size={36} />
-          <Txt v="label" tone="muted" style={styles.flex}>
-            You don't need a vehicle. Once you're approved, the fleet office assigns you one, with its plate and your
-            vest number.
-          </Txt>
-        </View>
+        <AuthNote icon="key">
+          You don't need a vehicle. Once you're approved, the fleet office assigns you one, with its plate and your vest number.
+        </AuthNote>
         {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
-      </View>
-    </Screen>
+    </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  flex: { flex: 1, minWidth: 0 },
-  stack: { gap: space.md },
-  note: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.md,
-    padding: space.md,
-    borderRadius: radius.md + 4,
-    backgroundColor: c.surfaceRaised,
-  },
-});

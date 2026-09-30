@@ -81,6 +81,7 @@ export function Button({
   style,
 }: ButtonProps) {
   const b = BUTTON[variant];
+  const glow = variant === "highlight" && !disabled && !loading;
   const off = disabled || loading;
   const strong = variant === "primary" || variant === "highlight" || variant === "dark" || variant === "dangerSolid";
   return (
@@ -99,6 +100,7 @@ export function Button({
         compact && styles.buttonCompact,
         { backgroundColor: b.bg },
         trailing ? styles.buttonSplit : null,
+        glow && shadow.glow,
         off && !loading && styles.disabled,
         style,
       ]}
@@ -285,19 +287,20 @@ export function Banner({
   );
 }
 
-export function Avatar({ name, size = 44, tone = "accent" }: { readonly name: string; readonly size?: number; readonly tone?: "accent" | "dark" }) {
+export function Avatar({ name, size = 44, tone = "accent" }: { readonly name: string; readonly size?: number; readonly tone?: "accent" | "dark" | "highlight" }) {
   return (
     <View
       style={[
         styles.avatar,
         { width: size, height: size, borderRadius: size / 2 },
         tone === "dark" && { backgroundColor: c.accentDeep },
+        tone === "highlight" && { backgroundColor: c.highlight },
       ]}
       accessibilityElementsHidden
     >
       <Txt
         v="bodyStrong"
-        tone={tone === "dark" ? "inverse" : "accent"}
+        tone={tone === "dark" ? "inverse" : tone === "highlight" ? "onHighlight" : "accent"}
         style={{ fontSize: size * 0.42, lineHeight: size * 0.52, fontFamily: font.numBold }}
       >
         {(name.trim().charAt(0) || "?").toUpperCase()}
@@ -370,7 +373,7 @@ const styles = StyleSheet.create({
   buttonCompact: { minHeight: tokens.MIN_TOUCH_TARGET - 4, paddingHorizontal: space.md },
   buttonSplit: { justifyContent: "space-between" },
   buttonMain: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  buttonText: { fontSize: 17 },
+  buttonText: { fontFamily: font.bold, fontSize: 16, lineHeight: 22, letterSpacing: 0.1 },
   spinner: { height: 24, justifyContent: "center" },
   trailing: { fontSize: 22, lineHeight: 26 },
   disabled: { opacity: 0.4 },

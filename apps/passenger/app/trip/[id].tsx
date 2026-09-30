@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
+import { Share, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import {
@@ -41,7 +41,7 @@ import {
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
-import { Ticket } from "../../src/ride/Ticket";
+import { Ticket, referenceFor } from "../../src/ride/Ticket";
 
 const EVENT_LABEL: Record<string, string> = {
   requested: "Booked",
@@ -61,7 +61,7 @@ const BAD_STATES = new Set(["cancelled_by_passenger", "cancelled_by_rider", "no_
 const time = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
 
 const when = (iso: string) =>
-  new Date(iso).toLocaleString(undefined, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit" });
+  new Date(iso).toLocaleString(undefined, { weekday: "long", day: "numeric", month: "long", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 /**
  * A past trip as a receipt: where, when, what it cost, who took you - and the
@@ -122,6 +122,17 @@ export default function TripReceipt() {
   const status = statusFor(trip.state);
   const paid = total?.totalRwf ?? trip.quotedAmountRwf ?? 0;
   const at = trip.scheduledFor ?? trip.createdAt;
+  // A receipt a passenger can send on: to an employer, to whoever paid.
+  const share = () =>
+    void Share.share({
+      message: [
+        `Nova trip, ${when(at)}`,
+        `${trip.pickupLabel} to ${trip.dropoffLabel}`,
+        done ? `Paid ${paid.toLocaleString("en-US")} RWF in cash` : status.label,
+        `Reference ${referenceFor(trip.id)}`,
+      ].join("\n"),
+    }).catch(() => {});
+
   const report = (kind: "lost_property" | "complaint") =>
     router.push({ pathname: "/report", params: { trip: trip.id, to: trip.dropoffLabel, kind } });
 
@@ -236,6 +247,8 @@ export default function TripReceipt() {
           <Group title="Need something?">
             {done ? (
               <>
+                <Row title="Share this receipt" subtitle="The route, the price and the reference" icon="share-social" iconTone="good" onPress={share} />
+                <Divider inset={70} />
                 <Row title="I left something behind" subtitle="A phone, a bag, keys" icon="bag-handle" onPress={() => report("lost_property")} />
                 <Divider inset={70} />
               </>

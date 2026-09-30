@@ -15,3 +15,5 @@ export * from "./schedule";
 export * from "./cases";
 export * from "./inspect";
 export * from "./messages";
+export * from "./nearby";
+export * from "./inbox";

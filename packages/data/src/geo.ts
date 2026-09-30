@@ -62,6 +62,8 @@ export function distanceBetween(
 }
 
 export function distanceLabel(metres: number): string {
-  if (metres < 1000) return `${Math.max(50, Math.round(metres / 50) * 50)} m`;
+  // Rounded first: 990 m would otherwise read as "1000 m".
+  const m = Math.max(50, Math.round(metres / 50) * 50);
+  if (m < 1000) return `${m} m`;
   return `${(metres / 1000).toFixed(metres < 10_000 ? 1 : 0)} km`;
 }

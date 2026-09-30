@@ -81,14 +81,15 @@ const styles = StyleSheet.create({
     gap: space.sm,
     minHeight: 56,
     paddingHorizontal: space.md,
-    borderRadius: radius.md,
+    borderRadius: radius.md + 2,
     backgroundColor: c.surfaceRaised,
     borderWidth: 2,
-    borderColor: "transparent",
+    borderColor: c.border,
   },
   boxBig: { minHeight: 72 },
-  boxOnPaper: { backgroundColor: c.surfaceHigh },
-  focused: { borderColor: c.accent, backgroundColor: c.surfaceRaised },
+  boxOnPaper: { backgroundColor: c.surfaceHigh, borderColor: "transparent" },
+  // The field being typed into is lit, like the code box waiting for a digit.
+  focused: { borderColor: c.highlight, backgroundColor: c.surfaceRaised },
 
   // minWidth 0: a text input will not shrink below its intrinsic width on the
   // web without it, and the overflow scrolled the whole screen sideways.
@@ -103,8 +104,8 @@ const styles = StyleSheet.create({
     paddingVertical: space.sm,
     ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null),
   },
-  inputBig: { fontFamily: font.num, fontSize: 34, letterSpacing: 1, ...tabular },
-  prefixBig: { fontSize: 30 },
+  inputBig: { fontFamily: font.num, fontSize: 28, letterSpacing: 0.5, ...tabular },
+  prefixBig: { fontSize: 26 },
   hint: { marginLeft: space.xs },
 });
 

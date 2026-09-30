@@ -1,6 +1,6 @@
 # Illustration prompts
 
-Everything inside the apps is drawn in code (SVG): the Imigongo band, the zigzag receipt edge, the hill scenes in empty states and the vehicle glyphs. Only the two welcome pictures are raster images, and the four service tiles on the passenger home screen can take one each. This page has prompts for all of them, and for a cab version later, in Gemini or any other image model.
+Most of what is inside the apps is drawn in code (SVG): the Imigongo band, the zigzag receipt edge, the hill scenes in empty states and the vehicle glyphs. Seven pictures are raster images, all made in Gemini from the prompts below: the two welcome pictures, the four service tiles on the passenger home screen, and the round cab scene on the passenger's empty Activity screen. The prompts are here for redrawing any of them.
 
 ## Where the files go
 
@@ -12,8 +12,11 @@ Everything inside the apps is drawn in code (SVG): the Imigongo band, the zigzag
 | Cab tile | `apps/passenger/assets/tiles/cab.png` | 288 × 288, transparent |
 | Book ahead tile | `apps/passenger/assets/tiles/later.png` | 288 × 288, transparent |
 | Regular trip tile | `apps/passenger/assets/tiles/regular.png` | 288 × 288, transparent |
+| No trips yet | `apps/passenger/assets/empty-trips.png` | 600 × 600, transparent outside the circle |
 
 Keep the 1280 × 714 proportion. Both welcome screens size the picture as `width × 714 / 1280`, so a different ratio gets stretched unless that line changes too. Export as JPEG at about 85% quality, under 250 KB.
+
+Gemini's output never lands exactly on these sizes or on a transparent background, so each picture was cropped, resized and cleaned up after it was made. The sky in both welcome pictures was pulled onto the page's exact grey, `#F5F7FA`. The tiles and the cab scene had their white backgrounds cut away, working in from the edges only, so white inside an outline stays: the cab's body, the calendar page. Each tile was then cropped to its subject.
 
 ## The shared style
 
@@ -34,7 +37,7 @@ trees.
 
 ## Passenger welcome
 
-The current picture was drawn for the old blue brand: the rider's jacket and the motorbike are cobalt. Redraw it with this prompt so the vest is yellow and the motorbike midnight.
+The current picture came from this prompt: a rider in a yellow vest and a passenger with a bag, on a midnight motorbike.
 
 ```text
 [shared style]
@@ -49,7 +52,7 @@ lower half. Calm, early-morning light, with no people other than these two.
 
 ## Rider welcome
 
-The current rider picture shows a large touring motorbike in the old blue. Kigali's motos are small commuter bikes, and a rider will notice. This prompt corrects both:
+The current picture came from this prompt. The rider sits on the motorbike rather than standing beside it, which reads just as well. Kigali's motos are small commuter bikes, and a rider will notice anything bigger, so keep "125cc commuter" in any redraw:
 
 ```text
 [shared style]
@@ -67,7 +70,7 @@ If the vest number comes out garbled, ask for "a plain yellow vest with no numbe
 
 ## Service tiles
 
-Until these exist, each tile shows a drawn glyph in a coloured square: yellow for Moto, midnight for Cab, pale green for Book ahead and pale amber for Regular trip. A picture replaces the glyph, so it has to read at 46 points, about the size of a thumbnail. One object, big, no scene.
+Each tile shows its picture at 76 points on a light grey tile, with no coloured square behind it: the picture carries its own colour. It has to read at that size, so one object, big, no scene. If a picture is ever removed, the tile falls back to a drawn glyph in a coloured square.
 
 Image models rarely give a true transparent background. Ask for plain white, then remove it with any background remover (Canva has one) and export a PNG with transparency, under 60 KB.
 
@@ -114,9 +117,11 @@ Two curved arrows chasing each other in a circle around a tiny midnight-blue
 (#0A2342) moto-taxi, like a repeat symbol. The arrows are amber (#B45309).
 ```
 
-To use them, point the tile's `art` at the file in `apps/passenger/src/home/ServiceTiles.tsx`, for example `art: require("../../assets/tiles/moto.png")`. Check each on the tile's coloured square: the moto on yellow, the cab on midnight.
+Each tile's `art` in `apps/passenger/src/home/ServiceTiles.tsx` points at its file. To swap one, replace the PNG and keep the name.
 
-## A cab version, for when cabs launch
+## The cab scene
+
+This prompt was meant for a wide cab welcome picture. Gemini drew it as a round scene instead, which suits an empty state better: it is the picture above "No trips yet" on the passenger's Activity screen.
 
 ```text
 [shared style]

@@ -159,11 +159,14 @@ export function CountdownRing({
   remaining,
   size = 88,
   stroke = 7,
+  onHero,
 }: {
   readonly total: number;
   readonly remaining: number;
   readonly size?: number;
   readonly stroke?: number;
+  /** On a midnight card: the arc is the yellow, the digits white. */
+  readonly onHero?: boolean;
 }) {
   const r = (size - stroke) / 2;
   const circumference = 2 * Math.PI * r;
@@ -171,7 +174,7 @@ export function CountdownRing({
   const next = total > 0 ? Math.max(0, Math.min(1, (remaining - 1) / total)) : 0;
   const f = useSharedValue(now);
   const urgent = remaining <= 5;
-  const colour = urgent ? c.danger : c.accent;
+  const colour = urgent ? c.danger : onHero ? c.highlight : c.accent;
 
   useEffect(() => {
     // Heading to the next second's value across this second: continuous.
@@ -184,7 +187,7 @@ export function CountdownRing({
   return (
     <View style={{ width: size, height: size }} accessibilityLabel={`${remaining} seconds left`}>
       <Svg width={size} height={size}>
-        <Circle cx={size / 2} cy={size / 2} r={r} stroke={c.surfaceHigh} strokeWidth={stroke} fill="none" />
+        <Circle cx={size / 2} cy={size / 2} r={r} stroke={onHero ? c.heroRaised : c.surfaceHigh} strokeWidth={stroke} fill="none" />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
@@ -204,7 +207,7 @@ export function CountdownRing({
         <Odometer
           value={String(Math.max(0, remaining))}
           v="display"
-          tone={urgent ? "bad" : "strong"}
+          tone={onHero ? "onHero" : urgent ? "bad" : "strong"}
           roll={false}
           style={{ fontSize: size * 0.4, lineHeight: Math.round(size * 0.46) }}
         />

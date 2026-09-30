@@ -1,16 +1,18 @@
 import { useEffect, useState } from "react";
-import { StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { Banner, Button, OtpBoxes, Press, Screen, StepTrack, Txt, notify, space, useOverlay } from "@nova/kit";
+import { AuthScreen, Banner, Button, CodeScene, OtpBoxes, ResendRow, notify, prettyPhone, useOverlay } from "@nova/kit";
 import { requestOtp, verifyOtp } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 const RESEND_AFTER = 30;
 
 export default function VerifyScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const overlay = useOverlay();
-  const params = useLocalSearchParams<{ phone?: string | string[] }>();
+  const params = useLocalSearchParams<{ phone?: string | string[]; mode?: string }>();
+  const login = params.mode === "login";
   const phone = Array.isArray(params.phone) ? params.phone[0] : params.phone;
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -59,43 +61,30 @@ export default function VerifyScreen() {
   };
 
   return (
-    <Screen
+    <AuthScreen
+      scene={<CodeScene />}
       title="Enter the code"
-      subtitle={phone ? `Sent by SMS to ${phone}` : "Enter the code we sent you"}
+      subtitle={phone ? `We sent six digits by SMS to ${prettyPhone(phone)}.` : "Enter the code we sent you."}
       onBack={() => router.back()}
-      stagger={false}
-      footer={<Button label="Verify" onPress={() => submit()} loading={busy} disabled={code.length < 6} />}
+      {...(login ? {} : { step: 1, steps: 3 })}
+      footer={<Button label="Verify" variant="highlight" onPress={() => submit()} loading={busy} disabled={code.length < 6} />}
     >
-      <View style={styles.stack}>
-        <StepTrack steps={["Your number", "The code", "Your name"]} current={1} />
-        <OtpBoxes
-          value={code}
-          error={!!error}
-          onChange={(v) => {
-            setError(null);
-            setCode(v);
-            // Six digits is the whole code - go, without making them find a button.
-            if (v.length === 6) void submit(v);
-          }}
-        />
-        {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
-        {wait > 0 ? (
-          <Txt v="label" tone="muted" align="center">
-            You can ask for a new code in 0:{String(wait).padStart(2, "0")}
-          </Txt>
-        ) : (
-          <Press onPress={resend} scaleTo={0.96} style={styles.resend} accessibilityRole="button">
-            <Txt v="label" tone="accent" align="center">
-              Send me a new code
-            </Txt>
-          </Press>
-        )}
-      </View>
-    </Screen>
+      <OtpBoxes
+        value={code}
+        error={!!error}
+        onChange={(v) => {
+          setError(null);
+          setCode(v);
+          // Six digits is the whole code - go, without making them find a button.
+          if (v.length === 6) void submit(v);
+        }}
+      />
+      {error ? (
+        <Banner tone="bad" icon="alert-circle">
+          {error}
+        </Banner>
+      ) : null}
+      <ResendRow wait={wait} onResend={() => void resend()} onChangeNumber={() => router.back()} />
+    </AuthScreen>
   );
 }
-
-const styles = StyleSheet.create({
-  stack: { gap: space.lg },
-  resend: { alignSelf: "center", paddingVertical: space.sm, paddingHorizontal: space.md },
-});

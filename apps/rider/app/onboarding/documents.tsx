@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, StyleSheet, View } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
-import { Banner, Button, Chip, Divider, Group, Row, Screen, SkeletonRows, StepTrack, Txt, c, notify, space, useOverlay } from "@nova/kit";
+import { AuthNote, AuthScreen, Banner, DocsScene, Button, Chip, Divider, Group, Row, Screen, SkeletonRows, Txt, c, notify, space, useOverlay } from "@nova/kit";
 import {
   listMyDocuments,
   uploadDocument,
@@ -13,6 +13,7 @@ import {
 import { supabase } from "../../src/lib/supabase";
 import { goBack } from "../../src/lib/nav";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
+import { LightStatusBar } from "../../src/lib/statusBar";
 
 function extensionFor(uri: string, mime: string): string {
   const fromUri = uri.split("?")[0]?.split(".").pop()?.toLowerCase();
@@ -121,25 +122,25 @@ export default function Documents() {
   const outstanding = docs.filter((d) => !d.uploaded).length;
   const uploaded = docs.length - outstanding;
 
-  return (
-    <Screen
-      title="Your documents"
-      subtitle="We check these before your first shift. Clear photos, all four corners in view."
-      onBack={router.canGoBack() ? () => goBack(router) : undefined}
-      gap={space.lg}
-      footer={
-        signingUp ? (
-          <Button
-            label={outstanding === 0 ? "Send for review" : `${outstanding} still to upload`}
-            onPress={() => router.replace("/onboarding/pending")}
-            disabled={outstanding > 0}
-          />
-        ) : undefined
-      }
-    >
-      {signingUp ? <StepTrack key="steps" steps={SIGNUP_STEPS} current={3} /> : null}
+  const list = (
+    <>
+      {/* How far along, as a bar that fills yellow: four uploads is a chore,
+          and seeing it fill is what gets the last one done. */}
+      <View style={styles.progress} accessibilityRole="progressbar" accessibilityLabel={`${uploaded} of ${docs.length} uploaded`}>
+        <View style={styles.progressHead}>
+          <Txt v="bodyStrong">
+            {outstanding === 0 ? "All uploaded" : `${uploaded} of ${docs.length} uploaded`}
+          </Txt>
+          <Txt v="label" tone="muted" tabularNums>
+            {docs.length ? Math.round((uploaded / docs.length) * 100) : 0}%
+          </Txt>
+        </View>
+        <View style={styles.track}>
+          <View style={[styles.fill, { width: `${docs.length ? (uploaded / docs.length) * 100 : 0}%` }]} />
+        </View>
+      </View>
 
-      <Group key="docs" title="Documents" meta={`${uploaded} of ${docs.length} uploaded`}>
+      <Group title="Documents">
         {docs.map((d, i) => {
           const busy = busyKind === d.kind;
           const state = d.status === "approved" ? "good" : d.status === "rejected" ? "bad" : d.uploaded ? "warn" : "neutral";
@@ -179,14 +180,56 @@ export default function Documents() {
       </Group>
 
       {error ? (
-        <Banner key="error" tone="bad" icon="alert-circle">
+        <Banner tone="bad" icon="alert-circle">
           {error}
         </Banner>
       ) : null}
 
-      <Txt key="privacy" v="caption" tone="muted">
-        Only the Nova fleet office sees your documents. They are never shown to passengers.
-      </Txt>
+      <AuthNote icon="eye-off">Only the Nova fleet office sees your documents. They are never shown to passengers.</AuthNote>
+    </>
+  );
+
+  if (signingUp) {
+    return (
+      <AuthScreen
+        scene={<DocsScene />}
+        title="Your documents"
+        subtitle="We check these before your first shift. Clear photos, all four corners in view."
+        onBack={router.canGoBack() ? () => goBack(router) : undefined}
+        step={3}
+        steps={SIGNUP_STEPS.length}
+        footer={
+          <Button
+            label={outstanding === 0 ? "Send for review" : `${outstanding} still to upload`}
+            variant="highlight"
+            onPress={() => router.replace("/onboarding/pending")}
+            disabled={outstanding > 0}
+          />
+        }
+      >
+        <LightStatusBar />
+        {list}
+      </AuthScreen>
+    );
+  }
+
+  return (
+    <Screen
+      title="Your documents"
+      subtitle="Clear photos, all four corners in view."
+      onBack={router.canGoBack() ? () => goBack(router) : undefined}
+      gap={space.lg}
+      stagger={false}
+    >
+      <View style={styles.stack}>{list}</View>
     </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  stack: { gap: space.lg },
+  progress: { gap: space.sm },
+  progressHead: { flexDirection: "row", alignItems: "baseline", justifyContent: "space-between" },
+  track: { height: 10, borderRadius: 5, backgroundColor: c.surfaceHigh, overflow: "hidden" },
+  fill: { height: 10, borderRadius: 5, backgroundColor: c.highlight },
+});

@@ -19,9 +19,10 @@ export interface SegmentOption<T extends string> {
 const TONE_BG = { good: c.success, bad: c.danger, warn: c.warning } as const;
 
 /**
- * A choice of two to four, shown side by side. The white pill travels to the
- * chosen segment - movement across the control, so ease-in-out - and it is the
- * only thing that moves; the labels just change weight.
+ * A choice of two to four, shown side by side. The pill travels to the chosen
+ * segment - movement across the control, so ease-in-out - and it is the only
+ * thing that moves. On the page the pill is midnight; on the midnight hero it
+ * is the yellow, the one lit thing there.
  */
 export function Segmented<T extends string>({
   options,
@@ -29,6 +30,7 @@ export function Segmented<T extends string>({
   onChange,
   label,
   compact,
+  onHero,
 }: {
   readonly options: readonly SegmentOption<T>[];
   readonly value: T | null;
@@ -36,6 +38,8 @@ export function Segmented<T extends string>({
   /** Read by screen readers as the name of the whole control. */
   readonly label: string;
   readonly compact?: boolean;
+  /** Sitting on the midnight hero. */
+  readonly onHero?: boolean;
 }) {
   const frames = useRef<Record<string, { x: number; w: number }>>({});
   const [ready, setReady] = useState(false);
@@ -45,7 +49,7 @@ export function Segmented<T extends string>({
   const last = useRef<T | null>(value);
   const toneOf = (v: T | null) => {
     const t = options.find((o) => o.value === v)?.tone;
-    return t ? TONE_BG[t] : c.surfaceRaised;
+    return t ? TONE_BG[t] : onHero ? c.highlight : c.hero;
   };
   const from = useSharedValue<string>(toneOf(value));
   const to = useSharedValue<string>(toneOf(value));
@@ -92,11 +96,12 @@ export function Segmented<T extends string>({
   }));
 
   return (
-    <View style={[styles.track, compact && styles.trackCompact]} accessibilityRole="radiogroup" accessibilityLabel={label}>
+    <View style={[styles.track, onHero && styles.trackHero, compact && styles.trackCompact]} accessibilityRole="radiogroup" accessibilityLabel={label}>
       <Animated.View style={[styles.pill, { opacity: ready && value !== null ? 1 : 0 }, pill]} />
       {options.map((o) => {
         const on = o.value === value;
-        const inverse = on && !!o.tone;
+        const fg = on ? (onHero && !o.tone ? c.onHighlight : c.onAccent) : onHero ? c.onHeroMuted : c.textMuted;
+        const fgTone = on ? (onHero && !o.tone ? "onHighlight" : "inverse") : onHero ? "onHeroMuted" : "muted";
         return (
           <Pressable
             key={o.value}
@@ -112,8 +117,8 @@ export function Segmented<T extends string>({
             accessibilityLabel={o.label}
             style={[styles.item, compact && styles.itemCompact, o.disabled && styles.disabled]}
           >
-            {o.icon ? <Ionicons name={o.icon} size={16} color={inverse ? c.onAccent : on ? c.textStrong : c.textMuted} /> : null}
-            <Txt v="label" tone={inverse ? "inverse" : on ? "strong" : "muted"} style={on ? styles.onText : null} lines={1}>
+            {o.icon ? <Ionicons name={o.icon} size={16} color={fg} /> : null}
+            <Txt v="label" tone={fgTone} style={on ? styles.onText : null} lines={1}>
               {o.label}
             </Txt>
           </Pressable>
@@ -128,21 +133,16 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: c.surfaceHigh,
     borderRadius: radius.pill,
-    padding: 3,
+    padding: 4,
   },
+  trackHero: { backgroundColor: c.heroRaised },
   trackCompact: { alignSelf: "flex-start" },
   pill: {
     position: "absolute",
-    top: 3,
-    bottom: 3,
+    top: 4,
+    bottom: 4,
     left: 0,
     borderRadius: radius.pill,
-    backgroundColor: c.surfaceRaised,
-    shadowColor: "#0B0D12",
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    shadowOffset: { width: 0, height: 1 },
-    elevation: 1,
   },
   item: {
     flex: 1,
@@ -150,7 +150,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    minHeight: 40,
+    minHeight: 42,
     paddingHorizontal: 12,
     borderRadius: radius.pill,
   },

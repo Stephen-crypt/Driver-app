@@ -17,6 +17,7 @@ import { Txt, type Tone } from "./Txt";
 import { IconButton, type IconName } from "./controls";
 import { Press } from "./Press";
 import { Odometer } from "./Odometer";
+import { Hero } from "./brand";
 
 // ---------------------------------------------------------------------------
 // Rows. Lists are rows on one surface separated by hairlines - not a card per
@@ -124,7 +125,7 @@ export function Divider({ inset = 0 }: { readonly inset?: number }) {
   return <View style={[styles.divider, { marginLeft: inset }]} />;
 }
 
-/** A titled group of rows on one white surface. */
+/** A titled group of rows on one white card. */
 export function Group({
   title,
   meta,
@@ -145,7 +146,7 @@ export function Group({
       {title || action || meta ? (
         <View style={styles.groupHead}>
           {title ? (
-            <Txt v="label" tone="muted" style={styles.flex}>
+            <Txt v="section" style={styles.flex}>
               {title}
             </Txt>
           ) : (
@@ -165,7 +166,9 @@ export function Group({
           ) : null}
         </View>
       ) : null}
-      <View style={styles.group}>{children}</View>
+      <View style={styles.groupShadow}>
+        <View style={styles.group}>{children}</View>
+      </View>
     </View>
   );
 }
@@ -333,6 +336,9 @@ export function Screen({
   footer,
   stagger = true,
   gap = 0,
+  brand,
+  hero,
+  overlap = 0,
 }: {
   readonly title?: string;
   readonly subtitle?: string;
@@ -346,6 +352,14 @@ export function Screen({
   readonly stagger?: boolean;
   /** Space between the screen's direct children, each of which arrives in turn. */
   readonly gap?: number;
+  /**
+   * Open on the midnight hero: the title in white on the night, and whatever
+   * `hero` holds under it - a figure, tabs, a profile.
+   */
+  readonly brand?: boolean;
+  readonly hero?: ReactNode;
+  /** How far the first card rides up over the hero's edge. */
+  readonly overlap?: number;
 }) {
   const insets = useSafeAreaInsets();
   const y = useSharedValue(0);
@@ -354,7 +368,7 @@ export function Screen({
     y.set(e.contentOffset.y);
   });
 
-  const top = insets.top + (onBack ? BAR : space.sm);
+  const top = brand ? 0 : insets.top + (onBack ? BAR : space.sm);
   const fade = useAnimatedStyle(() => ({
     opacity: interpolate(y.get(), [titleEnd - top - 40, titleEnd - top - 8], [0, 1], Extrapolation.CLAMP),
   }));
@@ -363,8 +377,34 @@ export function Screen({
     return { opacity: t, transform: [{ translateY: (1 - t) * 6 }] };
   });
 
-  const header =
-    title || right ? (
+  const header = brand ? (
+    <Animated.View
+      entering={stagger ? enter(0) : undefined}
+      style={styles.brandBleed}
+      onLayout={(e: LayoutChangeEvent) => setTitleEnd(e.nativeEvent.layout.y + e.nativeEvent.layout.height - 40)}
+    >
+      <Hero overlap={overlap} style={onBack ? { paddingTop: insets.top + BAR } : null} safeTop={!onBack}>
+        <View style={styles.brandHead}>
+          <View style={styles.headerRow}>
+            <View style={styles.flex}>
+              {title ? (
+                <Txt v="title" tone="onHero" accessibilityLabel={title}>
+                  {title}
+                </Txt>
+              ) : null}
+              {subtitle ? (
+                <Txt v="body" tone="onHeroMuted">
+                  {subtitle}
+                </Txt>
+              ) : null}
+            </View>
+            {right}
+          </View>
+          {hero}
+        </View>
+      </Hero>
+    </Animated.View>
+  ) : title || right ? (
       <Animated.View
         entering={stagger ? enter(0) : undefined}
         style={styles.header}
@@ -400,12 +440,18 @@ export function Screen({
   const bar =
     onBack || title ? (
       <View pointerEvents="box-none" style={[styles.bar, { height: insets.top + BAR, paddingTop: insets.top }]}>
-        {scroll ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.barBg, fade]} /> : null}
+        {scroll ? <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, brand ? styles.barBgBrand : styles.barBg, fade]} /> : null}
         <View style={styles.barRow} pointerEvents="box-none">
-          {onBack ? <IconButton icon="arrow-back" label="Back" onPress={onBack} size={44} /> : <View style={styles.barSide} />}
+          {onBack ? (
+            <View style={brand ? styles.backOnHero : styles.back}>
+              <IconButton icon="arrow-back" label="Back" onPress={onBack} size={44} tone={brand ? "onDark" : "default"} />
+            </View>
+          ) : (
+            <View style={styles.barSide} />
+          )}
           {title && scroll ? (
             <Animated.View style={[styles.barTitle, compactTitle]} pointerEvents="none">
-              <Txt v="bodyStrong" lines={1}>
+              <Txt v="bodyStrong" tone={brand ? "onHero" : "strong"} lines={1}>
                 {title}
               </Txt>
             </Animated.View>
@@ -427,7 +473,7 @@ export function Screen({
       keyboardShouldPersistTaps="handled"
     >
       {header}
-      <View style={[styles.stack, { gap }]}>{body}</View>
+      <View style={[styles.stack, { gap }, brand ? { marginTop: overlap ? -overlap : space.lg } : null]}>{body}</View>
     </Animated.ScrollView>
   ) : (
     <View style={[styles.flex, styles.content, { paddingTop: top }]}>
@@ -464,12 +510,13 @@ const styles = StyleSheet.create({
   rowValue: { fontSize: 22, lineHeight: 26 },
   well: { alignItems: "center", justifyContent: "center" },
   divider: { height: StyleSheet.hairlineWidth, backgroundColor: c.border },
+  groupShadow: { borderRadius: radius.lg, backgroundColor: c.surfaceRaised, ...shadow.card },
   group: {
     backgroundColor: c.surfaceRaised,
     borderRadius: radius.lg,
     overflow: "hidden",
   },
-  groupHead: { flexDirection: "row", alignItems: "center", marginBottom: space.sm, marginHorizontal: space.xs, gap: space.sm },
+  groupHead: { flexDirection: "row", alignItems: "center", marginBottom: space.sm + 2, marginHorizontal: 2, gap: space.sm },
   stat: { flex: 1, gap: 2 },
   statFigure: { flexDirection: "row", alignItems: "baseline", gap: 4 },
   statUnit: { marginBottom: 2 },
@@ -499,6 +546,13 @@ const styles = StyleSheet.create({
   headerRow: { flexDirection: "row", alignItems: "flex-end", gap: space.md },
   bar: { position: "absolute", top: 0, left: 0, right: 0 },
   barBg: { backgroundColor: c.surface, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: c.border },
+  barBgBrand: { backgroundColor: c.hero },
+  // The back button sits in a white disc, so it is found at once on a map,
+  // a photo or the page - and on the hero it is the hero's own lighter blue.
+  back: { borderRadius: 22, backgroundColor: c.surfaceRaised, ...shadow.card },
+  backOnHero: { borderRadius: 22, backgroundColor: c.heroRaised },
+  brandBleed: { marginHorizontal: -space.lg },
+  brandHead: { gap: space.lg },
   barRow: { flex: 1, flexDirection: "row", alignItems: "center", paddingHorizontal: space.sm },
   barSide: { width: 44 },
   barTitle: { flex: 1, alignItems: "center" },

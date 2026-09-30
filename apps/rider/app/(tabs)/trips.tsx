@@ -11,6 +11,7 @@ import {
   Screen,
   SkeletonRows,
   Txt,
+  c,
   money,
   space,
   type ChipTone,
@@ -18,6 +19,7 @@ import {
 import { listPlannedRides, listTrips, whenLabel, type PlannedRide, tripTime, type TripHistoryItem } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 function dayKey(iso: string): string {
   const d = new Date(iso);
@@ -42,6 +44,7 @@ const STATUS: Record<string, { label: string; tone: ChipTone }> = {
 };
 
 export default function Trips() {
+  useLightStatusBar();
   const { riderId } = useSession();
   const [trips, setTrips] = useState<TripHistoryItem[] | null>(null);
   const [planned, setPlanned] = useState<PlannedRide[]>([]);
@@ -90,7 +93,39 @@ export default function Trips() {
     ) : null;
 
   return (
-    <Screen title="Trips" gap={space.lg}>
+    <Screen
+      title="Trips"
+      brand
+      gap={space.lg}
+      hero={
+        trips && trips.length > 0 ? (
+          <View style={styles.figures}>
+            <View>
+              <Txt v="display" tone="onHero" tabularNums>
+                {trips.filter((t) => t.state === "completed").length}
+              </Txt>
+              <Txt v="label" tone="onHeroMuted">
+                trips completed
+              </Txt>
+            </View>
+            <View style={styles.rule} />
+            <View>
+              <View style={styles.money}>
+                <Txt v="display" tone="light" tabularNums>
+                  {money(trips.filter((t) => t.state === "completed").reduce((sum, t) => sum + (t.fareRwf ?? 0), 0))}
+                </Txt>
+                <Txt v="label" tone="onHeroMuted">
+                  RWF
+                </Txt>
+              </View>
+              <Txt v="label" tone="onHeroMuted">
+                in fares collected
+              </Txt>
+            </View>
+          </View>
+        ) : undefined
+      }
+    >
       {bookedForYou}
       {trips === null ? (
         <SkeletonRows key="loading" count={4} />
@@ -121,7 +156,7 @@ export default function Trips() {
 }
 
 function TripItem({ trip }: { readonly trip: TripHistoryItem }) {
-  const time = new Date(tripTime(trip)).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+  const time = new Date(tripTime(trip)).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
   const done = trip.state === "completed";
   const status = STATUS[trip.state] ?? { label: "Ended", tone: "neutral" as ChipTone };
   return (
@@ -155,6 +190,9 @@ function TripItem({ trip }: { readonly trip: TripHistoryItem }) {
 }
 
 const styles = StyleSheet.create({
+  figures: { flexDirection: "row", alignItems: "flex-end", gap: space.lg },
+  rule: { width: 1, alignSelf: "stretch", backgroundColor: c.heroRaised },
+  money: { flexDirection: "row", alignItems: "baseline", gap: 6 },
   note: { paddingHorizontal: space.md, paddingBottom: space.md },
   item: { flexDirection: "row", alignItems: "center", gap: space.md, paddingHorizontal: space.md, paddingVertical: space.sm + 2 },
   time: { width: 48 },

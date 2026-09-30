@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Linking, ScrollView, Share, StyleSheet, View, useWindowDimensions } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import {
@@ -11,6 +12,7 @@ import {
   Swap,
   Txt,
   VEHICLE_NAME,
+  VehicleArt,
   VehicleGlyph,
   VestPatch,
   c,
@@ -21,6 +23,7 @@ import {
   type MapMarker,
   type VehicleKind,
   ChatSheet,
+  ReasonSheet,
 } from "@nova/kit";
 import {
   EMERGENCY_NUMBER,
@@ -59,6 +62,10 @@ import {
   type TripTotal,
   type WaitStatus,
   QUICK_REPLIES,
+  ridersNearby,
+  getTripEvents,
+  type NearbyRiders,
+  type TripEvent,
 } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { goBack } from "../src/lib/nav";
@@ -148,6 +155,9 @@ export default function Ride() {
   const [paperH, onPaperLayout] = useSettledHeight(420);
   const [riderSheet, setRiderSheet] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
+  const [nearby, setNearby] = useState<NearbyRiders[] | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [events, setEvents] = useState<TripEvent[]>([]);
   const sheetScroll = useRef<ScrollView>(null);
   const { userId } = useSession();
   const overlay = useOverlay();
@@ -391,15 +401,7 @@ export default function Ride() {
   };
 
   const cancel = () => {
-    if (!trip) return;
-    overlay.actions({
-      title: "Cancel this trip?",
-      message: trip.riderId
-        ? `${rider?.firstName ?? "Your rider"} is already on the way to you. Tell us why, so we can put it right.`
-        : "We'll stop looking for a rider. Tell us why.",
-      options: PASSENGER_CANCEL_REASONS.map((r) => ({ label: r.label, icon: r.icon, tone: "danger" as const, onPress: () => void cancelWith(r.label) })),
-      cancelLabel: "Keep my ride",
-    });
+    if (trip) setCancelOpen(true);
   };
 
   const share = async () => {
@@ -464,13 +466,43 @@ export default function Ride() {
   // ---- map -------------------------------------------------------------------------
   const from = points?.pickup ?? pickup;
   const to = points?.dropoff ?? dropoff;
+  const searching = trip?.state === "requested" || trip?.state === "offered";
+
+  // The trip's steps, re-read as it moves on, for the times on the tracker.
+  useEffect(() => {
+    if (!trip) return;
+    let active = true;
+    getTripEvents(supabase, trip.id)
+      .then((e) => active && setEvents(e))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [trip?.id, trip?.state]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // While choosing, how far the closest free rider of each kind is.
+  useEffect(() => {
+    if (trip || !from) return;
+    let active = true;
+    ridersNearby(supabase, from)
+      .then((n) => active && setNearby(n))
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [trip === null, from?.lat, from?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
   const markers = useMemo(() => {
     const m: MapMarker[] = [];
-    if (from) m.push({ id: "pickup", at: from, kind: trip ? "pickup" : "me", tag: trip ? "Pickup" : undefined });
+    // While a rider is being found, the pickup sends out the radar.
+    if (from && searching) m.push({ id: "radar", at: from, kind: "radar" });
+    // The pickup says how long until the rider is there, while they are coming.
+    const coming = trip?.state === "accepted" && riderAt?.etaSeconds;
+    const pickupTag = coming ? `Pickup, ${Math.max(1, Math.round((riderAt?.etaSeconds ?? 60) / 60))} min` : "Pickup";
+    if (from) m.push({ id: "pickup", at: from, kind: trip ? "pickup" : "me", tag: trip ? pickupTag : undefined });
     if (to) m.push({ id: "dropoff", at: to, kind: "dropoff", tag: trip ? undefined : dropLabel });
     if (riderAt) m.push({ id: "rider", at: riderAt, kind: "rider", tag: rider?.vestNumber ?? "" });
     return m;
-  }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel, searching, trip?.state, riderAt?.etaSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- sheet ---------------------------------------------------------------------------
   // Each stage is its own panel. When the stage changes, the old panel fades
@@ -518,6 +550,7 @@ export default function Ride() {
         error={pickup ? error : "We need your location to send a rider. Turn on location and try again."}
         canBook={!!pickup}
         onBook={book}
+        nearby={nearby}
       />
     );
   } else if (trip.state === "requested" || trip.state === "offered") {
@@ -540,6 +573,7 @@ export default function Ride() {
         onSos={sos}
         onCancel={cancel}
         onRider={() => setRiderSheet(true)}
+        events={events}
       />
     );
   } else if (trip.state === "completed") {
@@ -612,6 +646,25 @@ export default function Ride() {
         open={live && !!trip?.riderId}
       />
 
+      <ReasonSheet
+        visible={cancelOpen}
+        onClose={() => setCancelOpen(false)}
+        title="Cancel this trip?"
+        message={
+          trip?.riderId
+            ? `${rider?.firstName ?? "Your rider"} is already on the way to you. Tell us why, so we can put it right.`
+            : "We'll stop looking for a rider. Tell us why."
+        }
+        reasons={PASSENGER_CANCEL_REASONS}
+        confirmLabel="Cancel trip"
+        keepLabel="Keep my ride"
+        busy={busy}
+        onConfirm={(reason) => {
+          setCancelOpen(false);
+          void cancelWith(reason);
+        }}
+      />
+
       <ModalSheet visible={riderSheet && !!rider} onClose={() => setRiderSheet(false)}>
         {rider ? (
           <View style={styles.profile}>
@@ -619,27 +672,65 @@ export default function Ride() {
               {rider.vestNumber ? <VestPatch value={rider.vestNumber} size="xl" label={`Vest ${rider.vestNumber}`} /> : null}
               <View style={styles.flex}>
                 <Txt v="title">{rider.firstName}</Txt>
-                <View style={styles.profileMeta}>
-                  <VehicleGlyph kind={rider.vehicleClass} size={18} colour={c.textMuted} />
-                  <Txt v="body" tone="muted">
-                    {VEHICLE_NAME[rider.vehicleClass as VehicleKind] ?? "Vehicle"}
-                    {rider.plate ? `, ${rider.plate}` : ""}
-                  </Txt>
-                </View>
                 {rider.rating ? (
+                  <View style={styles.ratingPill}>
+                    <Ionicons name="star" size={13} color={c.onHighlight} />
+                    <Txt v="label" tone="onHighlight" style={styles.ratingText}>
+                      {rider.rating.toFixed(1)}
+                    </Txt>
+                    <Txt v="label" tone="onHighlight">
+                      from passengers
+                    </Txt>
+                  </View>
+                ) : (
                   <Txt v="label" tone="muted">
-                    Rated {rider.rating.toFixed(1)} out of 5 by passengers
+                    New to Nova
                   </Txt>
+                )}
+              </View>
+            </View>
+
+            {/* The vehicle as it looks, with the plate set like a plate. */}
+            <View style={styles.vehicleCard}>
+              <VehicleArt kind={rider.vehicleClass} size={96} />
+              <View style={styles.flex}>
+                <Txt v="section">{VEHICLE_NAME[rider.vehicleClass as VehicleKind] ?? "Vehicle"}</Txt>
+                <Txt v="caption" tone="muted">
+                  Nova company vehicle
+                </Txt>
+                {rider.plate ? (
+                  <View style={styles.plateBig}>
+                    <Txt v="bodyStrong" style={styles.plateBigText}>
+                      {rider.plate}
+                    </Txt>
+                  </View>
                 ) : null}
               </View>
             </View>
-            <View style={styles.check}>
-              <Txt v="bodyStrong">Before you get on</Txt>
-              <Txt v="label" tone="muted">
-                The vest number and the plate must match what you see here. Your rider can't start the trip until you give them your PIN.
-              </Txt>
+
+            <View style={styles.checks}>
+              <Txt v="section">Before you get on</Txt>
+              {[
+                { icon: "shirt" as const, text: rider.vestNumber ? `The vest says ${rider.vestNumber}` : "The vest number matches this screen" },
+                { icon: "card" as const, text: rider.plate ? `The plate is ${rider.plate}` : "The plate matches this screen" },
+                { icon: "keypad" as const, text: "Give your PIN to this rider only" },
+              ].map((x) => (
+                <View key={x.text} style={styles.checkRow}>
+                  <View style={styles.checkIcon}>
+                    <Ionicons name={x.icon} size={16} color={c.accent} />
+                  </View>
+                  <Txt v="body" style={styles.flex}>
+                    {x.text}
+                  </Txt>
+                  <Ionicons name="checkmark-circle" size={20} color={c.success} />
+                </View>
+              ))}
             </View>
-            <Button label="Call" icon="call" variant="secondary" onPress={() => { setRiderSheet(false); void call(); }} />
+
+            <View style={styles.sheetActions}>
+              <Button label="Message" icon="chatbubble" variant="secondary" style={styles.flex} onPress={() => { setRiderSheet(false); setChatOpen(true); }} />
+              <Button label="Call" icon="call" variant="secondary" style={styles.flex} onPress={() => { setRiderSheet(false); void call(); }} />
+            </View>
             <Button label="Report a problem" icon="flag" variant="quiet" compact onPress={() => { setRiderSheet(false); router.push({ pathname: "/report", params: { trip: trip?.id ?? "", to: trip?.dropoffLabel ?? "", kind: "complaint" } }); }} />
           </View>
         ) : null}
@@ -656,6 +747,32 @@ const styles = StyleSheet.create({
   back: { position: "absolute", left: space.md },
   profile: { gap: space.md },
   profileHead: { flexDirection: "row", alignItems: "center", gap: space.lg },
-  profileMeta: { flexDirection: "row", alignItems: "center", gap: 6 },
-  check: { gap: 4, padding: space.md, borderRadius: 16, backgroundColor: c.surfaceHigh },
+  ratingPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    alignSelf: "flex-start",
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: c.highlight,
+  },
+  ratingText: { fontWeight: "700" },
+  vehicleCard: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, borderRadius: 20, backgroundColor: c.tintBlue },
+  plateBig: {
+    alignSelf: "flex-start",
+    marginTop: space.sm,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: c.textStrong,
+    backgroundColor: c.surfaceRaised,
+  },
+  plateBigText: { letterSpacing: 1 },
+  checks: { gap: space.sm },
+  checkRow: { flexDirection: "row", alignItems: "center", gap: space.md },
+  checkIcon: { width: 32, height: 32, borderRadius: 10, backgroundColor: c.tintBlue, alignItems: "center", justifyContent: "center" },
+  sheetActions: { flexDirection: "row", gap: space.sm },
 });

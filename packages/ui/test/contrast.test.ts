@@ -113,6 +113,35 @@ describe("the shipped theme", () => {
  * The dark theme is not shipped, but a half-maintained one is worse than none:
  * the day somebody flips `theme` to it, every one of these has to already hold.
  */
+describe("the hero and the tiles", () => {
+  it("white type on the midnight hero clears AAA", () => {
+    expect(contrastRatio(theme.onHero, theme.hero)).toBeGreaterThanOrEqual(AAA);
+  });
+
+  it("mist, the hero's secondary type, still clears AA", () => {
+    expect(contrastRatio(theme.onHeroMuted, theme.hero)).toBeGreaterThanOrEqual(AA);
+  });
+
+  it("the yellow as type is only ever on midnight, where it clears AAA", () => {
+    expect(contrastRatio(theme.highlight, theme.hero)).toBeGreaterThanOrEqual(AAA);
+  });
+
+  it("white type on the hero's lifted chips and tracks is readable", () => {
+    expect(contrastRatio(theme.onHero, theme.heroRaised)).toBeGreaterThanOrEqual(AA);
+  });
+
+  it("the lifted blue is visible as a shape on the hero", () => {
+    expect(contrastRatio(theme.heroRaised, theme.hero)).toBeGreaterThan(1.1);
+  });
+
+  for (const tint of ["tintBlue", "tintYellow", "tintGreen", "tintAmber"] as const) {
+    it(`${tint} carries headings and body text`, () => {
+      expect(contrastRatio(theme.textStrong, theme[tint])).toBeGreaterThanOrEqual(AAA);
+      expect(contrastRatio(theme.text, theme[tint])).toBeGreaterThanOrEqual(AA);
+    });
+  }
+});
+
 describe("the dark theme, kept honest", () => {
   const cases: [keyof Theme, number][] = [
     ["text", AA],

@@ -13,6 +13,8 @@ export interface ChatLine {
   readonly body: string;
   readonly mine: boolean;
   readonly at: string;
+  /** For your own message: the other person has opened the thread since. */
+  readonly read?: boolean;
 }
 
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
@@ -71,6 +73,9 @@ export function ChatSheet({
           {lines.map((l, i) => {
             const prev = lines[i - 1];
             const first = !prev || prev.mine !== l.mine;
+            // "Seen" goes under the last of your own messages only, as in any
+            // messenger: every bubble saying it would be noise.
+            const lastMine = l.mine && !lines.slice(i + 1).some((x) => x.mine);
             return (
               <Enter key={l.id} i={0} style={[styles.row, l.mine ? styles.rowMine : styles.rowTheirs, first ? styles.rowFirst : null]}>
                 <View style={[styles.bubble, l.mine ? styles.bubbleMine : styles.bubbleTheirs]}>
@@ -80,6 +85,7 @@ export function ChatSheet({
                 </View>
                 <Txt v="caption" tone="muted" style={styles.time}>
                   {clock(l.at)}
+                  {lastMine && l.read ? "  Seen" : ""}
                 </Txt>
               </Enter>
             );

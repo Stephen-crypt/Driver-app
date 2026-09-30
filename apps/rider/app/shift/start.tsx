@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from "react-native-reanimated";
 import { goBack } from "../../src/lib/nav";
-import { Banner, Button, ChoiceRow, Divider, Group, Screen, Txt, VehicleTile, VestPatch, c, ease, notify, radius, space, useOverlay } from "@nova/kit";
+import { Banner, Button, ChoiceRow, Divider, Group, Screen, Txt, VehicleArt, VestPatch, c, ease, notify, radius, space, useOverlay } from "@nova/kit";
 import { SHIFT_CHECKS } from "@nova/core";
 import { getRiderProfile, startShift, type RiderProfile } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
@@ -74,7 +74,7 @@ export default function StartShift() {
     >
       {v ? (
         <View key="vehicle" style={styles.vehicle}>
-          <VehicleTile kind={v.vehicleClass} size={52} onGrey />
+          <VehicleArt kind={v.vehicleClass} size={64} />
           <View style={styles.flex}>
             <Txt v="figure">{v.plate}</Txt>
             <Txt v="label" tone="muted">

@@ -6,6 +6,7 @@ import { Ionicons } from "@expo/vector-icons";
 import {
   Button,
   Chip,
+  HeroPattern,
   CountdownRing,
   NovaMap,
   Odometer,
@@ -141,7 +142,10 @@ export function OfferSheet({
         <Animated.View style={[styles.panel, panel]}>
           <Paper>
             <View style={styles.content}>
+              {/* The fare on the night, in the yellow - the same way the
+                  passenger sees what to pay - with the clock beside it. */}
               <View style={styles.head}>
+                <HeroPattern />
                 <View style={styles.flex}>
                   {/* A booked ride is released ten minutes early. Without the
                       time, a rider would race to a passenger who is still
@@ -149,22 +153,22 @@ export function OfferSheet({
                   {offer.scheduledFor ? (
                     <Chip label={`Booked for ${whenLabel(offer.scheduledFor)}`} tone="warn" icon="calendar" />
                   ) : (
-                    <Txt v="label" tone="muted">
+                    <Txt v="label" tone="onHeroMuted">
                       Cash fare
                     </Txt>
                   )}
                   <View style={styles.fare}>
                     {offer.fareRwf === null ? (
-                      <Txt v="hero">-</Txt>
+                      <Txt v="hero" tone="light">-</Txt>
                     ) : (
-                      <Odometer value={money(offer.fareRwf)} v="hero" delay={140} accessibilityLabel={`${money(offer.fareRwf)} Rwandan francs`} />
+                      <Odometer value={money(offer.fareRwf)} v="hero" tone="light" delay={140} accessibilityLabel={`${money(offer.fareRwf)} Rwandan francs`} />
                     )}
-                    <Txt v="heading" tone="muted" style={styles.unit}>
+                    <Txt v="heading" tone="onHeroMuted" style={styles.unit}>
                       RWF
                     </Txt>
                   </View>
                 </View>
-                <CountdownRing total={OFFER_SECONDS} remaining={left} size={76} />
+                <CountdownRing total={OFFER_SECONDS} remaining={left} size={76} onHero />
               </View>
 
               <RouteRail
@@ -251,7 +255,7 @@ const styles = StyleSheet.create({
   // Inside the paper, not on it: Paper lays its children out in an inner
   // frame that eases to their height, so a gap on the paper never reaches them.
   content: { gap: space.lg },
-  head: { flexDirection: "row", alignItems: "center", gap: space.md },
+  head: { flexDirection: "row", alignItems: "center", gap: space.md, padding: space.md, paddingVertical: space.md + 4, borderRadius: radius.lg, backgroundColor: c.hero, overflow: "hidden" },
   fare: { flexDirection: "row", alignItems: "baseline", gap: 6, marginTop: space.xs },
   unit: { marginBottom: 6 },
   buttons: { gap: space.xs },

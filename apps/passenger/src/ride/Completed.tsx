@@ -1,22 +1,19 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { StyleSheet, TextInput, View } from "react-native";
-import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import {
   Button,
   Chip,
   Enter,
   ImigongoBand,
+  MoodRating,
   Odometer,
-  Press,
   SuccessMark,
   Txt,
   ZigzagEdge,
   c,
-  ease,
   money,
   radius,
-  selection,
   space,
 } from "@nova/kit";
 import type { TripTotal } from "@nova/data";
@@ -63,13 +60,15 @@ export function Completed({
       </View>
 
       <View>
+        {/* What to pay, on the night, in the yellow: the number read across
+            the kerb while the cash is counted out. */}
         <View style={styles.receipt}>
-          <Txt v="label" tone="muted">
+          <Txt v="label" tone="onHeroMuted">
             Pay {riderName} in cash
           </Txt>
           <View style={styles.total}>
-            <Odometer value={money(pay)} v="hero" />
-            <Txt v="heading" tone="muted">
+            <Odometer value={money(pay)} v="hero" tone="onHero" />
+            <Txt v="heading" tone="onHeroMuted">
               RWF
             </Txt>
           </View>
@@ -79,13 +78,13 @@ export function Completed({
               <Line label="Waiting time" value={total.waitingChargeRwf} />
             </View>
           ) : (
-            <Txt v="caption" tone="muted">
+            <Txt v="caption" tone="onHeroMuted">
               The price you agreed before you set off.
             </Txt>
           )}
-          <ImigongoBand height={18} opacity={0.16} style={styles.band} />
+          <ImigongoBand height={18} opacity={0.9} colour={c.highlight} style={styles.band} />
         </View>
-        <ZigzagEdge colour={c.surfaceHigh} />
+        <ZigzagEdge colour={c.hero} />
       </View>
 
       {rated ? (
@@ -95,20 +94,8 @@ export function Completed({
         </Enter>
       ) : (
         <View style={styles.stack}>
-          <Txt v="heading">How was {riderName}?</Txt>
-          <View style={styles.stars} accessibilityRole="radiogroup" accessibilityLabel="Rating">
-            {[1, 2, 3, 4, 5].map((n) => (
-              <Star
-                key={n}
-                n={n}
-                on={n <= stars}
-                onPress={() => {
-                  selection();
-                  setStars(n);
-                }}
-              />
-            ))}
-          </View>
+          <Txt v="section">How was your ride with {riderName}?</Txt>
+          <MoodRating value={stars} onChange={setStars} />
           {stars >= 4 ? (
             <Enter i={0} style={styles.tags}>
               {PRAISE.map((t) => {
@@ -151,30 +138,13 @@ export function Completed({
   );
 }
 
-/** A star that gives a small, springy nod when it turns on. */
-function Star({ n, on, onPress }: { n: number; on: boolean; onPress: () => void }) {
-  const s = useSharedValue(1);
-  useEffect(() => {
-    if (!on) return;
-    s.set(withSequence(withTiming(1.22, { duration: 110, easing: ease.out }), withTiming(1, { duration: 200, easing: ease.out })));
-  }, [on]); // eslint-disable-line react-hooks/exhaustive-deps
-  const a = useAnimatedStyle(() => ({ transform: [{ scale: s.get() }] }));
-  return (
-    <Press onPress={onPress} scaleTo={0.9} hitSlop={6} accessibilityRole="radio" accessibilityState={{ selected: on }} accessibilityLabel={`${n} star${n > 1 ? "s" : ""}`}>
-      <Animated.View style={a}>
-        <Ionicons name={on ? "star" : "star-outline"} size={40} color={on ? c.warning : c.textMuted} />
-      </Animated.View>
-    </Press>
-  );
-}
-
 function Line({ label, value }: { readonly label: string; readonly value: number }) {
   return (
     <View style={styles.line}>
-      <Txt v="label" tone="muted">
+      <Txt v="label" tone="onHeroMuted">
         {label}
       </Txt>
-      <Txt v="label" tabularNums>
+      <Txt v="label" tone="onHero" tabularNums>
         {money(value)}
       </Txt>
     </View>
@@ -186,7 +156,7 @@ const styles = StyleSheet.create({
   stack: { gap: space.md },
   arrived: { flexDirection: "row", alignItems: "center", gap: space.md },
   receipt: {
-    backgroundColor: c.surfaceHigh,
+    backgroundColor: c.hero,
     borderTopLeftRadius: radius.lg,
     borderTopRightRadius: radius.lg,
     paddingHorizontal: space.md,
@@ -198,7 +168,6 @@ const styles = StyleSheet.create({
   lines: { marginTop: space.xs, gap: 2 },
   line: { flexDirection: "row", justifyContent: "space-between" },
   thanks: { flexDirection: "row", alignItems: "center", gap: space.sm },
-  stars: { flexDirection: "row", gap: space.sm },
   tags: { flexDirection: "row", flexWrap: "wrap", gap: space.sm },
   input: {
     minHeight: 72,

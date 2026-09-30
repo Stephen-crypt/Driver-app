@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Button, Enter, HillScene, LiveDot, StepTrack, Txt, c, space, useOverlay } from "@nova/kit";
+import { AuthNote, AuthScreen, Button, LiveDot, ReviewScene, Timeline, Txt, c, radius, shadow, space, useOverlay } from "@nova/kit";
 import { supabase } from "../../src/lib/supabase";
 import { SIGNUP_STEPS } from "../../src/onboarding/steps";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 type Verification = "submitted" | "verified" | "rejected" | string;
 
@@ -12,9 +12,9 @@ type Verification = "submitted" | "verified" | "rejected" | string;
 const POLL_MS = 5000;
 
 export default function PendingScreen() {
+  useLightStatusBar();
   const router = useRouter();
   const overlay = useOverlay();
-  const insets = useSafeAreaInsets();
   const [status, setStatus] = useState<Verification | null>(null);
   const [checking, setChecking] = useState(false);
 
@@ -53,51 +53,52 @@ export default function PendingScreen() {
   const rejected = status === "rejected";
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.lg }]}>
-      <StepTrack steps={SIGNUP_STEPS} current={rejected ? 3 : 4} />
-
-      {/* A rider lands here and then waits, possibly for hours. A screen of two
-          grey paragraphs reads as a dead end; the scene gives it a state. */}
-      <View style={styles.middle}>
-        <Enter i={0}>
-          <HillScene icon={rejected ? "alert-circle" : "hourglass"} width={220} />
-        </Enter>
-        <Enter i={1}>
-          <Txt v="title" align="center">
-            {rejected ? "Something needs fixing" : "We're checking your documents"}
-          </Txt>
-        </Enter>
-        <Enter i={2}>
-          <Txt v="body" tone="muted" align="center">
-            {rejected
-              ? "One or more of your documents was not accepted. Each one says why, so you know what to send again."
-              : "This usually takes a few hours. This screen moves on by itself the moment you're approved."}
-          </Txt>
-        </Enter>
-        {!rejected ? (
-          <Enter i={3} style={styles.live}>
-            <LiveDot tone="accent" />
-            <Txt v="caption" tone="muted">
-              Checking every few seconds
-            </Txt>
-          </Enter>
-        ) : null}
-      </View>
-
-      <Enter i={4} style={styles.footer}>
-        {rejected ? (
-          <Button label="See my documents" onPress={() => router.replace("/onboarding/documents")} />
+    <AuthScreen
+      scene={<ReviewScene rejected={rejected} />}
+      title={rejected ? "Something needs fixing" : "We're checking your documents"}
+      subtitle={
+        rejected
+          ? "One or more of your documents was not accepted. Each one says why, so you know what to send again."
+          : "This usually takes a few hours. This screen moves on by itself the moment you're approved."
+      }
+      step={rejected ? 3 : 4}
+      steps={SIGNUP_STEPS.length}
+      footer={
+        rejected ? (
+          <Button label="See my documents" variant="highlight" onPress={() => router.replace("/onboarding/documents")} />
         ) : (
           <Button label="Check now" variant="secondary" onPress={() => void check(true)} loading={checking} />
-        )}
-      </Enter>
-    </View>
+        )
+      }
+    >
+      {/* A rider lands here and then waits, possibly for hours. The timeline
+          shows how far they have come and what is left: one step. */}
+      <View style={styles.card}>
+        <Timeline
+          items={[
+            { label: "Phone number checked", time: "" },
+            { label: "Details sent", time: "" },
+            { label: "Documents uploaded", time: "", ...(rejected ? { tone: "bad" as const, note: "Some need sending again" } : {}) },
+            rejected
+              ? { label: "Fleet office review", time: "", tone: "pending" as const }
+              : { label: "Fleet office review", time: "", tone: "now" as const, note: "Usually a few hours" },
+          ]}
+        />
+      </View>
+      {!rejected ? (
+        <View style={styles.live}>
+          <LiveDot tone="accent" />
+          <Txt v="caption" tone="muted">
+            Checking every few seconds
+          </Txt>
+        </View>
+      ) : null}
+      <AuthNote icon="notifications">You can close the app. Open it again any time and it picks up where you are.</AuthNote>
+    </AuthScreen>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: c.surface, paddingHorizontal: space.lg },
-  middle: { flex: 1, alignItems: "center", justifyContent: "center", gap: space.md },
-  live: { flexDirection: "row", alignItems: "center", gap: space.sm, marginTop: space.sm },
-  footer: { gap: space.sm },
+  card: { padding: space.md, borderRadius: radius.lg, backgroundColor: c.surfaceRaised, ...shadow.card },
+  live: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: 2 },
 });

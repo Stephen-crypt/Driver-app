@@ -1,18 +1,19 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { StyleSheet, View } from "react-native";
 import { useFocusEffect, useRouter } from "expo-router";
 import {
+  Button,
   Divider,
   EmptyState,
   Group,
+  Odometer,
   Row,
   Screen,
+  Segmented,
   SkeletonRows,
-  Stat,
-  StatRow,
+  Txt,
   c,
   money,
-  radius,
   space,
   useOverlay,
 } from "@nova/kit";
@@ -33,6 +34,8 @@ import {
 } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
+import { TripCard } from "../../src/activity/TripCard";
+import { useLightStatusBar } from "../../src/lib/statusBar";
 
 function dayKey(iso: string): string {
   const d = new Date(iso);
@@ -44,9 +47,10 @@ function dayKey(iso: string): string {
   return d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
 }
 
-const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
+const time = (iso: string) => new Date(iso).toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
 
 export default function Activity() {
+  useLightStatusBar();
   const router = useRouter();
   const overlay = useOverlay();
   const { userId } = useSession();
@@ -54,6 +58,7 @@ export default function Activity() {
   const [upcoming, setUpcoming] = useState<UpcomingRide[]>([]);
   const [schedules, setSchedules] = useState<RecurringSchedule[]>([]);
   const [reload, setReload] = useState(0);
+  const [tab, setTab] = useState<"upcoming" | "past" | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -146,21 +151,75 @@ export default function Activity() {
   }
 
   const nothing = trips !== null && trips.length === 0 && upcoming.length === 0 && schedules.length === 0;
+  const booked = upcoming.length + schedules.length;
+
+  // Open on what is coming, when anything is; otherwise on what has been.
+  useEffect(() => {
+    if (tab === null && trips !== null) setTab(booked > 0 ? "upcoming" : "past");
+  }, [trips, booked, tab]);
+  const showing = tab ?? "past";
+
+  const hero =
+    trips !== null && !nothing ? (
+      <View style={styles.hero}>
+        <View style={styles.figures}>
+          <View style={styles.figure}>
+            <Odometer value={String(completed.length)} v="display" tone="onHero" />
+            <Txt v="label" tone="onHeroMuted">
+              {completed.length === 1 ? "trip taken" : "trips taken"}
+            </Txt>
+          </View>
+          <View style={styles.rule} />
+          <View style={styles.figure}>
+            <View style={styles.money}>
+              <Odometer value={money(spent)} v="display" tone="onHero" />
+              <Txt v="label" tone="onHeroMuted">
+                RWF
+              </Txt>
+            </View>
+            <Txt v="label" tone="onHeroMuted">
+              spent on rides
+            </Txt>
+          </View>
+        </View>
+        <Segmented
+          onHero
+          label="Which trips"
+          value={showing}
+          onChange={setTab}
+          options={[
+            { value: "upcoming", label: booked > 0 ? `Upcoming (${booked})` : "Upcoming" },
+            { value: "past", label: "Past" },
+          ]}
+        />
+      </View>
+    ) : null;
 
   return (
-    <Screen title="Activity">
+    <Screen title="Your trips" brand hero={hero} gap={space.lg}>
       {trips === null ? (
         <SkeletonRows count={5} />
       ) : nothing ? (
         <EmptyState
           icon="navigate"
+          art={require("../../assets/empty-trips.png")}
           title="No trips yet"
           body="Your rides will show up here, with what you paid and who took you."
           action={{ label: "Book a ride", onPress: () => router.push("/") }}
         />
       ) : (
         <View style={styles.stack}>
-          {schedules.length > 0 ? (
+          {showing === "upcoming" && booked === 0 ? (
+            <View style={styles.none}>
+              <Txt v="section">Nothing booked</Txt>
+              <Txt v="body" tone="muted">
+                Book a ride for later, or set up a trip you take every week. The price is fixed when you book.
+              </Txt>
+              <Button label="Book ahead" icon="calendar" variant="highlight" onPress={() => router.push({ pathname: "/destination", params: { mode: "later" } })} />
+            </View>
+          ) : null}
+
+          {showing === "upcoming" && schedules.length > 0 ? (
             <Group title="Regular trips">
               {schedules.map((s, i) => (
                 <View key={s.id}>
@@ -178,7 +237,7 @@ export default function Activity() {
             </Group>
           ) : null}
 
-          {upcoming.length > 0 ? (
+          {showing === "upcoming" && upcoming.length > 0 ? (
             <Group title="Coming up">
               {upcoming.map((r, i) => (
                 <View key={r.id}>
@@ -200,41 +259,33 @@ export default function Activity() {
             </Group>
           ) : null}
 
-          {completed.length > 0 ? (
-            <View style={styles.summary}>
-              <StatRow>
-                <Stat label={completed.length === 1 ? "trip taken" : "trips taken"} value={String(completed.length)} roll />
-                <Stat label="RWF spent" value={money(spent)} roll />
-              </StatRow>
+          {showing === "past" && groups.length === 0 ? (
+            <View style={styles.none}>
+              <Txt v="section">No trips taken yet</Txt>
+              <Txt v="body" tone="muted">
+                Your rides will show up here, with what you paid and who took you.
+              </Txt>
             </View>
           ) : null}
 
-          {groups.map((g) => (
-            <Group key={g.day} title={g.day}>
-              {g.items.map((t, i) => {
-                const s = statusFor(t.state);
-                const done = t.state === "completed";
-                const going = isTripLive(t.state);
-                return (
-                  <View key={t.id}>
-                    {i > 0 ? <Divider inset={70} /> : null}
-                    <Row
-                      title={t.dropoffLabel}
-                      subtitle={done ? `From ${t.pickupLabel}` : `${s.label}\nFrom ${t.pickupLabel}`}
-                      icon={going ? "navigate" : done ? "checkmark" : "close"}
-                      iconTone={going ? "accent" : done ? "good" : "neutral"}
-                      value={done && t.fareRwf !== null ? money(t.fareRwf) : undefined}
-                      valueNote={time(tripTime(t))}
-                      onPress={() =>
-                        going
-                          ? router.push({ pathname: "/ride", params: { trip: t.id } })
-                          : router.push({ pathname: "/trip/[id]", params: { id: t.id } })
-                      }
-                    />
-                  </View>
-                );
-              })}
-            </Group>
+          {(showing === "past" ? groups : []).map((g) => (
+            <View key={g.day} style={styles.day}>
+              <Txt v="section" style={styles.dayTitle}>
+                {g.day}
+              </Txt>
+              {g.items.map((t) => (
+                <TripCard
+                  key={t.id}
+                  trip={t}
+                  onOpen={() =>
+                    isTripLive(t.state)
+                      ? router.push({ pathname: "/ride", params: { trip: t.id } })
+                      : router.push({ pathname: "/trip/[id]", params: { id: t.id } })
+                  }
+                  onAgain={() => router.push({ pathname: "/destination", params: { q: t.dropoffLabel } })}
+                />
+              ))}
+            </View>
           ))}
         </View>
       )}
@@ -244,5 +295,12 @@ export default function Activity() {
 
 const styles = StyleSheet.create({
   stack: { gap: space.lg },
-  summary: { backgroundColor: c.surfaceRaised, borderRadius: radius.lg, padding: space.md },
+  hero: { gap: space.lg },
+  figures: { flexDirection: "row", alignItems: "flex-end", gap: space.lg },
+  figure: { gap: 2 },
+  money: { flexDirection: "row", alignItems: "baseline", gap: 6 },
+  rule: { width: 1, alignSelf: "stretch", backgroundColor: c.heroRaised },
+  none: { gap: space.sm, paddingTop: space.sm },
+  day: { gap: space.sm + 2 },
+  dayTitle: { paddingHorizontal: 2 },
 });

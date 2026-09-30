@@ -63,6 +63,8 @@ export const type = StyleSheet.create({
   title: { fontFamily: font.num, fontSize: 28, lineHeight: 34, letterSpacing: -0.6 },
   /** Sheet and card titles, one step down from a screen title. */
   h2: { fontFamily: font.num, fontSize: 22, lineHeight: 28, letterSpacing: -0.4 },
+  /** A section's name over its cards: "What do you need today?". */
+  section: { fontFamily: font.num, fontSize: 17, lineHeight: 22, letterSpacing: -0.2 },
   /** A figure inside a row or a stat. */
   figure: { fontFamily: font.num, fontSize: 22, lineHeight: 28, letterSpacing: -0.3 },
   heading: { fontFamily: font.numMedium, fontSize: 18, lineHeight: 24 },
@@ -77,19 +79,37 @@ export type TypeVariant = keyof typeof type;
 /** Numbers that tick must not jitter sideways as their digits change. */
 export const tabular = { fontVariant: ["tabular-nums" as const] };
 
+// Shadows are tinted midnight, not black: on the pale ground a black shadow
+// reads as dirt, a blue one as depth.
 export const shadow = {
   paper: {
-    shadowColor: "#0B0D12",
-    shadowOpacity: 0.1,
-    shadowRadius: 18,
-    shadowOffset: { width: 0, height: -6 },
-    elevation: 14,
+    shadowColor: "#0A2342",
+    shadowOpacity: 0.12,
+    shadowRadius: 24,
+    shadowOffset: { width: 0, height: -8 },
+    elevation: 16,
   },
   float: {
-    shadowColor: "#0B0D12",
-    shadowOpacity: 0.14,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
+    shadowColor: "#0A2342",
+    shadowOpacity: 0.16,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 6,
+  },
+  /** A card on the page ground. */
+  card: {
+    shadowColor: "#0A2342",
+    shadowOpacity: 0.07,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 3,
+  },
+  /** The yellow action button: it glows a little, like the light it is. */
+  glow: {
+    shadowColor: "#C99A00",
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
     elevation: 6,
   },
 } as const;

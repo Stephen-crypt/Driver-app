@@ -10,6 +10,7 @@ import {
   Enter,
   Field,
   FloatButton,
+  Hero,
   NovaMap,
   Group,
   IconButton,
@@ -22,15 +23,17 @@ import {
   c,
   font,
   radius,
+  shadow,
   space,
   useOverlay,
   type LatLng,
 } from "@nova/kit";
-import { listSavedPlaces, savePlace, searchLandmarks, type Place, type SavedPlace } from "@nova/data";
+import { distanceBetween, distanceLabel, landmarksNear, listSavedPlaces, savePlace, searchLandmarks, type NearPlace, type Place, type SavedPlace } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
 import * as loc from "../src/lib/location";
+import { useLightStatusBar } from "../src/lib/statusBar";
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 
@@ -44,6 +47,7 @@ function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
  * always asks how to find you.
  */
 export default function Destination() {
+  useLightStatusBar();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const overlay = useOverlay();
@@ -63,6 +67,7 @@ export default function Destination() {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState<SavedPlace[]>([]);
+  const [near, setNear] = useState<NearPlace[]>([]);
   // Account opens this straight onto the map to save a new place.
   const [mapMode, setMapMode] = useState(one(params.map) === "1");
   const [pin, setPin] = useState<LatLng | null>(null);
@@ -116,6 +121,13 @@ export default function Destination() {
 
   const here: LatLng | null =
     pickup.plat && pickup.plng ? { lat: Number(pickup.plat), lng: Number(pickup.plng) } : null;
+
+  // Before they type: the landmarks closest to them, which is usually where
+  // a short trip goes.
+  useEffect(() => {
+    if (!here) return;
+    landmarksNear(supabase, here, 5).then(setNear).catch(() => {});
+  }, [pickup.plat, pickup.plng]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (mapMode) {
     return (
@@ -199,9 +211,16 @@ export default function Destination() {
   const showingResults = query.trim().length > 0;
 
   return (
-    <View style={[styles.root, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
-        <IconButton icon="arrow-back" label="Back" onPress={() => goBack(router)} size={44} />
+    <View style={styles.root}>
+      <Hero style={styles.hero}>
+        <View style={styles.heroTop}>
+          <View style={styles.backDisc}>
+            <IconButton icon="arrow-back" label="Back" onPress={() => goBack(router)} size={44} tone="onDark" />
+          </View>
+          <Txt v="section" tone="onHero">
+            {mode === "later" ? "Book ahead" : mode === "regular" ? "Regular trip" : "Plan your ride"}
+          </Txt>
+        </View>
         {/* The same route drawing as everywhere else: the ring is where you
             are, the square is what you are typing. */}
         <View style={styles.route}>
@@ -233,7 +252,7 @@ export default function Destination() {
             </View>
           </View>
         </View>
-      </View>
+      </Hero>
 
       <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.list}>
         {error ? <Banner tone="bad" icon="alert-circle">{error}</Banner> : null}
@@ -241,7 +260,7 @@ export default function Destination() {
         <Enter i={0}>
           <Press onPress={() => setMapMode(true)} scaleTo={0.985} style={styles.mapRow} accessibilityRole="button" accessibilityLabel="Choose on the map">
             <View style={styles.mapIcon}>
-              <Ionicons name="map" size={19} color={c.onAccent} />
+              <Ionicons name="map" size={20} color={c.onHighlight} />
             </View>
             <View style={styles.flex}>
               <Txt v="bodyStrong">Choose on the map</Txt>
@@ -264,6 +283,26 @@ export default function Destination() {
                     subtitle={p.note ?? undefined}
                     icon={placeIcon(p.label)}
                     onPress={() => choose(p.lng, p.lat, p.label, p.note ?? undefined)}
+                  />
+                </View>
+              ))}
+            </Group>
+          </Enter>
+        ) : null}
+
+        {!showingResults && near.length > 0 ? (
+          <Enter i={2}>
+            <Group title="Close to you">
+              {near.map((p, i) => (
+                <View key={p.id}>
+                  {i > 0 ? <Divider inset={70} /> : null}
+                  <Row
+                    title={p.name}
+                    subtitle={p.sector ?? undefined}
+                    icon="navigate-circle"
+                    iconTone="neutral"
+                    valueNote={distanceLabel(p.distanceM)}
+                    onPress={() => choose(p.lng, p.lat, p.name)}
                   />
                 </View>
               ))}
@@ -302,6 +341,7 @@ export default function Destination() {
                       subtitle={p.sector ?? undefined}
                       icon="location"
                       iconTone="neutral"
+                      valueNote={here ? distanceLabel(distanceBetween(here, p)) : undefined}
                       onPress={() => choose(p.lng, p.lat, p.name)}
                     />
                   </Enter>
@@ -318,9 +358,10 @@ export default function Destination() {
 const styles = StyleSheet.create({
   flex: { flex: 1, minWidth: 0 },
   root: { flex: 1, backgroundColor: c.surface },
-  header: { flexDirection: "row", alignItems: "center", gap: space.xs, paddingHorizontal: space.sm, paddingRight: space.lg, paddingVertical: space.md },
+  hero: { paddingHorizontal: space.md, gap: space.md },
+  heroTop: { flexDirection: "row", alignItems: "center", gap: space.sm },
+  backDisc: { borderRadius: 22, backgroundColor: c.heroRaised },
   route: {
-    flex: 1,
     flexDirection: "row",
     gap: space.md,
     backgroundColor: c.surfaceRaised,
@@ -345,7 +386,7 @@ const styles = StyleSheet.create({
     // The card is the field; the browser's own focus box would sit inside it.
     ...(Platform.OS === "web" ? ({ outlineStyle: "none" } as object) : null),
   },
-  list: { paddingHorizontal: space.lg, paddingBottom: space.xxl, gap: space.lg },
+  list: { paddingHorizontal: space.lg, paddingTop: space.lg, paddingBottom: space.xxl, gap: space.lg },
   mapRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -353,12 +394,13 @@ const styles = StyleSheet.create({
     padding: space.md,
     borderRadius: radius.lg,
     backgroundColor: c.surfaceRaised,
+    ...shadow.card,
   },
   mapIcon: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: c.accent,
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: c.highlight,
     alignItems: "center",
     justifyContent: "center",
   },

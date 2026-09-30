@@ -8,7 +8,8 @@ export interface TimelineItem {
   /** A time, or "" for a step that has not happened. */
   readonly time: string;
   readonly note?: string;
-  readonly tone?: "done" | "bad" | "pending";
+  /** "now" is the step under way: lit yellow, the others still grey. */
+  readonly tone?: "done" | "bad" | "pending" | "now";
 }
 
 /**
@@ -23,14 +24,20 @@ export function Timeline({ items }: { readonly items: readonly TimelineItem[] })
       {items.map((it, i) => {
         const last = i === items.length - 1;
         const tone = it.tone ?? "done";
-        const colour = tone === "bad" ? c.danger : tone === "pending" ? c.border : c.success;
+        const colour = tone === "bad" ? c.danger : tone === "pending" ? c.border : tone === "now" ? c.highlight : c.success;
         return (
           <View key={`${it.label}-${i}`} style={styles.item} accessibilityLabel={`${it.label}${it.time ? `, ${it.time}` : ""}`}>
             <View style={styles.rail}>
               <View style={[styles.dot, { backgroundColor: colour }]}>
-                {tone === "bad" ? <Ionicons name="close" size={11} color={c.onAccent} /> : tone === "done" ? <Ionicons name="checkmark" size={11} color={c.onAccent} /> : null}
+                {tone === "bad" ? (
+                  <Ionicons name="close" size={11} color={c.onAccent} />
+                ) : tone === "done" ? (
+                  <Ionicons name="checkmark" size={11} color={c.onAccent} />
+                ) : tone === "now" ? (
+                  <Ionicons name="ellipsis-horizontal" size={11} color={c.onHighlight} />
+                ) : null}
               </View>
-              {!last ? <View style={[styles.line, { backgroundColor: tone === "pending" ? c.border : c.successSoft }]} /> : null}
+              {!last ? <View style={[styles.line, { backgroundColor: tone === "pending" || tone === "now" ? c.border : c.successSoft }]} /> : null}
             </View>
             <View style={[styles.text, !last && styles.textGap]}>
               <View style={styles.head}>

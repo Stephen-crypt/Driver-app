@@ -85,6 +85,13 @@ export async function registerDeviceToken(
   if (error) throw dataError(error.message);
 }
 
+/** Whether this trip already has the passenger's rating. */
+export async function isRated(client: NovaClient, tripId: string): Promise<boolean> {
+  const { count, error } = await client.from("trip_ratings").select("trip_id", { count: "exact", head: true }).eq("trip_id", tripId);
+  if (error) throw dataError(error.message);
+  return (count ?? 0) > 0;
+}
+
 export async function rateTrip(
   client: NovaClient,
   tripId: string,

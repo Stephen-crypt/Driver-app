@@ -38,6 +38,19 @@ export interface Theme {
   readonly origin: string;
   /** The drop-off end of a route. */
   readonly destination: string;
+  /**
+   * The header block that opens each main screen: midnight, the night the
+   * yellow is the light in. Type on it is white; secondary type is mist.
+   */
+  readonly hero: string;
+  readonly heroRaised: string;
+  readonly onHero: string;
+  readonly onHeroMuted: string;
+  /** Tile grounds, one per kind of thing. */
+  readonly tintBlue: string;
+  readonly tintYellow: string;
+  readonly tintGreen: string;
+  readonly tintAmber: string;
 }
 
 /**
@@ -73,6 +86,14 @@ export const lightTheme: Theme = {
   info: palette.info,
   origin: palette.midnight,
   destination: palette.green,
+  hero: palette.midnight,
+  heroRaised: palette.midnightLift,
+  onHero: palette.white,
+  onHeroMuted: palette.midnightMist,
+  tintBlue: palette.tintBlue,
+  tintYellow: palette.tintYellow,
+  tintGreen: palette.tintGreen,
+  tintAmber: palette.tintAmber,
 };
 
 /**
@@ -104,6 +125,14 @@ export const darkTheme: Theme = {
   info: "#93C5FD",
   origin: palette.yellowBright,
   destination: palette.greenBright,
+  hero: palette.nightRaised,
+  heroRaised: palette.nightSunken,
+  onHero: palette.white,
+  onHeroMuted: "#9AA2B1",
+  tintBlue: "#162238",
+  tintYellow: "#2A2410",
+  tintGreen: "#12281F",
+  tintAmber: "#2A2010",
 };
 
 /**
