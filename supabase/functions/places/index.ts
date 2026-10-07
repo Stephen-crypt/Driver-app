@@ -1,5 +1,6 @@
 // Place search beyond Nova's own landmarks, and a name for where a passenger
-// is standing. Geoapify answers both from OpenStreetMap.
+// is standing. Geoapify answers both from OpenStreetMap; search also asks
+// open_places (Overture), which has the businesses OSM lacks.
 //
 //   POST { search: "kimironko", near?: { lat, lng } }  ->  { places: Found[] }
 //   POST { reverse: { lat, lng } }                     ->  { label: string | null }
@@ -8,6 +9,7 @@
 // it - the free plan is 3,000 requests a day.
 import { callerClient, json } from "../_shared/supabase.ts";
 import { parseReverse, parseSearch, type Point, reverseUrl, searchUrl } from "./geoapify.ts";
+import { mergePlaces, type OpenPlace } from "./merge.ts";
 
 const isPoint = (p: unknown): p is Point => {
   const q = p as Point | null;
@@ -44,9 +46,19 @@ Deno.serve(async (req: Request) => {
   if (typeof body.search === "string") {
     const text = body.search.trim();
     if (text.length < 2 || text.length > 100) return json({ error: "invalid_search" }, 400);
-    const data = await fetchJson(searchUrl(key, text, isPoint(body.near) ? body.near : null));
-    if (data === null) return json({ error: "search_failed" }, 502);
-    return json({ places: parseSearch(data) });
+    const near = isPoint(body.near) ? body.near : null;
+    const [data, open] = await Promise.all([
+      fetchJson(searchUrl(key, text, near)),
+      caller
+        .rpc("search_open_places", { p_query: text, p_lng: near?.lng ?? null, p_lat: near?.lat ?? null, p_limit: 8 })
+        .then(({ data, error }) => {
+          if (error) console.error(`search_open_places: ${error.message}`);
+          return (data ?? []) as OpenPlace[];
+        }),
+    ]);
+    // Either source alone is still an answer; only both failing is a failure.
+    if (data === null && open.length === 0) return json({ error: "search_failed" }, 502);
+    return json({ places: mergePlaces(data === null ? [] : parseSearch(data), open) });
   }
 
   if (isPoint(body.reverse)) {
