@@ -78,7 +78,15 @@ export async function raiseSos(
     p_note: args.note ?? null,
   });
   if (error) throw dataError(error.message);
-  return String(data);
+  const alertId = String(data);
+  // The alert is recorded; now make sure a person hears about it even with
+  // the control room shut, by text to the safety phones. Not awaited, and
+  // never allowed to fail the SOS: the alert is what matters, the text is the
+  // second way of hearing about it.
+  void Promise.resolve()
+    .then(() => client.functions.invoke("sos-text", { body: { alertId } }))
+    .catch(() => {});
+  return alertId;
 }
 
 /** Rwanda's emergency number. One tap away from the SOS sheet. */

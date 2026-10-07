@@ -19,7 +19,8 @@
     "dev:approve-rider": "node scripts/dev-approve-rider.mjs",
     "staff": "node scripts/staff.mjs",
     "dev:offer": "node scripts/dev-offer-trip.mjs",
-    "dev:ip": "node scripts/dev-ip.mjs"
+    "dev:ip": "node scripts/dev-ip.mjs",
+    "dashboard:live": "pnpm --filter dashboard exec vite --mode live --port 5174"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

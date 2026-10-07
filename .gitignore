@@ -3,6 +3,8 @@ dist/
 .expo/
 .env
 .env.local
+# Per-mode settings, e.g. the dashboard pointed at the live project (--mode live).
+.env.*.local
 *.log
 coverage/
 .superpowers/

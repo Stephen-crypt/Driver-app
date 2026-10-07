@@ -1,5 +1,5 @@
 // Supabase's Send SMS Hook: sign-in codes, delivered by SMS Gate (an Android
-// phone with a local SIM) or by Pindo - see providers.ts for which and why.
+// phone with a local SIM) or by Pindo - see _shared/sms.ts for which and why.
 // Supabase has no native provider for either, so auth calls this hook instead
 // of a built-in one.
 //
@@ -7,7 +7,7 @@
 // button that spends the SMS balance, and an attacker who finds the URL can
 // drain it and send any text they like from Nova's number.
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
-import { codeText, e164, pickRoute } from "./providers.ts";
+import { codeText, e164, pickRoute } from "../_shared/sms.ts";
 
 interface HookPayload {
   user?: { id?: string; phone?: string };

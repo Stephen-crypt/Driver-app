@@ -46,9 +46,11 @@ describe("shareTripText", () => {
 });
 
 describe("raiseSos", () => {
+  const texts = () => ({ invoke: vi.fn().mockResolvedValue({ data: { texted: 1 }, error: null }) });
+
   it("can be called with nothing at all", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: "alert-1", error: null });
-    const client = { rpc } as unknown as NovaClient;
+    const client = { rpc, functions: texts() } as unknown as NovaClient;
     // Somebody in trouble should not be filling in a form.
     await expect(raiseSos(client)).resolves.toBe("alert-1");
     expect(rpc).toHaveBeenCalledWith("raise_sos", {
@@ -58,11 +60,32 @@ describe("raiseSos", () => {
 
   it("passes position and trip when it has them", async () => {
     const rpc = vi.fn().mockResolvedValue({ data: "alert-2", error: null });
-    const client = { rpc } as unknown as NovaClient;
+    const client = { rpc, functions: texts() } as unknown as NovaClient;
     await raiseSos(client, { tripId: "t1", at: { lng: 30.1, lat: -1.9 } });
     expect(rpc).toHaveBeenCalledWith("raise_sos", expect.objectContaining({
       p_trip_id: "t1", p_lng: 30.1, p_lat: -1.9,
     }));
+  });
+
+  it("asks for the safety text once the alert is recorded", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: "alert-3", error: null });
+    const functions = texts();
+    await raiseSos({ rpc, functions } as unknown as NovaClient);
+    await Promise.resolve();
+    expect(functions.invoke).toHaveBeenCalledWith("sos-text", { body: { alertId: "alert-3" } });
+  });
+
+  it("still returns the alert when the text cannot be sent", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: "alert-4", error: null });
+    const functions = { invoke: vi.fn().mockRejectedValue(new Error("offline")) };
+    await expect(raiseSos({ rpc, functions } as unknown as NovaClient)).resolves.toBe("alert-4");
+  });
+
+  it("does not ask for a text when the alert itself failed", async () => {
+    const rpc = vi.fn().mockResolvedValue({ data: null, error: { message: "boom" } });
+    const functions = texts();
+    await expect(raiseSos({ rpc, functions } as unknown as NovaClient)).rejects.toThrow("boom");
+    expect(functions.invoke).not.toHaveBeenCalled();
   });
 });
 

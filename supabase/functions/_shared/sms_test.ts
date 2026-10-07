@@ -1,5 +1,5 @@
 import { assertEquals } from "jsr:@std/assert@1";
-import { codeText, e164, pickRoute } from "./providers.ts";
+import { codeText, e164, pickRoute } from "./sms.ts";
 
 const env = (vars: Record<string, string>) => (name: string) => vars[name];
 
@@ -32,4 +32,9 @@ Deno.test("SMS Gate wins when both are set; Pindo when only it is", () => {
 Deno.test("half a set of credentials is no route at all", () => {
   assertEquals(pickRoute(env({ SMSGATE_USERNAME: "a" }), "+250", "x"), null);
   assertEquals(pickRoute(env({}), "+250", "x"), null);
+});
+
+Deno.test("a text can be held longer than a code - an SOS an hour late still matters", () => {
+  const r = pickRoute(env({ SMSGATE_USERNAME: "a", SMSGATE_PASSWORD: "b" }), "+250788123456", "SOS", 3600)!;
+  assertEquals(JSON.parse(r.init.body as string).ttl, 3600);
 });

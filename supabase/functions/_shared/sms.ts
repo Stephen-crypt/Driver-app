@@ -1,5 +1,5 @@
-// How a sign-in code reaches a phone. Two routes, chosen by which secrets are
-// set: an Android phone running SMS Gate with a local SIM (free but for the
+// How a text reaches a phone - sign-in codes (send-sms) and SOS alerts
+// (sos-text). Two routes, chosen by which secrets are set: an Android phone running SMS Gate with a local SIM (free but for the
 // SIM's own texts - the pilot route), or Pindo with a registered sender ID
 // (the route at volume). Pure request builders, so both are tested offline.
 
@@ -14,7 +14,7 @@ const PINDO_URL = "https://api.pindo.io/v1/sms/";
 
 // A code is good for ten minutes. If the gateway phone was offline, a code
 // delivered after that only confuses - better it never arrives.
-const CODE_LIFETIME_S = 600;
+export const CODE_LIFETIME_S = 600;
 
 /** E.164 with the plus. GoTrue hands the number over without it. */
 export function e164(phone: string): string {
@@ -29,7 +29,7 @@ export function codeText(otp: string): string {
   return `Your Nova code is ${otp}. It expires in 10 minutes.`;
 }
 
-export function smsGateRequest(username: string, password: string, to: string, text: string): SmsRequest {
+export function smsGateRequest(username: string, password: string, to: string, text: string, ttlS = CODE_LIFETIME_S): SmsRequest {
   return {
     provider: "sms-gate",
     url: SMS_GATE_URL,
@@ -39,7 +39,7 @@ export function smsGateRequest(username: string, password: string, to: string, t
         Authorization: `Basic ${btoa(`${username}:${password}`)}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({ textMessage: { text }, phoneNumbers: [to], ttl: CODE_LIFETIME_S }),
+      body: JSON.stringify({ textMessage: { text }, phoneNumbers: [to], ttl: ttlS }),
     },
   };
 }
@@ -56,15 +56,20 @@ export function pindoRequest(token: string, sender: string, to: string, text: st
   };
 }
 
-/** The route to use, from the secrets that are set; SMS Gate first. Null when neither is. */
+/**
+ * The route to use, from the secrets that are set; SMS Gate first. Null when
+ * neither is. `ttlS` is how long SMS Gate may hold the text for a phone that
+ * is offline before dropping it.
+ */
 export function pickRoute(
   env: (name: string) => string | undefined,
   to: string,
   text: string,
+  ttlS = CODE_LIFETIME_S,
 ): SmsRequest | null {
   const user = env("SMSGATE_USERNAME");
   const pass = env("SMSGATE_PASSWORD");
-  if (user && pass) return smsGateRequest(user, pass, to, text);
+  if (user && pass) return smsGateRequest(user, pass, to, text, ttlS);
   const token = env("PINDO_API_TOKEN");
   if (token) return pindoRequest(token, env("PINDO_SENDER_ID") ?? "Nova", to, text);
   return null;
