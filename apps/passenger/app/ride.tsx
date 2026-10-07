@@ -7,6 +7,8 @@ import {
   Button,
   FloatButton,
   NovaMap,
+  useRoad,
+  type RoadFetch,
   ModalSheet,
   Paper,
   Swap,
@@ -46,8 +48,7 @@ import {
   getTripTotal,
   getWaitStatus,
   isTripLive,
-  nearestLandmark,
-  pickupLabelFor,
+  describePickup,
   raiseSos,
   rateTrip,
   requestQuote,
@@ -57,6 +58,7 @@ import {
   type QuoteResult,
   type RiderCard,
   type RiderPosition,
+  type RouteResult,
   type TripPoints,
   type TripSnapshot,
   type TripTotal,
@@ -86,6 +88,10 @@ const PASSENGER_CANCEL_REASONS = [
 import { Assigned, Ended, Searching } from "../src/ride/Live";
 import { Completed } from "../src/ride/Completed";
 import { endDateOf, type BookingMode, type LaterPlan, type RegularPlan } from "../src/ride/When";
+
+// The router, for the road a rider is on. Stable, so the hook never re-asks
+// just because the screen re-rendered.
+const fetchRoad: RoadFetch = (a, b) => getRoute(supabase, a, b);
 
 const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const num = (v: string | string[] | undefined) => {
@@ -132,7 +138,7 @@ export default function Ride() {
   const [pickupLabel, setPickupLabel] = useState(one(params.plabel) ?? "Current location");
   const [pickupNote, setPickupNote] = useState("");
 
-  const [road, setRoad] = useState<{ distanceM: number; durationS: number } | null>(null);
+  const [road, setRoad] = useState<RouteResult | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<VehicleClass, QuoteResult>>>({});
   // A tile on the home screen may have chosen the vehicle already.
   const [selected, setSelected] = useState<VehicleClass>(() => {
@@ -178,9 +184,7 @@ export default function Ride() {
       const at = await loc.getCurrent(8000);
       if (!active || !at) return;
       setPickup(at);
-      nearestLandmark(supabase, at)
-        .then((l) => active && setPickupLabel(pickupLabelFor(l)))
-        .catch(() => {});
+      void describePickup(supabase, at).then((l) => active && setPickupLabel(l));
     })();
     return () => {
       active = false;
@@ -413,7 +417,7 @@ export default function Ride() {
           dropoffLabel: trip.dropoffLabel,
           riderName: rider?.firstName ?? null,
           plate: rider?.plate ?? null,
-          etaSeconds: riderAt?.etaSeconds ?? null,
+          etaSeconds: tracked?.etaSeconds ?? null,
         }),
       });
     } catch {
@@ -491,18 +495,30 @@ export default function Ride() {
       active = false;
     };
   }, [trip === null, from?.lat, from?.lng]); // eslint-disable-line react-hooks/exhaustive-deps
+  // The road the rider is on: to the pickup while they come, to the drop-off
+  // once you are aboard. Its time replaces the straight-line guess, and the
+  // line shortens behind the rider as they move.
+  const heading = trip && riderAt ? (trip.state === "accepted" ? from : trip.state === "in_progress" ? to : null) : null;
+  const ahead = useRoad(heading ? riderAt : null, heading, fetchRoad);
+  const tracked: RiderPosition | null = riderAt && ahead ? { ...riderAt, etaSeconds: ahead.remainingS } : riderAt;
+
   const markers = useMemo(() => {
     const m: MapMarker[] = [];
     // While a rider is being found, the pickup sends out the radar.
     if (from && searching) m.push({ id: "radar", at: from, kind: "radar" });
     // The pickup says how long until the rider is there, while they are coming.
-    const coming = trip?.state === "accepted" && riderAt?.etaSeconds;
-    const pickupTag = coming ? `Pickup, ${Math.max(1, Math.round((riderAt?.etaSeconds ?? 60) / 60))} min` : "Pickup";
-    if (from) m.push({ id: "pickup", at: from, kind: trip ? "pickup" : "me", tag: trip ? pickupTag : undefined });
-    if (to) m.push({ id: "dropoff", at: to, kind: "dropoff", tag: trip ? undefined : dropLabel });
+    const onTheWay = trip?.state === "accepted" && tracked?.etaSeconds;
+    const pickupTag = onTheWay ? `Pickup, ${Math.max(1, Math.round((tracked?.etaSeconds ?? 60) / 60))} min` : "Pickup";
+    // While the rider comes, the map is the rider, the road and the pickup -
+    // the drop-off would zoom it out until the road is a hair. Once aboard,
+    // the pickup is behind you and only the drop-off matters.
+    const coming = trip?.state === "accepted" || trip?.state === "arrived";
+    const aboard = trip?.state === "in_progress";
+    if (from && !aboard) m.push({ id: "pickup", at: from, kind: trip ? "pickup" : "me", tag: trip ? pickupTag : undefined });
+    if (to && !coming) m.push({ id: "dropoff", at: to, kind: "dropoff", tag: trip ? undefined : dropLabel });
     if (riderAt) m.push({ id: "rider", at: riderAt, kind: "rider", tag: rider?.vestNumber ?? "" });
     return m;
-  }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel, searching, trip?.state, riderAt?.etaSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [from?.lat, from?.lng, to?.lat, to?.lng, riderAt?.lat, riderAt?.lng, rider?.vestNumber, trip === null, dropLabel, searching, trip?.state, tracked?.etaSeconds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- sheet ---------------------------------------------------------------------------
   // Each stage is its own panel. When the stage changes, the old panel fades
@@ -562,7 +578,7 @@ export default function Ride() {
       <Assigned
         trip={trip}
         rider={rider}
-        riderAt={riderAt}
+        riderAt={tracked}
         pin={pin}
         wait={wait}
         now={now}
@@ -606,7 +622,14 @@ export default function Ride() {
       <NovaMap
         center={from ?? loc.KIGALI_FALLBACK}
         markers={markers}
-        route={from && to && (!trip || trip.state === "requested" || trip.state === "offered") ? [from, to] : undefined}
+        route={
+          from && to && (!trip || trip.state === "requested" || trip.state === "offered")
+            ? road && road.path.length > 1
+              ? road.path
+              : [from, to]
+            : ahead?.path
+        }
+        routeIsRoad={ahead ? true : undefined}
         fit={markers.length > 1}
         topInset={insets.top + 56}
         bottomInset={paperH}

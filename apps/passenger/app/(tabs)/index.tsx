@@ -29,8 +29,7 @@ import {
   type UpcomingRide,
   listSavedPlaces,
   listTrips,
-  nearestLandmark,
-  pickupLabelFor,
+  describePickup,
   registerDeviceToken,
   ridersNearby,
   pickupMinutes,
@@ -138,11 +137,8 @@ export default function Home() {
       const at = await loc.getCurrent(8000);
       if (!active || !at) return;
       setHere(at);
-      try {
-        setPickupLabel(pickupLabelFor(await nearestLandmark(supabase, at)));
-      } catch {
-        setPickupLabel("Current location");
-      }
+      const label = await describePickup(supabase, at);
+      if (active) setPickupLabel(label);
     })();
     return () => {
       active = false;
@@ -457,7 +453,7 @@ export default function Home() {
                     <Ionicons name="arrow-forward" size={14} color={c.highlight} />
                   </View>
                 </View>
-                <Image source={require("../../assets/tiles/later.png")} style={styles.promoArt} resizeMode="contain" accessibilityIgnoresInvertColors />
+                <Image source={require("../../assets/banner-ahead.png")} style={styles.promoArt} resizeMode="contain" accessibilityIgnoresInvertColors />
               </Card>
             </Enter>
           )}
@@ -592,7 +588,7 @@ const styles = StyleSheet.create({
     backgroundColor: c.hero,
   },
   promoActionText: { fontFamily: font.semibold },
-  promoArt: { width: 104, height: 104 },
+  promoArt: { width: 116, height: 116 },
   recent: { flexDirection: "row", alignItems: "center", gap: space.md, paddingVertical: 14, paddingHorizontal: space.md },
   recentLine: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: c.border },
   recentIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: c.surfaceHigh, alignItems: "center", justifyContent: "center" },

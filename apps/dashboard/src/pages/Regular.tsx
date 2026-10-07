@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { kigaliDateTime, rpc, type Staff } from "../lib/supabase";
 import { Flash } from "../components/ui";
+import { Empty } from "../components/kit";
 
 type Role = "primary" | "preferred" | "backup";
 
@@ -85,7 +86,11 @@ export function Regular({ staff: _staff }: { staff: Staff }) {
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
       <Flash message={done} onShown={() => setDone(null)} />
 
-      {list && list.length === 0 ? <p className="muted">No regular trips running. They appear here when a passenger books one.</p> : null}
+      {list && list.length === 0 ? (
+        <div className="card">
+          <Empty icon="repeat" title="No regular trips running" body="They appear here when a passenger books the same ride on set days - a school run, a commute." />
+        </div>
+      ) : null}
 
       <div className="stack" style={{ gap: 16 }}>
         {(list ?? []).map((s) => (

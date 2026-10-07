@@ -51,6 +51,7 @@ export async function landmarksNear(
     sector: r.sector,
     lng: Number(r.lng),
     lat: Number(r.lat),
+    source: "landmark" as const,
     distanceM: Number(r.distance_m),
   }));
 }

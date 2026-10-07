@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { money, rpc } from "../lib/supabase";
-import { Skeleton } from "../components/ui";
+import { Odometer, Skeleton } from "../components/ui";
+import { Empty, Kpi } from "../components/kit";
 
 interface RiderRow {
   rider_id: string;
@@ -30,6 +31,14 @@ export function Riders() {
   const navigate = useNavigate();
   const [filter, setFilter] = useState<(typeof FILTERS)[number]["key"]>("waiting");
   const [rows, setRows] = useState<RiderRow[] | null>(null);
+  // Everyone, once, for the figures above the list: whichever tab is open,
+  // the four numbers describe the whole team.
+  const [all, setAll] = useState<RiderRow[] | null>(null);
+  useEffect(() => {
+    rpc<RiderRow[]>("staff_riders", { p_filter: "all" })
+      .then(setAll)
+      .catch(() => {});
+  }, []);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -61,13 +70,45 @@ export function Riders() {
         </div>
       </div>
 
+      <div className="kpi-grid">
+        <Kpi
+          icon="document"
+          tint={(all ?? []).some((r) => r.docs_waiting > 0) ? "amber" : "blue"}
+          label="Waiting for review"
+          value={<Odometer value={(all ?? []).filter((r) => r.verification !== "verified" && r.verification !== "rejected").length} />}
+          note={`${(all ?? []).reduce((t, r) => t + r.docs_waiting, 0)} documents to check`}
+        />
+        <Kpi
+          icon="shield"
+          tint="green"
+          label="Verified riders"
+          value={<Odometer value={(all ?? []).filter((r) => r.verification === "verified").length} delay={80} />}
+          note={`${(all ?? []).filter((r) => r.verification === "rejected").length} suspended`}
+        />
+        <Kpi
+          icon="radio"
+          tint="yellow"
+          label="Online now"
+          value={<Odometer value={(all ?? []).filter((r) => r.online).length} delay={160} />}
+          note={`${(all ?? []).filter((r) => r.on_shift).length} on shift`}
+        />
+        <Kpi
+          icon="cash"
+          tint={(all ?? []).some((r) => r.cash_held_rwf > 0) ? "amber" : "green"}
+          label="Company cash with riders"
+          value={<Odometer value={money((all ?? []).reduce((t, r) => t + r.cash_held_rwf, 0))} delay={240} />}
+          unit="RWF"
+          note="To be handed in"
+        />
+      </div>
+
       {error ? <div className="notice bad">{error}</div> : null}
 
       <div className="card" style={{ padding: 0 }}>
         <table className="table">
           <thead>
             <tr>
-              <th style={{ paddingLeft: 16 }}>Rider</th>
+              <th style={{ paddingLeft: 18 }}>Rider</th>
               <th>Status</th>
               <th>Vehicle</th>
               <th className="right">Carrying</th>
@@ -117,8 +158,12 @@ export function Riders() {
             ))}
             {rows && rows.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ padding: 24 }} className="muted">
-                  {filter === "waiting" ? "Nobody is waiting for review." : "No riders here."}
+                <td colSpan={6} style={{ padding: 0 }}>
+                  {filter === "waiting" ? (
+                    <Empty icon="riders" title="Nobody is waiting for review" body="New riders show up here once they have sent their licence and national ID." />
+                  ) : (
+                    <Empty icon="riders" title="No riders here" />
+                  )}
                 </td>
               </tr>
             ) : null}

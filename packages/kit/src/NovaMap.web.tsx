@@ -6,7 +6,7 @@ import { buildMapHtml, mapState, type NovaMapProps } from "./mapHtml";
 export type { LatLng, MapMarker, MarkerKind } from "./mapHtml";
 
 /**
- * The web build of NovaMap: the same Leaflet page in an iframe instead of a
+ * The web build of NovaMap: the same MapLibre page in an iframe instead of a
  * native WebView, driven the same way - loaded once, updated by message. It
  * exists for the browser preview and for a future web dashboard; the phones
  * never load it.

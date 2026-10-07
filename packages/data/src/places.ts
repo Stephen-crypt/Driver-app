@@ -1,12 +1,19 @@
 import type { NovaClient } from "./client";
 import { dataError } from "./client";
+import { distanceBetween } from "./geo";
 
 export interface Place {
   readonly id: string;
   readonly name: string;
+  /** The second line: a landmark's sector, or a searched place's street and area. */
   readonly sector: string | null;
   readonly lng: number;
   readonly lat: number;
+  /**
+   * Nova's own landmark, or found by Geoapify on OpenStreetMap - whose free
+   * plan requires "Powered by Geoapify" wherever its results are shown.
+   */
+  readonly source: "landmark" | "geoapify";
 }
 
 interface LandmarkRow {
@@ -44,17 +51,68 @@ export async function searchLandmarks(
     sector: r.sector,
     lng: Number(r.lng),
     lat: Number(r.lat),
+    source: "landmark" as const,
   }));
+}
+
+/** Places on the map by name, through the places function. Empty when it is down. */
+async function geocodePlaces(
+  client: NovaClient,
+  query: string,
+  near: { lat: number; lng: number } | null,
+): Promise<Place[]> {
+  try {
+    const { data, error } = await client.functions.invoke("places", {
+      body: { search: query, ...(near ? { near } : {}) },
+    });
+    if (error || !data) return [];
+    const rows = (data as { places?: unknown }).places;
+    if (!Array.isArray(rows)) return [];
+    return rows
+      .filter(
+        (r): r is { id: string; name: string; detail: string | null; lat: number; lng: number } =>
+          typeof r?.id === "string" && typeof r?.name === "string" && Number.isFinite(r?.lat) && Number.isFinite(r?.lng),
+      )
+      .map((r) => ({ id: `g:${r.id}`, name: r.name, sector: r.detail ?? null, lat: r.lat, lng: r.lng, source: "geoapify" as const }));
+  } catch {
+    return [];
+  }
+}
+
+/**
+ * Destination search: Nova's own landmarks first, because they are the names
+ * riders know and they are free to ask; then the rest of the map. A map result
+ * that is one of our landmarks again - same name, a few hundred metres away -
+ * is dropped. Two letters are not worth a paid search, so short queries stay
+ * local.
+ */
+export async function searchPlaces(
+  client: NovaClient,
+  query: string,
+  near: { lat: number; lng: number } | null = null,
+  limit = 10,
+): Promise<Place[]> {
+  const trimmed = query.trim();
+  if (trimmed.length === 0) return [];
+  const [mine, map] = await Promise.all([
+    searchLandmarks(client, trimmed),
+    trimmed.length >= 3 ? geocodePlaces(client, trimmed, near) : Promise.resolve([]),
+  ]);
+  const known = (p: Place) =>
+    mine.some((m) => m.name.toLowerCase() === p.name.toLowerCase() && distanceBetween(m, p) < 500);
+  return [...mine, ...map.filter((p) => !known(p))].slice(0, limit);
 }
 
 export interface RouteResult {
   readonly distanceM: number;
   readonly durationS: number;
+  /** The road itself, start to end. Empty when the router gave no shape. */
+  readonly path: readonly { readonly lat: number; readonly lng: number }[];
 }
 
 /**
- * Real road distance between two points, measured server-side so the Directions
- * key never ships in the app bundle.
+ * Real road distance and shape between two points, measured server-side so the
+ * routing keys never ship in the app bundle.
  *
  * Returns null when routing is unavailable rather than throwing: a quote built
  * on a straight line is worse than one built on a road, but far better than no
@@ -70,9 +128,14 @@ export async function getRoute(
       body: { origin, destination },
     });
     if (error || !data) return null;
-    const r = data as Partial<RouteResult>;
+    const r = data as { distanceM?: unknown; durationS?: unknown; path?: unknown };
     if (typeof r.distanceM !== "number" || typeof r.durationS !== "number") return null;
-    return { distanceM: r.distanceM, durationS: r.durationS };
+    // The server sends [lat, lng] pairs; anything else is dropped rather than
+    // drawn as a line to the middle of the ocean.
+    const path = (Array.isArray(r.path) ? r.path : [])
+      .filter((p): p is [number, number] => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]))
+      .map(([lat, lng]) => ({ lat, lng }));
+    return { distanceM: r.distanceM, durationS: r.durationS, path };
   } catch {
     return null;
   }

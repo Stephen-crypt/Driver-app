@@ -1,7 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
-import "leaflet/dist/leaflet.css";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { theme } from "@nova/ui";
 import "./styles.css";
 import { App } from "./App";
@@ -29,6 +29,13 @@ const vars: Record<string, string> = {
   "--bad-soft": theme.dangerSoft,
   "--warn": theme.warning,
   "--warn-soft": theme.warningSoft,
+  "--hero": theme.hero,
+  "--hero-raised": theme.heroRaised,
+  "--on-hero-muted": theme.onHeroMuted,
+  "--tint-blue": theme.tintBlue,
+  "--tint-yellow": theme.tintYellow,
+  "--tint-green": theme.tintGreen,
+  "--tint-amber": theme.tintAmber,
 };
 for (const [k, v] of Object.entries(vars)) document.documentElement.style.setProperty(k, v);
 

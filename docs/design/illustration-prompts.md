@@ -1,6 +1,6 @@
 # Illustration prompts
 
-Most of what is inside the apps is drawn in code (SVG): the Imigongo band, the zigzag receipt edge, the hill scenes in empty states and the vehicle glyphs. Seven pictures are raster images, all made in Gemini from the prompts below: the two welcome pictures, the four service tiles on the passenger home screen, and the round cab scene on the passenger's empty Activity screen. The prompts are here for redrawing any of them.
+Most of what is inside the apps is drawn in code (SVG): the Imigongo band, the zigzag receipt edge, the hill scenes in empty states and the vehicle glyphs. Nine pictures are raster images, all made in Gemini from the prompts below: the two welcome pictures, the four service tiles and the book-ahead banner on the passenger home screen, the round cab scene on the passenger's empty Activity screen, and the night scene on the staff dashboard's sign-in. The prompts are here for redrawing any of them.
 
 ## Where the files go
 
@@ -13,6 +13,8 @@ Most of what is inside the apps is drawn in code (SVG): the Imigongo band, the z
 | Book ahead tile | `apps/passenger/assets/tiles/later.png` | 288 × 288, transparent |
 | Regular trip tile | `apps/passenger/assets/tiles/regular.png` | 288 × 288, transparent |
 | No trips yet | `apps/passenger/assets/empty-trips.png` | 600 × 600, transparent outside the circle |
+| Dashboard sign-in | `apps/dashboard/public/login-hero.jpg` | at least 1600 × 2000 (4:5, portrait) |
+| Home banner | `apps/passenger/assets/banner-ahead.png` | 600 × 600, transparent outside the circle |
 
 Keep the 1280 × 714 proportion. Both welcome screens size the picture as `width × 714 / 1280`, so a different ratio gets stretched unless that line changes too. Export as JPEG at about 85% quality, under 250 KB.
 
@@ -67,6 +69,48 @@ Quiet, steady mood, as if at the start of a shift.
 ```
 
 If the vest number comes out garbled, ask for "a plain yellow vest with no number", then add the number yourself in any image editor in Montserrat ExtraBold, midnight blue (#0A2342).
+
+## Dashboard sign-in
+
+The left half of the staff sign-in is this picture, edge to edge, with the logo and the headline set in white over the top of it. The top of the picture must be empty night sky in exactly the panel's midnight, or the white words disappear into it; the sky of the current one was pulled onto #0A2342 after it was made. Without the file, the panel falls back to the midnight and the diamond pattern on their own.
+
+```text
+Flat vector illustration, clean and calm, in the style of a modern transport
+brand. Thin, even outlines in a dark blue-grey, not black. Night scene with a
+limited palette: the sky is one flat, solid midnight blue (#0A2342) with no
+gradient, no stars, no moon and no clouds. Hills in deep, muted blue-greens a
+few shades lighter than the sky. The only bright colour is a warm yellow
+(#F4C20D), used for lit windows, headlights and a rider's safety vest.
+
+Kigali at night, seen from a hilltop road: terraced hills in the middle
+distance, the city across the valley shown as small warm yellow window lights,
+and a winding road coming down towards the viewer. In the lower third, on the
+road, a small 125cc moto-taxi with a rider in a bright yellow safety vest and
+a full-face helmet, carrying one passenger. Its headlight is a small yellow
+dot, with no beam of light. Two or three more motos far away on other roads,
+shown only as tiny yellow dots.
+
+Portrait, 4:5. The top 40% of the picture is empty flat midnight sky and
+nothing else, because text goes there. Keep the moto and the city in the lower
+middle, with nothing important within 10% of the left or right edge. No text,
+no logos, no watermark, no border, and no people other than the rider and the
+passenger.
+```
+
+If a result drifts, add: "Avoid photorealism, 3D, gradients, glows, light beams, lens flare, stars, the moon, neon."
+
+## Home banner
+
+The yellow "Tomorrow's commute, sorted" banner on the passenger home screen borrows the calendar from the Book ahead tile, so the same picture shows twice on one screen. This gives the banner its own. It sits on yellow, so the scene is drawn inside a pale blue circle that keeps it apart from the banner.
+
+```text
+[tile style]
+A small 125cc moto-taxi waiting at the gate of a house in the early morning.
+The motorbike is midnight blue (#0A2342); its rider wears a yellow safety vest
+and holds out a second helmet for the passenger. A small sun just above the
+gate. The whole scene sits inside a pale blue (#E8EEF8) circle; the rest of
+the canvas is plain white.
+```
 
 ## Service tiles
 

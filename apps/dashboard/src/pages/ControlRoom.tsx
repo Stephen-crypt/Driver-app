@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { LiveMap, type MapLine, type MapPoint, type MapZone } from "../components/LiveMap";
 import { ago, can, kigaliTime, money, rpc, supabase, type Staff } from "../lib/supabase";
 import { Odometer, useUi } from "../components/ui";
+import { Icon } from "../components/kit";
 
 interface Rider {
   rider_id: string;
@@ -248,6 +249,63 @@ export function ControlRoom({ staff }: { staff: Staff }) {
     <div className="control">
       <div className="control-map">
         <LiveMap points={points} lines={lines} focus={focus} zones={zones} />
+        <div className="glance" aria-label="The city right now">
+          <div className={`glance-card${alerts.length > 0 ? " hot" : ""}`}>
+            <span className={`kpi-icon ${alerts.length > 0 ? "" : "tint-green"}`}>
+              <Icon name={alerts.length > 0 ? "alert" : "shield"} size={18} />
+            </span>
+            <div>
+              <strong className="g-num">
+                <Odometer value={alerts.length} />
+              </strong>
+              <span className="g-label">{alerts.length === 1 ? "Open emergency" : "Open emergencies"}</span>
+            </div>
+          </div>
+          <div className="glance-card">
+            <span className="kpi-icon tint-yellow">
+              <Icon name="riders" size={18} />
+            </span>
+            <div>
+              <strong className="g-num">
+                <Odometer value={online.length} />
+              </strong>
+              <span className="g-label">Riders online</span>
+            </div>
+          </div>
+          <div className="glance-card">
+            <span className="kpi-icon tint-green">
+              <Icon name="navigate" size={18} />
+            </span>
+            <div>
+              <strong className="g-num">
+                <Odometer value={live.length} />
+              </strong>
+              <span className="g-label">Trips live now</span>
+            </div>
+          </div>
+          <div className="glance-card">
+            <span className={`kpi-icon ${attention.length > 0 ? "tint-amber" : "tint-blue"}`}>
+              <Icon name="clock" size={18} />
+            </span>
+            <div>
+              <strong className="g-num">
+                <Odometer value={attention.length} />
+              </strong>
+              <span className="g-label">Waiting too long</span>
+            </div>
+          </div>
+          <div className="glance-card">
+            <span className="kpi-icon tint-blue">
+              <Icon name="cash" size={18} />
+            </span>
+            <div>
+              <strong className="g-num">
+                <Odometer value={money(riders.reduce((t, r) => t + (r.cash_held_rwf ?? 0), 0))} />
+              </strong>
+              <span className="g-label">RWF with riders</span>
+            </div>
+          </div>
+        </div>
         <div className="map-legend">
           <span className="chip accent">
             <span className="dot" /> {online.length - busy.length} available
@@ -277,12 +335,22 @@ export function ControlRoom({ staff }: { staff: Staff }) {
             ))}
           </section>
         ) : (
-          <div className="notice good">No open emergencies.</div>
+          <div className="all-clear">
+            <span className="kpi-icon">
+              <Icon name="shield" size={18} />
+            </span>
+            <div>
+              No open emergencies
+              <small>An SOS from a rider or passenger appears here, with a chime.</small>
+            </div>
+          </div>
         )}
 
         {attention.length > 0 ? (
           <section className="card" aria-label="Needs attention">
-            <h2>Needs attention</h2>
+            <h2>
+              <Icon name="clock" size={18} style={{ color: "var(--warn)" }} /> Needs attention
+            </h2>
             <div className="list">
               {attention.map((t) => (
                 <div key={t.trip_id} className="list-item" onClick={() => navigate(`/trips/${t.trip_id}`)}>
@@ -303,7 +371,7 @@ export function ControlRoom({ staff }: { staff: Staff }) {
 
         <section className="card" aria-label="Live trips">
           <h2>
-            Live trips <span className="count-inline"><Odometer value={live.length} /></span>
+            <Icon name="navigate" size={18} style={{ color: "var(--good)" }} /> Live trips <span className="count-inline"><Odometer value={live.length} /></span>
           </h2>
           {live.length === 0 ? (
             <div className="muted small">Nothing moving right now.</div>
@@ -343,7 +411,9 @@ export function ControlRoom({ staff }: { staff: Staff }) {
 
         {events.length > 0 ? (
           <section className="card" aria-label="Recent events">
-            <h2>Last 12 hours</h2>
+            <h2>
+              <Icon name="clock" size={18} style={{ color: "var(--accent)" }} /> Last 12 hours
+            </h2>
             <div className="list">
               {events.slice(0, 15).map((e) => (
                 <div

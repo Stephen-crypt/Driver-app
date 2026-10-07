@@ -116,7 +116,7 @@ export function Zones({ staff }: { staff: Staff }) {
       </div>
 
       <aside className="control-rail">
-        <div className="row" style={{ justifyContent: "space-between" }}>
+        <div className="row rail-head" style={{ justifyContent: "space-between" }}>
           <div>
             <h1 style={{ margin: 0, fontFamily: "var(--num)", fontSize: 30 }}>Zones</h1>
             <p className="sub">Alerts when a rider on shift crosses an edge.</p>

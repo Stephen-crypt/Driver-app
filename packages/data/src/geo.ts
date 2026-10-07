@@ -47,6 +47,28 @@ export function pickupLabelFor(landmark: NearbyLandmark | null): string {
   return landmark.distanceM <= 150 ? landmark.name : `Near ${landmark.name}`;
 }
 
+/**
+ * The name for where a passenger is standing. Nova's own landmark when one is
+ * close, because it is the name a rider knows; otherwise the map's name for
+ * the spot - "Near RITCO", "KG 45 Street, Kibagabaga" - and only then a
+ * landmark further off. Never throws: the worst case is "Current location".
+ */
+export async function describePickup(
+  client: NovaClient,
+  at: { readonly lat: number; readonly lng: number },
+): Promise<string> {
+  const landmark = await nearestLandmark(client, at).catch(() => null);
+  if (landmark && landmark.distanceM <= 300) return pickupLabelFor(landmark);
+  try {
+    const { data, error } = await client.functions.invoke("places", { body: { reverse: { lat: at.lat, lng: at.lng } } });
+    const label = (data as { label?: unknown } | null)?.label;
+    if (!error && typeof label === "string" && label.trim()) return label.trim();
+  } catch {
+    // Fall through to the landmark further off.
+  }
+  return pickupLabelFor(landmark);
+}
+
 /** Straight-line metres. For "1.2 km away" on an offer, not for pricing. */
 export function distanceBetween(
   a: { readonly lat: number; readonly lng: number },

@@ -10,6 +10,8 @@ import {
   Chip,
   FloatButton,
   NovaMap,
+  useRoad,
+  type RoadFetch,
   LiveDot,
   Paper,
   Press,
@@ -48,6 +50,7 @@ import {
   getPresence,
   getRiderProfile,
   getTripContact,
+  getRoute,
   getTripPoints,
   getWaitStatus,
   heartbeat,
@@ -82,6 +85,10 @@ import { ReceiptSheet } from "../../src/today/ReceiptSheet";
 import { TripPanel } from "../../src/today/TripPanel";
 import { duration, useNow } from "../../src/today/useNow";
 import { useTripChat } from "../../src/lib/chat";
+
+// The router, for the road to the pickup and then the drop-off. Stable, so
+// the hook never re-asks just because the screen re-rendered.
+const fetchRoad: RoadFetch = (a, b) => getRoute(supabase, a, b);
 
 const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
 
@@ -519,6 +526,9 @@ export default function Today() {
       : []),
   ];
   const target = trip && points ? (trip.state === "in_progress" ? points.dropoff : points.pickup) : null;
+  // The road there, shortening as the rider goes. Turn-by-turn stays with
+  // Google Maps behind the Navigate button; this is the at-a-glance picture.
+  const ahead = useRoad(target ? here : null, target, fetchRoad);
 
   // ---- sheet content -----------------------------------------------------------
   // One panel per state. A new state swaps in and the sheet eases to its size.
@@ -663,7 +673,8 @@ export default function Today() {
       <NovaMap
         center={here ?? loc.KIGALI_FALLBACK}
         markers={markers}
-        route={here && target ? [here, target] : undefined}
+        route={ahead?.path ?? (here && target ? [here, target] : undefined)}
+        routeIsRoad={ahead ? true : undefined}
         fit={!!target}
         topInset={insets.top + 60}
         bottomInset={paperH}

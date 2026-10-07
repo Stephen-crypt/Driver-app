@@ -120,6 +120,10 @@ Screens are built from these, so they behave the same everywhere. All live in `@
 | `SuccessMark`, `LiveDot`, `Skeleton`, `EmptyState` | Done, live, loading, and nothing yet. An empty state carries the same drawn badge as the sign-in steps, in its light version. |
 | `DrainBar` (rider app) | Time running out. |
 | `UiProvider`, `Palette` (dashboard) | Toasts, confirm and prompt dialogs, and Ctrl+K to jump to a section or find a rider or trip. |
+| Dashboard shell (`App.tsx`) | A midnight sidebar grouped into Operations, People, and Money and records, each section with its icon and a yellow marker on the open one; your initial in yellow at the foot; a top bar with the section, a live marker, the Kigali time and search. |
+| Dashboard pages (`styles.css`) | Each page opens on a midnight band with the diamond panel, and its first cards ride over the band's edge. Side columns (Cases, Zones) carry the band without the overlap. |
+| `Kpi`, `Sparkline`, `DayBars`, `Donut`, `Empty`, `Icon` (dashboard `components/kit.tsx`) | A figure card with a tinted icon, the change since the day before (green or red by which way is good) and a week as a line; seven days as stacked bars; parts of a whole as a ring; drawn empty states; two dozen stroke icons. |
+| Dashboard sign-in | Split screen: the night-time Kigali illustration (`apps/dashboard/public/login-hero.jpg`) with the headline over its empty sky, beside a form with icons in the fields, a show-password toggle and a Caps Lock warning. |
 
 ## Things this system does not do
 
@@ -132,4 +136,4 @@ Screens are built from these, so they behave the same everywhere. All live in `@
 
 ## Assets
 
-Most illustration is drawn in code (SVG) so it stays sharp, themable and small. The exceptions are seven raster pictures: the two welcome pictures, the four service tiles and the round cab scene on the empty Activity screen. The app icons are drawn by `scripts/gen-icons.mjs`: the Nova "N" as a switchback road with its lane markings, yellow on midnight for passengers and the inverse for riders. [illustration-prompts.md](illustration-prompts.md) has the prompts they came from, their sizes and where each file goes.
+Most illustration is drawn in code (SVG) so it stays sharp, themable and small. The exceptions are nine raster pictures: the two welcome pictures, the four service tiles, the book-ahead banner, the round cab scene on the empty Activity screen, and the dashboard's sign-in scene. The app icons are drawn by `scripts/gen-icons.mjs`: the Nova "N" as a switchback road with its lane markings, yellow on midnight for passengers and the inverse for riders. [illustration-prompts.md](illustration-prompts.md) has the prompts they came from, their sizes and where each file goes.

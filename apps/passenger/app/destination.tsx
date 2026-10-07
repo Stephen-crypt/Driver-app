@@ -28,7 +28,7 @@ import {
   useOverlay,
   type LatLng,
 } from "@nova/kit";
-import { distanceBetween, distanceLabel, landmarksNear, listSavedPlaces, savePlace, searchLandmarks, type NearPlace, type Place, type SavedPlace } from "@nova/data";
+import { distanceBetween, distanceLabel, landmarksNear, listSavedPlaces, savePlace, searchPlaces, type NearPlace, type Place, type SavedPlace } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
 import { goBack } from "../src/lib/nav";
@@ -44,7 +44,8 @@ function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
 /**
  * Spec 3.7: saved places, then the landmark gazetteer, then a pin. Kigali
  * addresses are landmarks - "the blue gate opposite the pharmacy" - so a pin
- * always asks how to find you.
+ * always asks how to find you. Typing searches Nova's landmarks and the rest
+ * of the map (OpenStreetMap, through Geoapify) together.
  */
 export default function Destination() {
   useLightStatusBar();
@@ -88,19 +89,21 @@ export default function Destination() {
       setSearching(false);
       return;
     }
-    // Debounced: mobile data in Kigali is bought in bundles.
+    // Debounced: mobile data in Kigali is bought in bundles, and every map
+    // search spends from a daily allowance.
     setSearching(true);
+    const near = pickup.plat && pickup.plng ? { lat: Number(pickup.plat), lng: Number(pickup.plng) } : null;
     timer.current = setTimeout(() => {
       setError(null);
-      searchLandmarks(supabase, query)
+      searchPlaces(supabase, query, near)
         .then(setResults)
         .catch(() => setError("Could not search just now. Check your connection."))
         .finally(() => setSearching(false));
-    }, 250);
+    }, 350);
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [query]);
+  }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const choose = (lng: number, lat: number, dest: string, destNote?: string) => {
     router.replace({
@@ -326,7 +329,7 @@ export default function Destination() {
             <Group title="Places in Kigali">
               {results.length === 0 ? (
                 <Row
-                  title="No landmark by that name"
+                  title="Nothing by that name"
                   subtitle="Try a nearby market, school or church - or drop a pin"
                   icon="help"
                   iconTone="neutral"
@@ -336,7 +339,11 @@ export default function Destination() {
                 results.map((p, i) => (
                   <Enter key={p.id} i={i}>
                     {i > 0 ? <Divider inset={70} /> : null}
+                    {/* Names run long - "Nyabugogo International and Long
+                        Distance Buses" - and the end is often the part that
+                        tells two places apart, so they wrap. */}
                     <Row
+                      full
                       title={p.name}
                       subtitle={p.sector ?? undefined}
                       icon="location"
@@ -349,6 +356,12 @@ export default function Destination() {
               )}
             </Group>
           )
+        ) : null}
+        {/* Geoapify's free plan requires its name wherever its results show. */}
+        {showingResults && results.some((p) => p.source === "geoapify") ? (
+          <Txt v="label" tone="muted" style={styles.credit}>
+            Powered by Geoapify. Map data © OpenStreetMap contributors.
+          </Txt>
         ) : null}
       </ScrollView>
     </View>
@@ -405,6 +418,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tip: { flexDirection: "row", gap: space.sm, paddingHorizontal: space.xs },
+  credit: { marginTop: -space.sm, paddingHorizontal: space.xs, fontSize: 12 },
   back: { position: "absolute", left: space.md },
   sheet: { position: "absolute", left: 0, right: 0, bottom: 0 },
   stack: { gap: space.md },

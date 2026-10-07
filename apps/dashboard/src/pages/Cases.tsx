@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ago, can, kigaliDateTime, rpc, usePoll, type Staff } from "../lib/supabase";
+import { Empty } from "../components/kit";
 
 interface CaseRow {
   id: string;
@@ -159,7 +160,9 @@ export function Cases({ staff }: { staff: Staff }) {
         ) : id ? (
           <CaseView key={id} id={id} staff={staff} onChanged={() => void load()} />
         ) : (
-          <div className="empty-detail muted">Pick a case to read it, take it and close it.</div>
+          <div className="empty-detail">
+            <Empty icon="cases" title="Pick a case from the list" body="Read it, take it, and close it with what was done. Open incidents are marked in red." />
+          </div>
         )}
       </div>
     </div>

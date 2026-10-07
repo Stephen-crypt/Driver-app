@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { money, rpc } from "../lib/supabase";
-import { Odometer } from "../components/ui";
+import { Odometer, Skeleton } from "../components/ui";
+import { DayBars, Donut, Icon, Kpi } from "../components/kit";
 
 interface Summary {
   day: string;
@@ -22,6 +23,15 @@ function kigaliToday(): string {
   return k.toISOString().slice(0, 10);
 }
 
+/** The ISO day `n` days before `day`. */
+function minusDays(day: string, n: number): string {
+  const d = new Date(`${day}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - n);
+  return d.toISOString().slice(0, 10);
+}
+
+const weekday = (day: string) => new Date(`${day}T12:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", timeZone: "UTC" });
+
 const ROWS: [keyof Summary, string, "money" | "count"][] = [
   ["completed", "Trips completed", "count"],
   ["cancelled_by_passenger", "Cancelled by passengers", "count"],
@@ -36,18 +46,30 @@ const ROWS: [keyof Summary, string, "money" | "count"][] = [
   ["outstanding_cash_rwf", "Cash still out with riders (RWF)", "money"],
 ];
 
-/** §88: the day in numbers, and a CSV of the same for whoever keeps the books. */
+const finishedOf = (s: Summary) => s.completed + s.cancelled_by_passenger + s.cancelled_by_rider + s.no_riders + s.no_show;
+const rateOf = (s: Summary) => (finishedOf(s) > 0 ? Math.round((s.completed / finishedOf(s)) * 100) : 0);
+
+/**
+ * §88: the day in numbers - with the six days before it, so every figure
+ * says which way it is going - and a CSV of the day for whoever keeps the
+ * books.
+ */
 export function Reports() {
   const [day, setDay] = useState(kigaliToday());
-  const [s, setS] = useState<Summary | null>(null);
+  const [week, setWeek] = useState<Summary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setS(null);
-    rpc<Summary>("staff_day_summary", { p_day: day })
-      .then(setS)
+    setWeek(null);
+    setError(null);
+    const days = Array.from({ length: 7 }, (_, i) => minusDays(day, 6 - i));
+    Promise.all(days.map((d) => rpc<Summary>("staff_day_summary", { p_day: d })))
+      .then(setWeek)
       .catch((e: Error) => setError(e.message));
   }, [day]);
+
+  const s = week ? week[week.length - 1]! : null;
+  const prev = week ? week[week.length - 2]! : null;
 
   const csv = () => {
     if (!s) return;
@@ -60,69 +82,178 @@ export function Reports() {
     URL.revokeObjectURL(url);
   };
 
-  const finished = s ? s.completed + s.cancelled_by_passenger + s.cancelled_by_rider + s.no_riders + s.no_show : 0;
-
   return (
     <div className="page">
       <div className="page-head">
         <div>
           <h1>Reports</h1>
-          <p className="sub">One day at a time, in Kigali time.</p>
+          <p className="sub">One day at a time in Kigali time, with the week before it for comparison.</p>
         </div>
         <div className="spacer" />
-        <input className="input" type="date" value={day} max={kigaliToday()} onChange={(e) => setDay(e.target.value)} />
+        <input className="input" type="date" value={day} max={kigaliToday()} onChange={(e) => setDay(e.target.value)} aria-label="Day" />
         <button className="btn secondary" onClick={csv} disabled={!s}>
-          Download CSV
+          <Icon name="download" size={16} /> Download CSV
         </button>
       </div>
 
       {error ? <div className="notice bad">{error}</div> : null}
 
-      {s ? (
+      {!s || !prev || !week ? (
+        <div className="kpi-grid">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="kpi">
+              <Skeleton w={120} h={14} />
+              <Skeleton w={150} h={34} r={10} />
+              <Skeleton w={100} h={12} />
+            </div>
+          ))}
+        </div>
+      ) : (
         <>
-          <div className="grid cols-4" style={{ marginBottom: 16 }}>
-            <div className="card stat">
-              <div className="figure">
-                <Odometer value={s.completed} />
-              </div>
-              <div className="label">Trips completed</div>
-            </div>
-            <div className="card stat">
-              <div className="figure">
-                <Odometer value={finished > 0 ? Math.round((s.completed / finished) * 100) : 0} delay={80} />
-                <small>%</small>
-              </div>
-              <div className="label">Of requests that ended in a ride</div>
-            </div>
-            <div className="card stat">
-              <div className="figure">
-                <Odometer value={money(s.collected_rwf)} delay={160} />
-                <small>RWF</small>
-              </div>
-              <div className="label">Fares collected</div>
-            </div>
-            <div className="card stat">
-              <div className="figure" style={{ color: s.outstanding_cash_rwf > 0 ? "var(--warn)" : undefined }}>
-                <Odometer value={money(s.outstanding_cash_rwf)} delay={240} />
-                <small>RWF</small>
-              </div>
-              <div className="label">Cash still out with riders, all days</div>
-            </div>
+          <div className="kpi-grid">
+            <Kpi
+              icon="check"
+              tint="green"
+              label="Trips completed"
+              value={<Odometer value={s.completed} />}
+              delta={s.completed - prev.completed}
+              trend={week.map((w) => w.completed)}
+            />
+            <Kpi
+              icon="trend"
+              tint="blue"
+              label="Requests that became a ride"
+              value={<Odometer value={rateOf(s)} delay={80} />}
+              unit="%"
+              delta={rateOf(s) - rateOf(prev)}
+              trend={week.map(rateOf)}
+            />
+            <Kpi
+              icon="cash"
+              tint="yellow"
+              label="Fares collected"
+              value={<Odometer value={money(s.collected_rwf)} delay={160} />}
+              unit="RWF"
+              delta={s.collected_rwf - prev.collected_rwf}
+              trend={week.map((w) => w.collected_rwf)}
+            />
+            <Kpi
+              icon="wallet"
+              tint={s.outstanding_cash_rwf > 0 ? "amber" : "green"}
+              label="Cash still out with riders"
+              value={<Odometer value={money(s.outstanding_cash_rwf)} delay={240} />}
+              unit="RWF"
+              better="down"
+              note="All days, not only this one"
+            />
           </div>
-          <div className="card" style={{ maxWidth: 640 }}>
-            <table className="table">
-              <tbody>
-                {ROWS.map(([k, label, kind]) => (
-                  <tr key={k}>
-                    <td>{label}</td>
-                    <td className="right num">{kind === "money" ? money(s[k] as number) : s[k]}</td>
+
+          <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", marginBottom: 16 }}>
+            <section className="card">
+              <div className="card-head">
+                <h2>
+                  <Icon name="chart" size={18} style={{ color: "var(--accent)" }} /> The last seven days
+                </h2>
+                <div className="spacer" />
+                <span className="row small muted" style={{ gap: 14 }}>
+                  <span className="row" style={{ gap: 6 }}>
+                    <span className="swatch" style={{ background: "var(--hero)" }} /> Completed
+                  </span>
+                  <span className="row" style={{ gap: 6 }}>
+                    <span className="swatch" style={{ background: "var(--hairline)" }} /> Did not happen
+                  </span>
+                </span>
+              </div>
+              <DayBars
+                days={week.map((w) => ({ label: weekday(w.day), done: w.completed, lost: finishedOf(w) - w.completed }))}
+                highlight={week.length - 1}
+              />
+            </section>
+
+            <section className="card">
+              <div className="card-head">
+                <h2>
+                  <Icon name="route" size={18} style={{ color: "var(--accent)" }} /> How the day's requests ended
+                </h2>
+              </div>
+              <Donut
+                label="requests"
+                parts={[
+                  { label: "Completed", value: s.completed, color: "var(--good)" },
+                  { label: "Cancelled by passenger", value: s.cancelled_by_passenger, color: "var(--highlight)" },
+                  { label: "Cancelled by rider", value: s.cancelled_by_rider, color: "var(--warn)" },
+                  { label: "No rider found", value: s.no_riders, color: "var(--accent)" },
+                  { label: "Passenger no-show", value: s.no_show, color: "var(--bad)" },
+                ]}
+              />
+            </section>
+          </div>
+
+          <div className="grid cols-2">
+            <section className="card">
+              <div className="card-head">
+                <h2>
+                  <Icon name="wallet" size={18} style={{ color: "var(--warn)" }} /> Money on the day
+                </h2>
+              </div>
+              <MoneyBars
+                rows={[
+                  { label: "Fares collected", value: s.collected_rwf, color: "var(--hero)" },
+                  { label: "Rider earnings", value: s.earned_rwf, color: "var(--good)" },
+                  { label: "Cash handed in", value: s.remitted_rwf, color: "var(--highlight)" },
+                ]}
+              />
+              <p className="small muted" style={{ margin: "14px 0 0" }}>
+                Fares are company money from the moment a rider takes them. What is not handed in stays on the rider's balance until it is.
+              </p>
+            </section>
+
+            <section className="card" style={{ padding: 0 }}>
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th style={{ paddingLeft: 18 }}>Every figure for {new Date(`${s.day}T12:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" })}</th>
+                    <th className="right" style={{ paddingRight: 18 }}>
+                      Value
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {ROWS.map(([k, label, kind]) => (
+                    <tr key={k}>
+                      <td style={{ paddingLeft: 18 }}>{label}</td>
+                      <td className="right num" style={{ paddingRight: 18 }}>
+                        {kind === "money" ? money(s[k] as number) : s[k]}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </section>
           </div>
         </>
-      ) : null}
+      )}
+    </div>
+  );
+}
+
+function MoneyBars({ rows }: { rows: { label: string; value: number; color: string }[] }) {
+  const max = Math.max(1, ...rows.map((r) => r.value));
+  return (
+    <div className="stack" style={{ gap: 16 }}>
+      {rows.map((r) => (
+        <div key={r.label}>
+          <div className="row" style={{ justifyContent: "space-between", marginBottom: 6 }}>
+            <span style={{ color: "var(--ink-soft)", fontWeight: 500 }}>{r.label}</span>
+            <strong className="num" style={{ fontSize: 17 }}>
+              {money(r.value)} <span className="small muted">RWF</span>
+            </strong>
+          </div>
+          <div style={{ height: 12, borderRadius: 6, background: "var(--ground)", overflow: "hidden" }}>
+            <div style={{ width: `${(r.value / max) * 100}%`, height: "100%", borderRadius: 6, background: r.color, transition: "width 600ms var(--ease-out)" }} />
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

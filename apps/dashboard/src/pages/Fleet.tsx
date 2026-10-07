@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import QRCode from "qrcode";
 import { can, rpc, type Staff } from "../lib/supabase";
-import { Flash, Skeleton, useUi } from "../components/ui";
+import { Flash, Odometer, Skeleton, useUi } from "../components/ui";
+import { Kpi } from "../components/kit";
 
 interface Vehicle {
   vehicle_id: string;
@@ -83,15 +84,27 @@ export function Fleet({ staff }: { staff: Staff }) {
       <div className="page-head">
         <div>
           <h1>Fleet</h1>
-          <p className="sub">
-            {vehicles ? (
-              `${assigned.length} with riders, ${depot.length} in the depot, ${assigned.filter((v) => v.in_use).length} out on shift`
-            ) : (
-              <Skeleton w={320} h={14} style={{ marginTop: 6 }} />
-            )}
-          </p>
+          <p className="sub">Every company vehicle, who has it, and the sticker on it.</p>
         </div>
       </div>
+
+      {vehicles ? (
+        <div className="kpi-grid">
+          <Kpi icon="moto" tint="blue" label="Vehicles in the fleet" value={<Odometer value={vehicles.length} />} note={`${vehicles.filter((v) => v.class !== "moto").length} of them cabs`} />
+          <Kpi icon="riders" tint="green" label="With a rider" value={<Odometer value={assigned.length} delay={80} />} note="Assigned and signed for" />
+          <Kpi icon="radio" tint="yellow" label="Out on shift now" value={<Odometer value={assigned.filter((v) => v.in_use).length} delay={160} />} note="Their rider has started a shift" />
+          <Kpi icon="zone" tint={depot.length > 0 ? "amber" : "blue"} label="In the depot" value={<Odometer value={depot.length} delay={240} />} note="Ready to hand out" />
+        </div>
+      ) : (
+        <div className="kpi-grid">
+          {[0, 1, 2, 3].map((i) => (
+            <div key={i} className="kpi">
+              <Skeleton w={120} h={14} />
+              <Skeleton w={80} h={34} r={10} />
+            </div>
+          ))}
+        </div>
+      )}
 
       {error ? <div className="notice bad" style={{ marginBottom: 16 }}>{error}</div> : null}
       <Flash message={done} onShown={() => setDone(null)} />

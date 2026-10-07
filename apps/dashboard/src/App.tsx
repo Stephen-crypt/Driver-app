@@ -15,28 +15,33 @@ import { Pricing } from "./pages/Pricing";
 import { Zones } from "./pages/Zones";
 import { Regular } from "./pages/Regular";
 import { Palette } from "./components/Palette";
+import { Icon, type IconName } from "./components/kit";
 
 interface Section {
   readonly to: string;
   readonly label: string;
   readonly roles: StaffRole[];
+  readonly icon: IconName;
+  readonly group: "Operations" | "People" | "Money and records";
 }
 
 // Each section lists the roles that may open it. The database enforces the
 // same thing on every call; this only keeps people out of pages that would
 // refuse them.
 const SECTIONS: Section[] = [
-  { to: "/", label: "Control room", roles: ["control_room", "operations", "safety"] },
-  { to: "/riders", label: "Riders", roles: ["operations", "fleet", "safety", "finance", "support"] },
-  { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"] },
-  { to: "/trips", label: "Trips & people", roles: ["support", "operations", "control_room", "safety"] },
-  { to: "/regular", label: "Regular trips", roles: ["operations", "control_room"] },
-  { to: "/zones", label: "Zones", roles: ["control_room", "operations", "safety", "fleet"] },
-  { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"] },
-  { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"] },
-  { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"] },
-  { to: "/audit", label: "Audit log", roles: ["operations", "safety", "finance"] },
+  { to: "/", label: "Control room", roles: ["control_room", "operations", "safety"], icon: "radio", group: "Operations" },
+  { to: "/trips", label: "Trips & people", roles: ["support", "operations", "control_room", "safety"], icon: "route", group: "Operations" },
+  { to: "/regular", label: "Regular trips", roles: ["operations", "control_room"], icon: "repeat", group: "Operations" },
+  { to: "/zones", label: "Zones", roles: ["control_room", "operations", "safety", "fleet"], icon: "zone", group: "Operations" },
+  { to: "/riders", label: "Riders", roles: ["operations", "fleet", "safety", "finance", "support"], icon: "riders", group: "People" },
+  { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"], icon: "moto", group: "People" },
+  { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"], icon: "cases", group: "People" },
+  { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"], icon: "chart", group: "Money and records" },
+  { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"], icon: "sliders", group: "Money and records" },
+  { to: "/audit", label: "Audit log", roles: ["operations", "safety", "finance"], icon: "audit", group: "Money and records" },
 ];
+
+const GROUPS = ["Operations", "People", "Money and records"] as const;
 
 /** The section for a path, so a route's guard can't drift when sections are added. */
 const sec = (to: string): Section => SECTIONS.find((s) => s.to === to)!;
@@ -56,7 +61,9 @@ export function App() {
     <div className="frame">
       <Nav staff={staff} sections={allowed} />
       <Palette sections={allowed} canSearch={can(staff.role, ...sec("/trips").roles)} />
-      <main style={{ overflow: "hidden", height: "100%" }}>
+      <main className="main">
+        <TopBar sections={allowed} />
+        <div className="main-body">
         <Routes>
           <Route path="/" element={guard(staff, sec("/"), <ControlRoom staff={staff} />, home)} />
           <Route path="/riders" element={guard(staff, sec("/riders"), <Riders />, home)} />
@@ -73,6 +80,7 @@ export function App() {
           <Route path="/audit" element={guard(staff, sec("/audit"), <Audit />, home)} />
           <Route path="*" element={<Navigate to={home} replace />} />
         </Routes>
+        </div>
       </main>
     </div>
   );
@@ -100,8 +108,8 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
   const ref = useRef<HTMLElement>(null);
   const [marker, setMarker] = useState<{ y: number; h: number } | null>(null);
 
-  // One lane marker that travels to the section you open, the way the apps'
-  // tab bar does, instead of one that blinks out here and in over there.
+  // One marker that travels to the section you open, the way the apps' tab
+  // pill does, instead of one that blinks out here and in over there.
   useLayoutEffect(() => {
     const a = ref.current?.querySelector<HTMLAnchorElement>("a.active");
     setMarker(a ? { y: a.offsetTop + 8, h: a.offsetHeight - 16 } : null);
@@ -111,45 +119,93 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
     <nav className="nav" aria-label="Sections" ref={ref}>
       {marker ? <span className="nav-marker" style={{ transform: `translateY(${marker.y}px)`, height: marker.h }} aria-hidden="true" /> : null}
       <div className="brand">
-        <span className="vest">N</span>
+        <span className="brand-mark">N</span>
         <div>
           <div className="brand-word">Nova</div>
-          <div className="brand-sub">Control</div>
+          <div className="brand-sub">Control centre</div>
         </div>
       </div>
+      {GROUPS.map((g) => {
+        const items = sections.filter((s) => s.group === g);
+        if (items.length === 0) return null;
+        return (
+          <div key={g} className="nav-group">
+            <div className="nav-group-title">{g}</div>
+            {items.map((s) => (
+              <NavLink key={s.to} to={s.to} end={s.to === "/"}>
+                <Icon name={s.icon} size={18} />
+                <span>{s.label}</span>
+                {s.to === "/" && alerts > 0 ? (
+                  <span className="count" aria-label={`${alerts} open emergency alerts`}>
+                    {alerts}
+                  </span>
+                ) : null}
+                {s.to === "/cases" && cases > 0 ? (
+                  <span className="count quiet" aria-label={`${cases} open cases`}>
+                    {cases}
+                  </span>
+                ) : null}
+              </NavLink>
+            ))}
+          </div>
+        );
+      })}
+      <div className="nav-foot">
+        <span className="me-avatar" aria-hidden="true">
+          {(staff.name.trim().charAt(0) || "?").toUpperCase()}
+        </span>
+        <div className="me-text">
+          <strong>{staff.name}</strong>
+          <span>{ROLE_NAME[staff.role]}</span>
+        </div>
+        <button className="icon-button on-dark" onClick={() => void supabase.auth.signOut()} aria-label="Sign out" title="Sign out">
+          <Icon name="logout" size={18} />
+        </button>
+      </div>
+    </nav>
+  );
+}
+
+/**
+ * Above every page: where you are, the time in Kigali (the only clock that
+ * matters to a rider), that the data is live, and the way to search.
+ */
+function TopBar({ sections }: { sections: Section[] }) {
+  const location = useLocation();
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 15_000);
+    return () => clearInterval(t);
+  }, []);
+  const here =
+    sections.find((s) => s.to !== "/" && location.pathname.startsWith(s.to)) ?? sections.find((s) => s.to === "/" && location.pathname === "/");
+  const kigali = new Date(now).toLocaleString("en-GB", { timeZone: "Africa/Kigali", weekday: "long", day: "numeric", month: "long" });
+  const time = new Date(now).toLocaleTimeString("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", minute: "2-digit" });
+  return (
+    <header className="topbar">
+      <div className="topbar-where">
+        {here ? <Icon name={here.icon} size={18} /> : null}
+        <span>{here?.label ?? "Nova"}</span>
+      </div>
+      <div className="topbar-spacer" />
+      <span className="live-pill" title="Updates as it happens">
+        <span className="live-dot" /> Live
+      </span>
+      <div className="topbar-clock" aria-label={`Kigali time ${time}, ${kigali}`}>
+        <Icon name="clock" size={16} />
+        <strong>{time}</strong>
+        <span>{kigali}</span>
+      </div>
       <button
-        className="nav-search"
+        className="topbar-search"
         onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", ctrlKey: true }))}
         aria-label="Search and go to (Ctrl K)"
       >
-        <span>Search</span>
+        <Icon name="search" size={16} />
+        <span>Search riders, trips, pages</span>
         <kbd>Ctrl K</kbd>
       </button>
-      {sections.map((s) => (
-        <NavLink key={s.to} to={s.to} end={s.to === "/"}>
-          {s.label}
-          {s.to === "/" && alerts > 0 ? (
-            <span className="count" aria-label={`${alerts} open emergency alerts`}>
-              {alerts}
-            </span>
-          ) : null}
-          {s.to === "/cases" && cases > 0 ? (
-            <span className="count quiet" aria-label={`${cases} open cases`}>
-              {cases}
-            </span>
-          ) : null}
-        </NavLink>
-      ))}
-      <div className="nav-foot">
-        <strong>{staff.name}</strong>
-        {ROLE_NAME[staff.role]}
-        <div style={{ marginTop: 8 }}>
-          <button className="link-button" onClick={() => void supabase.auth.signOut()}>
-            Sign out
-          </button>
-        </div>
-      </div>
-    </nav>
+    </header>
   );
 }
 
