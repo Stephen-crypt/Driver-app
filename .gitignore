@@ -12,3 +12,7 @@ coverage/
 
 # Browser automation screenshots and logs
 .playwright-mcp/
+
+# Firebase service account keys (push). Never commit these.
+*firebase-adminsdk*.json
+fcm-service-account*.json
