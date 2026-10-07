@@ -22,9 +22,12 @@ select ok(
   not has_column_privilege('authenticated', 'public.rider_documents', 'note', 'UPDATE'),
   'nor write the reviewer note');
 
+-- rider_id and kind ARE update-granted (0061): the app's upsert writes them
+-- back unchanged and Postgres demands the privilege for that. That a rider
+-- still cannot move or relabel a document is tested by behaviour in 044.
 select ok(
-  not has_column_privilege('authenticated', 'public.rider_documents', 'rider_id', 'UPDATE'),
-  'nor move a document onto another rider');
+  not has_column_privilege('authenticated', 'public.rider_documents', 'created_at', 'UPDATE'),
+  'nor backdate when they first sent it');
 
 -- The part that must keep working: re-uploading after a rejection.
 select ok(
