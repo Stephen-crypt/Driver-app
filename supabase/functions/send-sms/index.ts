@@ -1,20 +1,18 @@
-// Supabase's Send SMS Hook, delivering through Pindo.
-//
-// Pindo is the Rwandan route: local delivery, local rates, and a sender ID that
-// reads as a Rwandan brand rather than a foreign shortcode. Supabase has no
-// native Pindo provider, so auth calls this hook instead of a built-in one.
+// Supabase's Send SMS Hook: sign-in codes, delivered by SMS Gate (an Android
+// phone with a local SIM) or by Pindo - see providers.ts for which and why.
+// Supabase has no native provider for either, so auth calls this hook instead
+// of a built-in one.
 //
 // The signature check is not optional. Without it this endpoint is a public
 // button that spends the SMS balance, and an attacker who finds the URL can
-// drain it and post any text they like under the Nova sender ID.
+// drain it and send any text they like from Nova's number.
 import { Webhook } from "https://esm.sh/standardwebhooks@1.0.0";
+import { codeText, e164, pickRoute } from "./providers.ts";
 
 interface HookPayload {
   user?: { id?: string; phone?: string };
   sms?: { otp?: string };
 }
-
-const PINDO_URL = "https://api.pindo.io/v1/sms/";
 
 function json(body: unknown, status: number): Response {
   return new Response(JSON.stringify(body), {
@@ -23,17 +21,18 @@ function json(body: unknown, status: number): Response {
   });
 }
 
+// Supabase Auth reads a hook's failure as { error: { http_code, message } }
+// and refuses any reply - success included - without a JSON content type.
+const fail = (message: string, status: number) => json({ error: { http_code: status, message } }, status);
+
 Deno.serve(async (req: Request) => {
-  if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
+  if (req.method !== "POST") return fail("method_not_allowed", 405);
 
   const hookSecret = Deno.env.get("SEND_SMS_HOOK_SECRET");
-  const pindoToken = Deno.env.get("PINDO_API_TOKEN");
-  const sender = Deno.env.get("PINDO_SENDER_ID") ?? "Nova";
 
   // Fail closed. A missing secret must never degrade into "skip the check" -
   // that is how a misconfigured deploy silently becomes an open relay.
-  if (!hookSecret) return json({ error: "hook_secret_not_configured" }, 500);
-  if (!pindoToken) return json({ error: "pindo_token_not_configured" }, 500);
+  if (!hookSecret) return fail("hook_secret_not_configured", 500);
 
   const raw = await req.text();
 
@@ -44,39 +43,27 @@ Deno.serve(async (req: Request) => {
     const wh = new Webhook(hookSecret.replace("v1,whsec_", ""));
     payload = wh.verify(raw, Object.fromEntries(req.headers)) as HookPayload;
   } catch {
-    return json({ error: "invalid_signature" }, 401);
+    return fail("invalid_signature", 401);
   }
 
   const phone = payload.user?.phone;
   const otp = payload.sms?.otp;
-  if (!phone || !otp) return json({ error: "malformed_payload" }, 400);
+  if (!phone || !otp) return fail("malformed_payload", 400);
 
-  // Pindo wants E.164 with the plus. GoTrue hands the number without it.
-  const to = phone.startsWith("+") ? phone : `+${phone}`;
+  const route = pickRoute((name) => Deno.env.get(name), e164(phone), codeText(otp));
+  if (!route) return fail("sms_provider_not_configured", 500);
 
-  // Kept to one segment on purpose: an SMS over 160 characters bills as two,
-  // and this is the single most-sent message in the product.
-  const text = `Your Nova code is ${otp}. It expires in 10 minutes.`;
-
-  const res = await fetch(PINDO_URL, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${pindoToken}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ to, text, sender }),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => "");
-    // Never echo the OTP or the token into logs - this line ends up in the
-    // project's log stream, which is not a secret store.
-    console.error(`pindo send failed: ${res.status} ${detail.slice(0, 200)}`);
-    if (res.status === 401) return json({ error: "pindo_unauthorized" }, 500);
-    if (res.status === 409) return json({ error: "pindo_rejected_number" }, 400);
-    return json({ error: "pindo_send_failed" }, 502);
+  const res = await fetch(route.url, route.init).catch(() => null);
+  if (!res?.ok) {
+    const detail = res ? await res.text().catch(() => "") : "unreachable";
+    // Never echo the code or the credentials into logs - this line ends up in
+    // the project's log stream, which is not a secret store.
+    console.error(`${route.provider} send failed: ${res?.status ?? "-"} ${detail.slice(0, 200)}`);
+    if (res?.status === 401) return fail("sms_unauthorized", 500);
+    if (route.provider === "pindo" && res?.status === 409) return fail("sms_rejected_number", 400);
+    return fail("sms_send_failed", 502);
   }
 
-  // An empty 200 is what the hook contract treats as success.
-  return new Response(null, { status: 200 });
+  // An empty JSON object is what the hook contract treats as success.
+  return json({}, 200);
 });
