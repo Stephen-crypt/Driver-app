@@ -21,6 +21,8 @@ export function NovaMap({
   route,
   routeIsRoad,
   fit,
+  pick,
+  onPick,
   bottomInset = 0,
   topInset = 0,
   zoom = 15,
@@ -33,7 +35,7 @@ export function NovaMap({
   // Fixed for the life of the component: the initial view only.
   const html = useMemo(() => buildMapHtml(center, zoom), []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const state = mapState({ center, markers, route, routeIsRoad, fit, bottomInset, topInset });
+  const state = mapState({ center, markers, route, routeIsRoad, fit, bottomInset, topInset, pick });
   const latest = useRef(state);
   latest.current = state;
 
@@ -64,10 +66,12 @@ export function NovaMap({
           web.current?.injectJavaScript(`window.nova && window.nova.update(${latest.current}); true;`);
         }}
         onMessage={(e) => {
-          if (!onPressMap) return;
           try {
-            const p = JSON.parse(e.nativeEvent.data) as LatLng;
-            if (typeof p.lat === "number" && typeof p.lng === "number") onPressMap(p);
+            const p = JSON.parse(e.nativeEvent.data) as LatLng & { kind?: string };
+            if (typeof p.lat !== "number" || typeof p.lng !== "number") return;
+            const at = { lat: p.lat, lng: p.lng };
+            if (p.kind === "center") onPick?.(at);
+            else onPressMap?.(at);
           } catch {
             // A message that is not a coordinate is not ours to act on.
           }

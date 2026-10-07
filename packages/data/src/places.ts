@@ -10,10 +10,11 @@ export interface Place {
   readonly lng: number;
   readonly lat: number;
   /**
-   * Nova's own landmark, or found by Geoapify on OpenStreetMap - whose free
-   * plan requires "Powered by Geoapify" wherever its results are shown.
+   * Nova's own landmark; found by Geoapify on OpenStreetMap, whose free plan
+   * requires "Powered by Geoapify" wherever its results are shown; or one of
+   * the Overture Maps places the search function adds.
    */
-  readonly source: "landmark" | "geoapify";
+  readonly source: "landmark" | "geoapify" | "overture";
 }
 
 interface LandmarkRow {
@@ -73,7 +74,15 @@ async function geocodePlaces(
         (r): r is { id: string; name: string; detail: string | null; lat: number; lng: number } =>
           typeof r?.id === "string" && typeof r?.name === "string" && Number.isFinite(r?.lat) && Number.isFinite(r?.lng),
       )
-      .map((r) => ({ id: `g:${r.id}`, name: r.name, sector: r.detail ?? null, lat: r.lat, lng: r.lng, source: "geoapify" as const }));
+      .map((r) => ({
+        id: `g:${r.id}`,
+        name: r.name,
+        sector: r.detail ?? null,
+        lat: r.lat,
+        lng: r.lng,
+        // The function marks Overture rows with an "o:" id.
+        source: r.id.startsWith("o:") ? ("overture" as const) : ("geoapify" as const),
+      }));
   } catch {
     return [];
   }

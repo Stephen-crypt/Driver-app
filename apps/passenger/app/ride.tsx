@@ -11,6 +11,7 @@ import {
   type RoadFetch,
   ModalSheet,
   Paper,
+  PAPER_PEEK,
   Swap,
   Txt,
   VEHICLE_NAME,
@@ -136,7 +137,10 @@ export default function Ride() {
     return la !== null && ln !== null ? { lat: la, lng: ln } : null;
   });
   const [pickupLabel, setPickupLabel] = useState(one(params.plabel) ?? "Current location");
-  const [pickupNote, setPickupNote] = useState("");
+  // Set on the destination screen when the pickup was moved there.
+  const [pickupNote, setPickupNote] = useState(one(params.pnote) ?? "");
+  // Pulled down, the sheet leaves a strip and the map gets the room.
+  const [folded, setFolded] = useState(false);
 
   const [road, setRoad] = useState<RouteResult | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<VehicleClass, QuoteResult>>>({});
@@ -230,6 +234,26 @@ export default function Ride() {
       active = false;
     };
   }, [trip, distanceM, durationS]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Back to set the pickup somewhere else, keeping the destination: once it
+  // is set, the destination screen comes straight back here with both ends.
+  const changePickup = () => {
+    if (!dropoff) return;
+    router.replace({
+      pathname: "/destination",
+      params: {
+        edit: "pickup",
+        lat: String(dropoff.lat),
+        lng: String(dropoff.lng),
+        label: dropLabel,
+        ...(one(params.note) ? { note: one(params.note) as string } : {}),
+        ...(pickup ? { plat: String(pickup.lat), plng: String(pickup.lng), plabel: pickupLabel } : {}),
+        ...(pickupNote.trim() ? { pnote: pickupNote.trim() } : {}),
+        mode,
+        ...(one(params.vehicle) ? { vehicle: one(params.vehicle) as string } : {}),
+      },
+    });
+  };
 
   // ---- the live trip ---------------------------------------------------------------
   const live = trip ? isTripLive(trip.state) : false;
@@ -567,6 +591,7 @@ export default function Ride() {
         canBook={!!pickup}
         onBook={book}
         nearby={nearby}
+        onChangePickup={changePickup}
       />
     );
   } else if (trip.state === "requested" || trip.state === "offered") {
@@ -632,7 +657,7 @@ export default function Ride() {
         routeIsRoad={ahead ? true : undefined}
         fit={markers.length > 1}
         topInset={insets.top + 56}
-        bottomInset={paperH}
+        bottomInset={folded ? PAPER_PEEK : paperH}
       />
       {!trip || !live ? (
         <FloatButton
@@ -643,7 +668,7 @@ export default function Ride() {
         />
       ) : null}
       <View style={styles.sheet} onLayout={onPaperLayout}>
-        <Paper>
+        <Paper foldable foldKey={stage} onFold={setFolded}>
           {/* Booking ahead adds a day and time picker; on a short phone the
               sheet would push the Book button off the screen without this. */}
           <ScrollView

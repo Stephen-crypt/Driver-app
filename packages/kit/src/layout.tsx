@@ -1,5 +1,6 @@
 import { Children, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
+import { Pressable, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Extrapolation,
   interpolate,
@@ -9,6 +10,7 @@ import Animated, {
   useSharedValue,
   withTiming,
 } from "react-native-reanimated";
+import { scheduleOnRN } from "react-native-worklets";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { ease, enter, swapIn, swapOut } from "./anim";
@@ -226,22 +228,112 @@ export function StatRow({ children }: { readonly children: ReactNode }) {
 // new content instead of jumping.
 // ---------------------------------------------------------------------------
 
+/** How much of a folded sheet stays on screen: the handle and a line or two. */
+export const PAPER_PEEK = 112;
+
 export function Paper({
   children,
   style,
   padBottom = true,
+  foldable = false,
+  foldKey,
+  onFold,
 }: {
   readonly children: ReactNode;
   readonly style?: StyleProp<ViewStyle>;
   /** Off when a tab bar sits under the sheet and already clears the gesture bar. */
   readonly padBottom?: boolean;
+  /**
+   * The sheet can be pulled down to a strip, so the map behind it can be seen,
+   * and pulled back up or tapped open again.
+   */
+  readonly foldable?: boolean;
+  /** When this changes the sheet opens again: new content should be seen. */
+  readonly foldKey?: string;
+  /** Hears the sheet fold and open, to give the map the room. */
+  readonly onFold?: (folded: boolean) => void;
 }) {
   const insets = useSafeAreaInsets();
+  const reduce = useReducedMotion();
+  const h = useSharedValue(0);
+  // 0 is open, 1 is folded; drag is the finger's travel on top of that.
+  const fold = useSharedValue(0);
+  const drag = useSharedValue(0);
+  const [folded, setFolded] = useState(false);
+  const onFoldRef = useRef(onFold);
+  onFoldRef.current = onFold;
+
+  const settle = useCallback((next: boolean) => {
+    setFolded(next);
+    onFoldRef.current?.(next);
+  }, []);
+
+  useEffect(() => {
+    if (!foldable) return;
+    fold.set(reduce ? 0 : withTiming(0, { duration: 200, easing: ease.out }));
+    drag.set(0);
+    settle(false);
+  }, [foldKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pan = Gesture.Pan()
+    .enabled(foldable)
+    .activeOffsetY([-6, 6])
+    .onUpdate((e) => {
+      drag.set(e.translationY);
+    })
+    .onEnd((e) => {
+      const range = Math.max(1, h.get() - PAPER_PEEK);
+      const at = Math.min(range, Math.max(0, fold.get() * range + drag.get()));
+      const next = e.velocityY > 500 ? 1 : e.velocityY < -500 ? 0 : at > range / 2 ? 1 : 0;
+      fold.set(at / range);
+      drag.set(0);
+      fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
+      scheduleOnRN(settle, next === 1);
+    });
+  const tap = Gesture.Tap()
+    .enabled(foldable)
+    .onEnd(() => {
+      const next = fold.get() > 0.5 ? 0 : 1;
+      fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
+      scheduleOnRN(settle, next === 1);
+    });
+  const gesture = Gesture.Exclusive(pan, tap);
+
+  const moved = useAnimatedStyle(() => {
+    if (!foldable) return {};
+    const range = Math.max(0, h.get() - PAPER_PEEK);
+    const y = fold.get() * range + drag.get();
+    return { transform: [{ translateY: Math.min(range + 24, Math.max(-16, y)) }] };
+  });
+
   return (
-    <View style={[styles.paper, { paddingBottom: (padBottom ? insets.bottom : 0) + space.md }, style]}>
-      <View style={styles.grabber} />
+    <Animated.View
+      onLayout={(e) => h.set(e.nativeEvent.layout.height)}
+      style={[styles.paper, { paddingBottom: (padBottom ? insets.bottom : 0) + space.md }, style, moved]}
+    >
+      {foldable ? (
+        <GestureDetector gesture={gesture}>
+          <View
+            style={styles.grabZone}
+            hitSlop={{ top: 12, bottom: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={folded ? "Show the details" : "Show more of the map"}
+          >
+            <View style={[styles.grabber, styles.grabberInZone]} />
+          </View>
+        </GestureDetector>
+      ) : (
+        <View style={styles.grabber} />
+      )}
       <AutoHeight>{children}</AutoHeight>
-    </View>
+      {/* Folded, what shows of the sheet opens it - by tap or by pulling up -
+          rather than pressing a button half off the screen. */}
+      {foldable && folded ? (
+        <GestureDetector gesture={gesture}>
+          <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Show the details" />
+        </GestureDetector>
+      ) : null}
+    </Animated.View>
   );
 }
 
@@ -262,8 +354,11 @@ export function AutoHeight({ children }: { readonly children: ReactNode }) {
         style={styles.autoInner}
         onLayout={(e) => {
           const next = e.nativeEvent.layout.height;
-          if (h.get() < 0 || reduce) h.set(next);
-          else h.set(withTiming(next, { duration: 280, easing: ease.inOut }));
+          // Quick, and not at all for a few pixels: content that settles in
+          // steps - prices arriving, a chip appearing - made a slow ease
+          // chase itself and the sheet crept up and down on its own.
+          if (h.get() < 0 || reduce || Math.abs(next - h.get()) < 12) h.set(next);
+          else h.set(withTiming(next, { duration: 180, easing: ease.out }));
         }}
       >
         {children}
@@ -530,7 +625,9 @@ const styles = StyleSheet.create({
     ...shadow.paper,
   },
   auto: { overflow: "hidden" },
-  autoInner: { position: "absolute", top: 0, left: 0, right: 0 },
+  // Held at the bottom of the frame: while a sheet grows, its buttons - at
+  // the bottom - are on screen at once and the top is what is revealed.
+  autoInner: { position: "absolute", bottom: 0, left: 0, right: 0 },
   grabber: {
     alignSelf: "center",
     width: 40,
@@ -539,6 +636,9 @@ const styles = StyleSheet.create({
     backgroundColor: c.border,
     marginBottom: space.md,
   },
+  // A handle you can find with a thumb: the full width, taller than it looks.
+  grabZone: { alignSelf: "stretch", alignItems: "center", marginTop: -space.sm, paddingTop: space.sm + 2, paddingBottom: space.md },
+  grabberInZone: { marginBottom: 0, width: 44, backgroundColor: c.textMuted, opacity: 0.45 },
   screen: { flex: 1, backgroundColor: c.surface },
   content: { paddingHorizontal: space.lg },
   stack: { gap: 0 },

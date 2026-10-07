@@ -30,17 +30,20 @@ export function NovaMap(props: NovaMapProps) {
 
   useEffect(() => {
     const onMessage = (e: MessageEvent) => {
-      if (e.source !== frame.current?.contentWindow || !props.onPressMap) return;
+      if (e.source !== frame.current?.contentWindow) return;
       try {
-        const p = JSON.parse(String(e.data)) as { lat: number; lng: number };
-        if (typeof p.lat === "number") props.onPressMap(p);
+        const p = JSON.parse(String(e.data)) as { lat: number; lng: number; kind?: string };
+        if (typeof p.lat !== "number" || typeof p.lng !== "number") return;
+        const at = { lat: p.lat, lng: p.lng };
+        if (p.kind === "center") props.onPick?.(at);
+        else props.onPressMap?.(at);
       } catch {
         // Not a coordinate.
       }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
-  }, [props.onPressMap]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [props.onPressMap, props.onPick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <View style={[styles.root, props.style]}>

@@ -58,6 +58,7 @@ export function Choose({
   canBook,
   onBook,
   nearby,
+  onChangePickup,
 }: {
   readonly mode: BookingMode;
   readonly later: LaterPlan;
@@ -76,6 +77,8 @@ export function Choose({
   readonly error: string | null;
   readonly canBook: boolean;
   readonly onBook: () => void;
+  /** Set the pickup somewhere other than where the phone is. */
+  readonly onChangePickup?: () => void;
   /** Free riders near the pickup, per vehicle; null until known. */
   readonly nearby?: readonly NearbyRiders[] | null;
 }) {
@@ -109,6 +112,14 @@ export function Choose({
           <Txt v="label" tone="muted" lines={1}>
             {pickupLabel} to {destination}
           </Txt>
+          {onChangePickup ? (
+            <Press onPress={onChangePickup} style={styles.change} accessibilityRole="button" accessibilityLabel="Change pickup">
+              <Ionicons name="locate" size={13} color={c.accent} />
+              <Txt v="label" tone="accent" style={styles.changeText}>
+                Change pickup
+              </Txt>
+            </Press>
+          ) : null}
         </View>
         {minutes ? (
           <View style={styles.eta}>
@@ -251,6 +262,8 @@ function Away({ nearby, kind }: { readonly nearby: readonly NearbyRiders[]; read
 }
 
 const styles = StyleSheet.create({
+  change: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-start", paddingTop: 4, paddingBottom: 2 },
+  changeText: { fontFamily: font.semibold },
   away: {
     flexDirection: "row",
     alignItems: "center",

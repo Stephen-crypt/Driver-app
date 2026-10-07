@@ -291,12 +291,23 @@ export default function Home() {
             <Txt v="title" tone="onHero" style={styles.askText}>
               Where are you going?
             </Txt>
-            <View style={styles.pickup}>
+            {/* Where the rider comes to. GPS by default; a tap sets it
+                somewhere else - a main road, a gate, someone else's door. */}
+            <Press
+              onPress={() => go({ edit: "pickup" })}
+              scaleTo={0.98}
+              style={styles.pickup}
+              accessibilityRole="button"
+              accessibilityLabel={`Pickup: ${pickupLabel ?? "your current location"}. Change pickup`}
+            >
               <View style={styles.pickupDot} />
               <Txt v="label" tone="onHeroMuted" lines={1} style={styles.flex}>
                 {pickupLabel ? `From ${pickupLabel}` : gpsDenied ? "Location is off" : "Finding where you are…"}
               </Txt>
-            </View>
+              <Txt v="label" tone="light" style={styles.pickupChange}>
+                Change
+              </Txt>
+            </Press>
             {nearby !== null ? (
               <View style={styles.supply} accessibilityRole="text">
                 <LiveDot tone={free > 0 ? "good" : "bad"} size={8} onDark />
@@ -519,6 +530,7 @@ const styles = StyleSheet.create({
   askText: { fontFamily: font.numBold, fontSize: 30, lineHeight: 36 },
   pickup: { flexDirection: "row", alignItems: "center", gap: space.sm },
   pickupDot: { width: 10, height: 10, borderRadius: 5, borderWidth: 2.5, borderColor: c.highlight },
+  pickupChange: { fontFamily: font.semibold },
   supply: {
     flexDirection: "row",
     alignItems: "center",

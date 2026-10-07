@@ -14,6 +14,7 @@ import {
   type RoadFetch,
   LiveDot,
   Paper,
+  PAPER_PEEK,
   Press,
   Skeleton,
   SlideToConfirm,
@@ -134,6 +135,8 @@ export default function Today() {
   const [cancelOpen, setCancelOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [paperH, onPaperLayout] = useSettledHeight(320);
+  // Pulled down, the sheet leaves a strip and the map gets the room.
+  const [folded, setFolded] = useState(false);
 
   const now = useNow(1000, trip?.state === "arrived" || shift != null);
 
@@ -380,9 +383,21 @@ export default function Today() {
       if (!offer) return;
       try {
         await acceptOffer(supabase, offer.offerId);
-      } catch {
+      } catch (e) {
         setOffer(null);
-        throw new Error("That trip is gone. Someone else took it.");
+        // Say what actually happened. "Someone else took it" for every
+        // failure sent the first live tester looking for a second rider
+        // who did not exist.
+        const why = e instanceof Error ? e.message : "";
+        throw new Error(
+          /offer_not_available/.test(why)
+            ? "That offer ran out before it reached Nova, or went to another rider."
+            : /illegal_transition|not_a_participant/.test(why)
+              ? "This trip can't be accepted any more."
+              : /network|fetch|timeout/i.test(why)
+                ? "Couldn't reach Nova. Check your connection - the next offer will come through."
+                : "Couldn't accept that trip. The next one will come to you.",
+        );
       }
       setOffer(null);
       await refreshWork();
@@ -677,7 +692,7 @@ export default function Today() {
         routeIsRoad={ahead ? true : undefined}
         fit={!!target}
         topInset={insets.top + 60}
-        bottomInset={paperH}
+        bottomInset={folded ? PAPER_PEEK : paperH}
       />
 
       <View style={[styles.top, { top: insets.top + space.sm }]} pointerEvents="box-none">
@@ -720,7 +735,7 @@ export default function Today() {
       </View>
 
       <View style={styles.sheet} onLayout={onPaperLayout}>
-        <Paper padBottom={false}>
+        <Paper padBottom={false} foldable foldKey={stage} onFold={setFolded}>
           <Swap id={stage}>{body}</Swap>
         </Paper>
       </View>

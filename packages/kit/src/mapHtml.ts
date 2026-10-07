@@ -1,5 +1,5 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import { MAP_PAINT, MAP_PLACES_LAYER, MAP_STYLE_URL } from "@nova/ui";
+import { MAP_CASINGS, MAP_LAYOUT, MAP_PAINT, MAP_PLACES_BEFORE, MAP_PLACES_LAYERS, MAP_STYLE_URL } from "@nova/ui";
 import { c } from "./theme";
 
 export interface LatLng {
@@ -39,6 +39,14 @@ export interface NovaMapProps {
   /** Street-map zoom, where 15 shows a neighbourhood. */
   readonly zoom?: number;
   readonly onPressMap?: (at: LatLng) => void;
+  /**
+   * Choosing a place by moving the map: a pin stays in the middle of the part
+   * of the map you can see, and the map slides under it. onPick hears where
+   * the pin is each time the map comes to rest (and once on entering). The
+   * camera starts at `center`.
+   */
+  readonly pick?: "pickup" | "dropoff" | null;
+  readonly onPick?: (at: LatLng) => void;
   readonly style?: StyleProp<ViewStyle>;
 }
 
@@ -52,6 +60,7 @@ export function mapState(p: NovaMapProps): string {
     fit: !!p.fit,
     center: p.center,
     pad: { top: (p.topInset ?? 0) + 24, bottom: (p.bottomInset ?? 0) + 24 },
+    pick: p.pick ?? null,
   });
 }
 
@@ -81,7 +90,19 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   @media (prefers-reduced-motion: reduce){.me:after{animation:none;opacity:.25;transform:scale(2)}}
   .pin{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.28)}
   .pickup{border-radius:50%;background:#fff;border:5px solid ${c.textStrong};box-sizing:border-box}
-  .dropoff{border-radius:5px;background:${c.destination};border:3px solid #fff;box-sizing:border-box}
+  .drop{position:relative;width:30px;height:40px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
+  .drop svg{display:block}
+  /* Choosing a place: the pin stands in the middle of what you can see, lifts
+     while the map moves and drops when it stops. Its tip is the point. */
+  #pick{position:absolute;left:50%;top:50%;width:0;height:0;pointer-events:none;display:none;z-index:5}
+  #pick.show{display:block}
+  #pick .p{position:absolute;left:-17px;top:-46px;width:34px;height:46px;transition:transform .18s cubic-bezier(.23,1,.32,1);
+           filter:drop-shadow(0 3px 4px rgba(0,0,0,.3))}
+  #pick.lift .p{transform:translateY(-12px)}
+  #pick .s{position:absolute;left:-6px;top:-3px;width:12px;height:6px;border-radius:50%;background:rgba(10,35,66,.35);
+           transition:transform .18s cubic-bezier(.23,1,.32,1)}
+  #pick.lift .s{transform:scale(.6)}
+  @media (prefers-reduced-motion: reduce){#pick .p,#pick .s{transition:none}}
   .rider{position:relative;width:100%;height:38px;padding:0 5px;border-radius:9px;background:${c.highlight};color:${c.onHighlight};
          display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-sizing:border-box;
          font:800 19px/1 Montserrat,'Segoe UI',Roboto,sans-serif;font-variant-numeric:tabular-nums;
@@ -111,22 +132,44 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
        background:#fff;color:${c.textStrong};font:600 12px/1 -apple-system,Roboto,sans-serif;
        padding:5px 8px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.18)}
 </style>
-</head><body><div id="m"></div>
+</head><body><div id="m"></div><div id="pick"><i class="s"></i><div class="p"></div></div>
 <script src="${MAPLIBRE}/maplibre-gl.js"></script>
 <script>
   var PAINT = ${JSON.stringify(MAP_PAINT)};
-  var PLACES = ${JSON.stringify(MAP_PLACES_LAYER)};
+  var LAYOUT = ${JSON.stringify(MAP_LAYOUT)};
+  var EDGES = ${JSON.stringify(MAP_CASINGS)};
+  var PLACES_BEFORE = '${MAP_PLACES_BEFORE}';
+  var PIN_SVG = '<svg width="__W__" height="__H__" viewBox="0 0 30 40"><path d="M15 39C15 39 28 24.8 28 15A13 13 0 0 0 2 15C2 24.8 15 39 15 39Z" fill="__F__" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="15" r="5" fill="#fff"/></svg>';
+  function pinSvg(fill, w, h){ return PIN_SVG.replace('__F__', fill).replace('__W__', w).replace('__H__', h); }
+  var PICK_FILL = {pickup:'${c.accent}', dropoff:'${c.destination}'};
+  var PLACES = ${JSON.stringify(MAP_PLACES_LAYERS)};
   var map = null, ready = false, pending = null;
-  var markers = {}, fitted = '', fittedSpan = 0, lastCentre = null, touchedAt = 0;
+  var markers = {}, fitted = '', fittedSpan = 0, lastCentre = null, touchedAt = 0, picking = null;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-  // The same recolouring as brandMapStyle in @nova/ui, which the dashboard uses.
+  // The same spec as brandMapStyle in @nova/ui, which the dashboard uses:
+  // colours and sizes by layer, an edge under side streets, named places.
   function brand(s){
-    s.layers = s.layers.map(function(l){
-      return PAINT[l.id] ? Object.assign({}, l, {paint: Object.assign({}, l.paint, PAINT[l.id])}) : l;
+    var out = [];
+    s.layers.forEach(function(l){
+      EDGES.forEach(function(e){
+        if (e.of === l.id) {
+          var edge = JSON.parse(JSON.stringify(l));
+          edge.id = e.id;
+          edge.paint = {'line-color': e.color, 'line-width': e.width, 'line-gap-width': (l.paint && l.paint['line-width']) || 1};
+          out.push(edge);
+        }
+      });
+      if (PAINT[l.id] || LAYOUT[l.id]) {
+        out.push(Object.assign({}, l, {
+          paint: Object.assign({}, l.paint, PAINT[l.id]),
+          layout: Object.assign({}, l.layout, LAYOUT[l.id])
+        }));
+      } else out.push(l);
     });
-    var at = s.layers.map(function(l){return l.id;}).indexOf('label_other');
-    s.layers.splice(at < 0 ? s.layers.length : at, 0, PLACES);
+    var at = out.map(function(l){return l.id;}).indexOf(PLACES_BEFORE);
+    Array.prototype.splice.apply(out, [at < 0 ? out.length : at, 0].concat(PLACES));
+    s.layers = out;
     return s;
   }
 
@@ -137,6 +180,11 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
 
   function post(o){
     if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(JSON.stringify(o));
+  }
+
+  function sendCentre(){
+    var c = map.getCenter();
+    post({kind:'center', lat:c.lat, lng:c.lng});
   }
 
   function create(style){
@@ -165,7 +213,17 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
       ready = true;
       if (pending) apply(pending);
     });
-    map.on('click', function(e){ post({lat:e.lngLat.lat, lng:e.lngLat.lng}); });
+    map.on('click', function(e){
+      // Choosing a place: a tap moves the map so the pin lands where you tapped.
+      if (picking) { map.easeTo({center: e.lngLat, duration: reduce ? 0 : 300}); return; }
+      post({kind:'press', lat:e.lngLat.lat, lng:e.lngLat.lng});
+    });
+    map.on('movestart', function(){ if (picking) document.getElementById('pick').classList.add('lift'); });
+    map.on('moveend', function(){
+      if (!picking) return;
+      document.getElementById('pick').classList.remove('lift');
+      sendCentre();
+    });
     // A camera move with a finger behind it is the passenger looking around;
     // the map leaves the camera to them for a while.
     map.on('movestart', function(e){ if (e.originalEvent) touchedAt = Date.now(); });
@@ -180,10 +238,12 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
     var inner = m.kind === 'me' ? '<div class="me"></div>'
       : m.kind === 'rider' ? '<div class="rider"><span>' + (m.tag || '') + '</span></div>'
       : m.kind === 'radar' ? '<div class="radar"><s></s><i></i><i></i><i></i><b></b></div>'
+      : m.kind === 'dropoff' ? '<div class="drop">' + pinSvg('${c.destination}', 30, 40) + '</div>'
       : '<div class="pin ' + m.kind + '"></div>';
     var tag = (m.kind === 'pickup' || m.kind === 'dropoff') && m.tag ? '<div class="tag">' + m.tag + '</div>' : '';
     // A vest number is one to four digits; the patch widens to fit it.
-    var size = m.kind === 'rider' ? [Math.max(34, 14 + 14 * String(m.tag || '').length), 38] : m.kind === 'radar' ? [240,240] : [18,18];
+    var size = m.kind === 'rider' ? [Math.max(34, 14 + 14 * String(m.tag || '').length), 38]
+      : m.kind === 'radar' ? [240,240] : m.kind === 'dropoff' ? [30,40] : [18,18];
     var el = document.createElement('div');
     el.style.width = size[0] + 'px';
     el.style.height = size[1] + 'px';
@@ -223,7 +283,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
         glide(markers[m.id], m.at);
       } else {
         if (markers[m.id]) markers[m.id].marker.remove();
-        markers[m.id] = {key:key, marker:new maplibregl.Marker({element:element(m), anchor:'center'}).setLngLat([m.at.lng, m.at.lat]).addTo(map)};
+        markers[m.id] = {key:key, marker:new maplibregl.Marker({element:element(m), anchor: m.kind === 'dropoff' ? 'bottom' : 'center'}).setLngLat([m.at.lng, m.at.lat]).addTo(map)};
       }
     });
     Object.keys(markers).forEach(function(id){
@@ -239,6 +299,31 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
     if (corner) corner.style.top = Math.max(0, s.pad.top - 16) + 'px';
 
     // The road can bulge well outside its two ends, so it is framed too.
+    // Choosing a place: the camera is the passenger's. Padding puts the
+    // map's centre in the middle of the part not under the sheet, and the
+    // pin stands there.
+    var pickEl = document.getElementById('pick');
+    if (s.pick) {
+      map.setPadding({top: s.pad.top, bottom: s.pad.bottom, left: 0, right: 0});
+      var h = map.getContainer().clientHeight;
+      pickEl.style.top = (s.pad.top + Math.max(0, h - s.pad.top - s.pad.bottom) / 2) + 'px';
+      if (picking !== s.pick) {
+        pickEl.querySelector('.p').innerHTML = pinSvg(PICK_FILL[s.pick], 34, 46);
+        pickEl.classList.add('show');
+        var entering = !picking;
+        picking = s.pick;
+        if (entering) map.jumpTo({center: [s.center.lng, s.center.lat], zoom: Math.max(map.getZoom(), 15.5)});
+        sendCentre();
+      }
+      return;
+    }
+    if (picking) {
+      picking = null;
+      pickEl.classList.remove('show');
+      map.setPadding({top: 0, bottom: 0, left: 0, right: 0});
+      fitted = '';
+    }
+
     var pts = (s.markers || []).map(function(m){return [m.at.lng, m.at.lat];})
       .concat((s.route || []).map(function(p){return [p.lng, p.lat];}));
     // Refit only when the set of things on the map changes - a road arriving

@@ -57,7 +57,11 @@ export function TabBar({
             }}
             style={styles.item}
           >
-            <View style={[styles.pill, focused && styles.pillOn]}>
+            {/* Keyed on focus so the pill is built fresh, not restyled: on
+                Android's new renderer a background added to a view after it
+                was first drawn lost its rounded corners, and the active tab
+                turned into a hard-edged block. */}
+            <View key={focused ? "on" : "off"} style={[styles.pill, focused && styles.pillOn]}>
               <Ionicons name={focused ? icon.on : icon.off} size={22} color={focused ? c.highlight : c.textMuted} />
               {focused ? (
                 <Animated.View entering={FadeIn.duration(180)}>
@@ -92,6 +96,7 @@ const styles = StyleSheet.create({
     minWidth: 46,
     paddingHorizontal: 12,
     borderRadius: 23,
+    overflow: "hidden",
     justifyContent: "center",
   },
   pillOn: { backgroundColor: c.hero, paddingHorizontal: 18 },

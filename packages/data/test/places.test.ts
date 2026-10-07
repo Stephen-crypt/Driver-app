@@ -87,6 +87,11 @@ describe("searchPlaces", () => {
     ]);
   });
 
+  it("tells Overture places from Geoapify ones, for the credit line", async () => {
+    const c = both([], { places: [{ id: "o:abc", name: "Inzora Rooftop Cafe", detail: "Cafe", lat: -1.95, lng: 30.09 }] });
+    expect((await searchPlaces(c, "inzora")).map((p) => p.source)).toEqual(["overture"]);
+  });
+
   it("drops a map result that is one of our landmarks again", async () => {
     const c = both([market], { places: [{ id: "x", name: "kimironko market", detail: null, lat: -1.9497, lng: 30.1262 }] });
     expect((await searchPlaces(c, "kimironko")).map((p) => p.source)).toEqual(["landmark"]);
