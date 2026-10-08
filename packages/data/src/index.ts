@@ -17,3 +17,4 @@ export * from "./inspect";
 export * from "./messages";
 export * from "./nearby";
 export * from "./inbox";
+export * from "./promos";

@@ -9,6 +9,14 @@ export interface QuoteRequest {
   /** The route being priced; booking must use the same one. */
   readonly pickup: { readonly lat: number; readonly lng: number };
   readonly dropoff: { readonly lat: number; readonly lng: number };
+  /** Which saved promo code to use: the one saving most (the default), none, or one by id. */
+  readonly promo?: "best" | "none" | (string & {});
+}
+
+export interface QuotePromo {
+  readonly id: string;
+  readonly code: string;
+  readonly discountRwf: number;
 }
 
 export interface QuoteResult {
@@ -18,6 +26,10 @@ export interface QuoteResult {
   readonly vehicleClass: string;
   readonly distanceM: number;
   readonly durationS: number;
+  /** The promo code this price uses, if any. */
+  readonly promo: QuotePromo | null;
+  /** What the passenger pays for the ride: amountRwf less the promo. */
+  readonly payRwf: number;
 }
 
 export interface ReceiptLine {
@@ -28,7 +40,14 @@ export interface ReceiptLine {
 export interface CompleteTripResult {
   readonly tripId: string;
   readonly state: string;
-  readonly receipt: { readonly lines: readonly ReceiptLine[]; readonly totalRwf: number };
+  readonly receipt: {
+    readonly lines: readonly ReceiptLine[];
+    readonly totalRwf: number;
+    /** What a promo took off. Nova covers it; the rider's earning is on totalRwf. */
+    readonly promoRwf?: number;
+    /** What the passenger paid and the rider collects: totalRwf less the promo. */
+    readonly paidRwf?: number;
+  };
   /**
    * What the rider made on this trip. The Edge Function returns this, not the
    * company's commission - the type used to say commissionRwf, which the
@@ -44,7 +63,9 @@ export async function requestQuote(
   const { data, error } = await client.functions.invoke("quote", { body: req });
   if (error) throw dataError(error.message);
   if (!data) throw new Error("quote failed");
-  return data as QuoteResult;
+  const q = data as Omit<QuoteResult, "promo" | "payRwf"> & { promo?: QuotePromo | null; payRwf?: number };
+  // A server from before promos sends neither field: the full price is paid.
+  return { ...q, promo: q.promo ?? null, payRwf: q.payRwf ?? q.amountRwf };
 }
 
 export interface CreateTripArgs {

@@ -23,6 +23,8 @@ export interface TripSnapshot {
   readonly state: string;
   readonly riderId: string | null;
   readonly quotedAmountRwf: number | null;
+  /** What a promo takes off the quote; 0 without one. */
+  readonly promoDiscountRwf: number;
   readonly pickupLabel: string;
   readonly dropoffLabel: string;
 }
@@ -32,6 +34,7 @@ interface TripRow {
   state: string;
   rider_id: string | null;
   quoted_amount_rwf: number | null;
+  promo_discount_rwf?: number | null;
   pickup_label: string;
   dropoff_label: string;
 }
@@ -39,7 +42,7 @@ interface TripRow {
 export async function getTrip(client: NovaClient, tripId: string): Promise<TripSnapshot> {
   const { data, error } = await client
     .from("trips")
-    .select("id, state, rider_id, quoted_amount_rwf, pickup_label, dropoff_label")
+    .select("id, state, rider_id, quoted_amount_rwf, promo_discount_rwf, pickup_label, dropoff_label")
     .eq("id", tripId)
     .single();
 
@@ -52,6 +55,7 @@ export async function getTrip(client: NovaClient, tripId: string): Promise<TripS
     state: r.state,
     riderId: r.rider_id,
     quotedAmountRwf: r.quoted_amount_rwf,
+    promoDiscountRwf: r.promo_discount_rwf ?? 0,
     pickupLabel: r.pickup_label,
     dropoffLabel: r.dropoff_label,
   };
@@ -113,7 +117,7 @@ export async function getActivePassengerTrip(
 ): Promise<TripSnapshot | null> {
   const { data, error } = await client
     .from("trips")
-    .select("id, state, rider_id, quoted_amount_rwf, pickup_label, dropoff_label")
+    .select("id, state, rider_id, quoted_amount_rwf, promo_discount_rwf, pickup_label, dropoff_label")
     .eq("passenger_id", passengerId)
     .in("state", [...LIVE_TRIP_STATES])
     .order("created_at", { ascending: false })
@@ -127,6 +131,7 @@ export async function getActivePassengerTrip(
     state: r.state,
     riderId: r.rider_id,
     quotedAmountRwf: r.quoted_amount_rwf,
+    promoDiscountRwf: r.promo_discount_rwf ?? 0,
     pickupLabel: r.pickup_label,
     dropoffLabel: r.dropoff_label,
   };

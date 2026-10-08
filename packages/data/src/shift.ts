@@ -208,6 +208,11 @@ export interface TripTotal {
   readonly totalRwf: number;
   readonly fareRwf: number;
   readonly waitingChargeRwf: number;
+  /** What a promo took off the fare; 0 without one. */
+  readonly promoDiscountRwf: number;
+  /** What the passenger paid: totalRwf less the promo. */
+  readonly paidRwf: number;
+  readonly promoCode: string | null;
 }
 
 /** What a finished trip actually cost, from the completion record. */
@@ -217,8 +222,22 @@ export async function getTripTotal(client: NovaClient, tripId: string): Promise<
     .maybeSingle();
   if (error) throw dataError(error.message);
   if (!data) return null;
-  const r = data as { total_rwf: number; fare_rwf: number; waiting_charge_rwf: number };
-  return { totalRwf: r.total_rwf, fareRwf: r.fare_rwf, waitingChargeRwf: r.waiting_charge_rwf };
+  const r = data as {
+    total_rwf: number;
+    fare_rwf: number;
+    waiting_charge_rwf: number;
+    promo_discount_rwf?: number | null;
+    paid_rwf?: number | null;
+    promo_code?: string | null;
+  };
+  return {
+    totalRwf: r.total_rwf,
+    fareRwf: r.fare_rwf,
+    waitingChargeRwf: r.waiting_charge_rwf,
+    promoDiscountRwf: r.promo_discount_rwf ?? 0,
+    paidRwf: r.paid_rwf ?? r.total_rwf,
+    promoCode: r.promo_code ?? null,
+  };
 }
 
 // ---------------------------------------------------------------------------

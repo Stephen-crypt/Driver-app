@@ -205,6 +205,8 @@ export interface ActiveTrip {
   readonly pickupNote: string | null;
   readonly dropoffLabel: string;
   readonly fareRwf: number | null;
+  /** What a promo takes off: the rider collects fareRwf less this, and Nova covers it. */
+  readonly promoDiscountRwf: number;
   readonly quotedDistanceM: number | null;
   readonly scheduledFor: string | null;
 }
@@ -216,7 +218,7 @@ export async function getActiveTrip(
   const { data, error } = await client
     .from("trips")
     .select(
-      "id, state, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, quoted_distance_m, scheduled_for",
+      "id, state, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, promo_discount_rwf, quoted_distance_m, scheduled_for",
     )
     .eq("rider_id", riderId)
     .in("state", ["accepted", "arrived", "in_progress"])
@@ -234,6 +236,7 @@ export async function getActiveTrip(
     pickup_note: string | null;
     dropoff_label: string;
     quoted_amount_rwf: number | null;
+    promo_discount_rwf?: number | null;
     quoted_distance_m: number | null;
     scheduled_for: string | null;
   };
@@ -245,6 +248,7 @@ export async function getActiveTrip(
     pickupNote: r.pickup_note,
     dropoffLabel: r.dropoff_label,
     fareRwf: r.quoted_amount_rwf,
+    promoDiscountRwf: r.promo_discount_rwf ?? 0,
     quotedDistanceM: r.quoted_distance_m,
     scheduledFor: r.scheduled_for,
   };
