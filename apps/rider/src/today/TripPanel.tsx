@@ -152,12 +152,23 @@ export function TripPanel(p: TripPanelProps) {
           <Txt v="caption" tone="muted">
             Cash, plus any waiting charge
           </Txt>
+          {/* The passenger pays less; Nova makes it up, so the rider's
+              earning is on the full fare. */}
+          {trip.promoDiscountRwf > 0 ? (
+            <Txt v="caption" tone="good">
+              Promo applied: Nova covers {money(trip.promoDiscountRwf)} RWF
+            </Txt>
+          ) : null}
         </View>
         <View style={styles.amount}>
           {trip.fareRwf === null ? (
             <Txt v="figure">-</Txt>
           ) : (
-            <Odometer value={money(trip.fareRwf)} v="figure" accessibilityLabel={`${money(trip.fareRwf)} Rwandan francs`} />
+            <Odometer
+              value={money(trip.fareRwf - trip.promoDiscountRwf)}
+              v="figure"
+              accessibilityLabel={`${money(trip.fareRwf - trip.promoDiscountRwf)} Rwandan francs`}
+            />
           )}
           <Txt v="label" tone="muted">
             RWF

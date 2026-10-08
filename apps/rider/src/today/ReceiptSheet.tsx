@@ -32,7 +32,9 @@ export function ReceiptSheet({
 }) {
   const insets = useSafeAreaInsets();
   if (!result) return null;
-  const total = result.receipt.totalRwf;
+  // What the passenger hands over: the total less any promo, which Nova covers.
+  const total = result.receipt.paidRwf ?? result.receipt.totalRwf;
+  const promo = result.receipt.promoRwf ?? 0;
   return (
     <Modal visible animationType="fade" onRequestClose={onDone} statusBarTranslucent>
       <View style={[styles.root, { paddingTop: insets.top + space.lg, paddingBottom: insets.bottom + space.lg }]}>
@@ -64,12 +66,17 @@ export function ReceiptSheet({
                     <Txt v="body" tone="muted">
                       {l.label}
                     </Txt>
-                    <Txt v="bodyStrong" tabularNums>
-                      {money(l.amountRwf)}
+                    <Txt v="bodyStrong" tabularNums tone={l.amountRwf < 0 ? "good" : undefined}>
+                      {l.amountRwf < 0 ? `−${money(-l.amountRwf)}` : money(l.amountRwf)}
                     </Txt>
                   </View>
                 ))}
               </View>
+              {promo > 0 ? (
+                <Txt v="caption" tone="muted">
+                  Nova covers the promo. Your earning is on the full fare.
+                </Txt>
+              ) : null}
               <ImigongoBand height={18} opacity={0.16} style={styles.band} />
             </View>
             <ZigzagEdge colour={c.surfaceRaised} />
