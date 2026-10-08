@@ -90,7 +90,11 @@ Deno.serve(async (req: Request) => {
 
   if (completeError) return json({ error: completeError.message }, 400);
 
-  const completedTrip = completed as { state?: string; actual_distance_m?: number | null } | null;
+  const completedTrip = completed as {
+    state?: string;
+    actual_distance_m?: number | null;
+    promo_discount_rwf?: number | null;
+  } | null;
 
   // Built from the distance complete_trip actually billed, which it caps by
   // the server's own measurement of the ride (0055) - not the one this phone
@@ -108,10 +112,16 @@ Deno.serve(async (req: Request) => {
   // this function in TypeScript and by the database in SQL - and they agree only
   // because packages/core/test/fare/sql-parity.test.ts says they do. The
   // authoritative figures are the ledger entry and the completion event's meta.
+  // A promo comes off what the passenger pays and the rider collects; Nova
+  // covers it, so the rider's earning below is on the full total. The amount
+  // is complete_trip's own, worked out on the final fare.
+  const promoRwf = Number(completedTrip?.promo_discount_rwf ?? 0);
+  const lines = promoRwf > 0 ? [...receipt.lines, { label: "Promo", amountRwf: -promoRwf }] : receipt.lines;
+
   return json({
     tripId,
     state: completedTrip?.state ?? "completed",
-    receipt: { lines: receipt.lines, totalRwf: receipt.totalRwf },
+    receipt: { lines, totalRwf: receipt.totalRwf, promoRwf, paidRwf: receipt.totalRwf - promoRwf },
     // The rider's earning, not the company's cut - this response goes to the
     // rider's phone, and what they need is what they made.
     riderEarningRwf: receipt.riderEarningRwf,

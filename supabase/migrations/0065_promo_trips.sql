@@ -154,12 +154,13 @@ end;
 $function$
 ;
 
--- The receipt's figures, now with the promo and what was paid. Trips that
--- finished before promos read 0 off and paid = total.
+-- The receipt's figures, now with the promo (its code and what it took off)
+-- and what was paid. Trips that finished before promos read 0 off and
+-- paid = total.
 drop function if exists public.trip_total_rwf(uuid);
 create function public.trip_total_rwf(p_trip_id uuid)
 returns table (total_rwf integer, fare_rwf integer, waiting_charge_rwf integer,
-               promo_discount_rwf integer, paid_rwf integer)
+               promo_discount_rwf integer, paid_rwf integer, promo_code text)
 language plpgsql stable security definer set search_path = public as $$
 begin
   if not exists (
@@ -175,7 +176,9 @@ begin
          coalesce((e.meta->>'fare_rwf')::integer, (e.meta->>'total_rwf')::integer),
          coalesce((e.meta->>'waiting_charge_rwf')::integer, 0),
          coalesce((e.meta->>'promo_discount_rwf')::integer, 0),
-         coalesce((e.meta->>'paid_rwf')::integer, (e.meta->>'total_rwf')::integer)
+         coalesce((e.meta->>'paid_rwf')::integer, (e.meta->>'total_rwf')::integer),
+         (select c.code from public.trips t join public.promo_codes c on c.id = t.promo_id
+           where t.id = p_trip_id)
     from public.trip_events e
    where e.trip_id = p_trip_id and e.to_state = 'completed'
    order by e.created_at desc

@@ -3,6 +3,7 @@ import type { VehicleClass } from "../_shared/core.ts";
 import { policyFromRow, type FarePolicyRow } from "../_shared/policy.ts";
 import { callerClient, serviceClient, json } from "../_shared/supabase.ts";
 import { MAX_DISTANCE_M, inServiceArea, isPoint, pricedRoute } from "./route.ts";
+import { promoChoice } from "./promo.ts";
 
 const QUOTE_TTL_SECONDS = 120;
 
@@ -13,7 +14,14 @@ Deno.serve(async (req: Request) => {
   const { data: auth } = await caller.auth.getUser();
   if (!auth.user) return json({ error: "unauthenticated" }, 401);
 
-  let body: { vehicleClass?: string; distanceM?: number; durationS?: number; pickup?: unknown; dropoff?: unknown };
+  let body: {
+    vehicleClass?: string;
+    distanceM?: number;
+    durationS?: number;
+    pickup?: unknown;
+    dropoff?: unknown;
+    promo?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -55,6 +63,16 @@ Deno.serve(async (req: Request) => {
   const amountRwf = quoteFare(policy, distanceM, durationS);
   const expiresAt = new Date(Date.now() + QUOTE_TTL_SECONDS * 1000).toISOString();
 
+  // The passenger's saved code that fits this ride, if they want one. The
+  // database picks and checks it; booking checks it again (0065).
+  const { data: promoRows } = await svc.rpc("promo_for_quote", {
+    p_passenger: auth.user.id,
+    p_class: vehicleClass,
+    p_fare: amountRwf,
+    p_choice: promoChoice(body.promo),
+  });
+  const promo = (promoRows as { promo_id: string; code: string; discount_rwf: number }[] | null)?.[0] ?? null;
+
   const { data: quote, error: writeError } = await svc
     .from("fare_quotes")
     .insert({
@@ -67,6 +85,8 @@ Deno.serve(async (req: Request) => {
       expires_at: expiresAt,
       pickup: `SRID=4326;POINT(${pickup.lng} ${pickup.lat})`,
       dropoff: `SRID=4326;POINT(${dropoff.lng} ${dropoff.lat})`,
+      promo_id: promo?.promo_id ?? null,
+      promo_discount_rwf: promo?.discount_rwf ?? null,
     })
     .select("id")
     .single();
@@ -80,5 +100,8 @@ Deno.serve(async (req: Request) => {
     vehicleClass,
     distanceM,
     durationS,
+    promo: promo ? { id: promo.promo_id, code: promo.code, discountRwf: promo.discount_rwf } : null,
+    // What the passenger pays for the ride itself, before any waiting.
+    payRwf: amountRwf - (promo?.discount_rwf ?? 0),
   });
 });

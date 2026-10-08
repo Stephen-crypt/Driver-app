@@ -1,5 +1,5 @@
 begin;
-select plan(18);
+select plan(19);
 
 -- Aline (passenger) has saved four codes; Eric (passenger) has saved one;
 -- Olivier rides. Quotes are for a 5 km moto ride at 1,400.
@@ -143,6 +143,8 @@ select is((select paid_rwf from public.trip_total_rwf('e4810000-0000-4000-8000-0
 select is((select promo_discount_rwf + paid_rwf from public.trip_total_rwf('e4810000-0000-4000-8000-000000000001')),
           (select total from done),
   'which is the total less the promo');
+select is((select promo_code from public.trip_total_rwf('e4810000-0000-4000-8000-000000000001')), 'NV-PCT3',
+  'and names the code');
 reset role;
 
 select * from finish();
