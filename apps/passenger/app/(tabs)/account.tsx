@@ -21,7 +21,7 @@ import {
   useOverlay,
   type IconName,
 } from "@nova/kit";
-import { EMERGENCY_NUMBER, deleteSavedPlace, listSavedPlaces, listTrips, type SavedPlace } from "@nova/data";
+import { EMERGENCY_NUMBER, deleteSavedPlace, listMyPromos, listSavedPlaces, listTrips, type SavedPlace } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 import { useLightStatusBar } from "../../src/lib/statusBar";
@@ -40,17 +40,19 @@ export default function Account() {
   const [places, setPlaces] = useState<SavedPlace[]>([]);
   const [taken, setTaken] = useState<number | null>(null);
   const [since, setSince] = useState<string | null>(null);
+  const [promos, setPromos] = useState<number | null>(null);
 
   useFocusEffect(
     useCallback(() => {
       if (!userId) return;
       let active = true;
       (async () => {
-        const [{ data: user }, profile, saved, trips] = await Promise.all([
+        const [{ data: user }, profile, saved, trips, codes] = await Promise.all([
           supabase.auth.getUser(),
           supabase.from("profiles").select("first_name, phone, created_at").eq("id", userId).maybeSingle(),
           listSavedPlaces(supabase, userId).catch(() => [] as SavedPlace[]),
           listTrips(supabase, "passenger_id", userId, 200).catch(() => null),
+          listMyPromos(supabase).catch(() => null),
         ]);
         if (!active) return;
         const p = profile.data as { first_name?: string; phone?: string; created_at?: string } | null;
@@ -59,6 +61,7 @@ export default function Account() {
         setName(p?.first_name ?? null);
         setPhone(p?.phone ?? user.user?.phone ?? null);
         setPlaces(saved);
+        setPromos(codes ? codes.filter((p) => p.status === "ready").length : null);
       })();
       return () => {
         active = false;
@@ -179,6 +182,14 @@ export default function Account() {
 
         <Group title="Payments">
           <Row title="How you pay" subtitle="Cash, paid to your rider at the end" icon="cash" iconTone="good" onPress={() => router.push("/payment")} />
+          <Divider inset={space.md + 38 + space.md} />
+          <Row
+            title="Promotions"
+            subtitle={promos ? `${promos} ${promos === 1 ? "code" : "codes"} ready to use` : "Add a promo code"}
+            icon="pricetag"
+            iconTone="good"
+            onPress={() => router.push("/promotions")}
+          />
         </Group>
 
         <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />

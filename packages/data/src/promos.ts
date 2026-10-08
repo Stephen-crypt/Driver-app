@@ -39,6 +39,21 @@ export function promoLabel(p: PromoDiscount): string {
   return p.maxDiscountRwf ? `${p.percent}% off, up to ${n(p.maxDiscountRwf)} RWF` : `${p.percent}% off`;
 }
 
+const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
+
+/** Why a saved code does not fit this ride - "Moto only" - or null when it does. */
+export function promoMisfit(
+  p: Pick<MyPromo, "vehicleClasses" | "minFareRwf">,
+  vehicleClass: string,
+  fareRwf: number,
+): string | null {
+  if (p.vehicleClasses && !p.vehicleClasses.includes(vehicleClass)) {
+    return `${p.vehicleClasses.map((k) => CLASS_NAME[k] ?? k).join(" and ")} only`;
+  }
+  if (p.minFareRwf && fareRwf < p.minFareRwf) return `For rides from ${n(p.minFareRwf)} RWF`;
+  return null;
+}
+
 const WHY_NOT: Record<string, string> = {
   not_found: "That code isn't right. Check it and try again.",
   ended: "That code has ended.",

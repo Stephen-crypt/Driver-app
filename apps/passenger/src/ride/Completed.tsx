@@ -45,7 +45,7 @@ export function Completed({
   const [stars, setStars] = useState(0);
   const [tags, setTags] = useState<string[]>([]);
   const [comment, setComment] = useState("");
-  const pay = total?.totalRwf ?? quoted ?? 0;
+  const pay = total?.paidRwf ?? quoted ?? 0;
 
   return (
     <View style={styles.stack}>
@@ -72,10 +72,13 @@ export function Completed({
               RWF
             </Txt>
           </View>
-          {total && total.waitingChargeRwf > 0 ? (
+          {total && (total.waitingChargeRwf > 0 || total.promoDiscountRwf > 0) ? (
             <View style={styles.lines}>
               <Line label="Trip" value={total.fareRwf} />
-              <Line label="Waiting time" value={total.waitingChargeRwf} />
+              {total.waitingChargeRwf > 0 ? <Line label="Waiting time" value={total.waitingChargeRwf} /> : null}
+              {total.promoDiscountRwf > 0 ? (
+                <Line label={`Promo ${total.promoCode ?? ""}`.trim()} value={-total.promoDiscountRwf} />
+              ) : null}
             </View>
           ) : (
             <Txt v="caption" tone="onHeroMuted">
@@ -145,7 +148,7 @@ function Line({ label, value }: { readonly label: string; readonly value: number
         {label}
       </Txt>
       <Txt v="label" tone="onHero" tabularNums>
-        {money(value)}
+        {value < 0 ? `−${money(-value)}` : money(value)}
       </Txt>
     </View>
   );

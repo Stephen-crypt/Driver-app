@@ -28,6 +28,7 @@ import {
   type LaterPlan,
   type RegularPlan,
 } from "./When";
+import { PromoLine, type PromoChoice } from "./PromoLine";
 
 export type VehicleClass = "moto" | "cab" | "cab_xl";
 
@@ -59,6 +60,8 @@ export function Choose({
   onBook,
   nearby,
   onChangePickup,
+  promoChoice,
+  onPromoChoice,
 }: {
   readonly mode: BookingMode;
   readonly later: LaterPlan;
@@ -81,11 +84,17 @@ export function Choose({
   readonly onChangePickup?: () => void;
   /** Free riders near the pickup, per vehicle; null until known. */
   readonly nearby?: readonly NearbyRiders[] | null;
+  readonly promoChoice: PromoChoice;
+  readonly onPromoChoice: (choice: PromoChoice) => void;
 }) {
   const router = useRouter();
   const quote = quotes[selected];
   const minutes = durationS ? Math.max(1, Math.round(durationS / 60)) : null;
   const vehicle = CLASSES.find((k) => k.id === selected)?.label.toLowerCase() ?? "ride";
+  // What the passenger pays: after the promo, except on a regular trip, which
+  // never carries one.
+  const pays = (q: QuoteResult) => (mode === "regular" ? q.amountRwf : q.payRwf);
+  const saving = (q: QuoteResult) => mode !== "regular" && q.payRwf < q.amountRwf;
 
   // What is still missing before this can be booked, said as the button's
   // label - a disabled button with no reason is a dead end.
@@ -146,7 +155,7 @@ export function Choose({
                 scaleTo={0.985}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: on }}
-                accessibilityLabel={`${k.label}, ${q ? `${money(q.amountRwf)} Rwandan francs` : "price loading"}`}
+                accessibilityLabel={`${k.label}, ${q ? `${money(pays(q))} Rwandan francs${saving(q) ? `, was ${money(q.amountRwf)}` : ""}` : "price loading"}`}
                 style={[styles.option, on && styles.optionOn]}
               >
                 <View style={[styles.artBox, on && styles.artBoxOn]}>
@@ -176,8 +185,13 @@ export function Choose({
                     passenger comparing a moto to a cab is comparing prices. */}
                 {q ? (
                   <View style={styles.price}>
-                    <Odometer value={money(q.amountRwf)} v="figure" delay={i * 60} />
-                    <Txt v="caption" tone="muted">
+                    {saving(q) ? (
+                      <Txt v="caption" tone="muted" style={styles.was}>
+                        {money(q.amountRwf)}
+                      </Txt>
+                    ) : null}
+                    <Odometer value={money(pays(q))} v="figure" delay={i * 60} />
+                    <Txt v="caption" tone={saving(q) ? "good" : "muted"}>
                       RWF
                     </Txt>
                   </View>
@@ -219,7 +233,8 @@ export function Choose({
         />
       </Enter>
 
-      <Enter i={6}>
+      <Enter i={6} style={styles.money}>
+        <PromoLine quote={quote} vehicleClass={selected} choice={promoChoice} onChoose={onPromoChoice} regular={mode === "regular"} />
         <Press onPress={() => router.push("/payment")} scaleTo={0.985} style={styles.pay} accessibilityRole="button" accessibilityLabel="Payment: cash, paid to your rider at the end">
           <View style={styles.cash}>
             <Ionicons name="cash" size={17} color={c.success} />
@@ -239,7 +254,7 @@ export function Choose({
       <Button
         variant="highlight"
         label={label}
-        trailing={quote && !missing ? money(quote.amountRwf) : undefined}
+        trailing={quote && !missing ? money(pays(quote)) : undefined}
         onPress={onBook}
         loading={busy}
         disabled={!quote || !canBook || missing !== null}
@@ -311,6 +326,8 @@ const styles = StyleSheet.create({
   meta: { flexDirection: "row", alignItems: "center", gap: space.sm },
   seats: { flexDirection: "row", alignItems: "center", gap: 2 },
   price: { alignItems: "flex-end" },
+  was: { textDecorationLine: "line-through" },
+  money: { gap: space.xs },
   pay: {
     flexDirection: "row",
     alignItems: "center",

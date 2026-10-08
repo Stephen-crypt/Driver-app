@@ -120,7 +120,7 @@ export default function TripReceipt() {
 
   const done = trip.state === "completed";
   const status = statusFor(trip.state);
-  const paid = total?.totalRwf ?? trip.quotedAmountRwf ?? 0;
+  const paid = total?.paidRwf ?? (trip.quotedAmountRwf ?? 0) - trip.promoDiscountRwf;
   const at = trip.scheduledFor ?? trip.createdAt;
   // A receipt a passenger can send on: to an employer, to whoever paid.
   const share = () =>
@@ -147,7 +147,7 @@ export default function TripReceipt() {
             from={trip.pickupLabel}
             to={trip.dropoffLabel}
             vehicle={trip.vehicleClass}
-            amountRwf={trip.quotedAmountRwf}
+            amountRwf={trip.quotedAmountRwf !== null ? trip.quotedAmountRwf - trip.promoDiscountRwf : null}
           />
         ) : (
           <View>
@@ -180,10 +180,13 @@ export default function TripReceipt() {
                       RWF
                     </Txt>
                   </View>
-                  {total && total.waitingChargeRwf > 0 ? (
+                  {total && (total.waitingChargeRwf > 0 || total.promoDiscountRwf > 0) ? (
                     <View style={styles.lines}>
                       <Line label="Trip" value={total.fareRwf} />
-                      <Line label="Waiting time" value={total.waitingChargeRwf} />
+                      {total.waitingChargeRwf > 0 ? <Line label="Waiting time" value={total.waitingChargeRwf} /> : null}
+                      {total.promoDiscountRwf > 0 ? (
+                        <Line label={`Promo ${total.promoCode ?? ""}`.trim()} value={-total.promoDiscountRwf} />
+                      ) : null}
                     </View>
                   ) : null}
                 </View>
@@ -291,7 +294,7 @@ function Line({ label, value }: { readonly label: string; readonly value: number
         {label}
       </Txt>
       <Txt v="label" tabularNums>
-        {money(value)}
+        {value < 0 ? `−${money(-value)}` : money(value)}
       </Txt>
     </View>
   );

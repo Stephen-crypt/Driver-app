@@ -119,6 +119,8 @@ export interface TripDetail {
   readonly pickupNote: string | null;
   readonly dropoffLabel: string;
   readonly quotedAmountRwf: number | null;
+  /** What a promo takes off the quote; 0 without one. */
+  readonly promoDiscountRwf: number;
   readonly createdAt: string;
   readonly scheduledFor: string | null;
   readonly riderId: string | null;
@@ -128,7 +130,7 @@ export interface TripDetail {
 export async function getTripDetail(client: NovaClient, tripId: string): Promise<TripDetail | null> {
   const { data, error } = await client
     .from("trips")
-    .select("id, state, vehicle_class, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, created_at, scheduled_for, rider_id")
+    .select("id, state, vehicle_class, pickup_label, pickup_note, dropoff_label, quoted_amount_rwf, promo_discount_rwf, created_at, scheduled_for, rider_id")
     .eq("id", tripId)
     .maybeSingle();
   if (error) throw dataError(error.message);
@@ -141,6 +143,7 @@ export async function getTripDetail(client: NovaClient, tripId: string): Promise
     pickup_note: string | null;
     dropoff_label: string;
     quoted_amount_rwf: number | null;
+    promo_discount_rwf?: number | null;
     created_at: string;
     scheduled_for: string | null;
     rider_id: string | null;
@@ -153,6 +156,7 @@ export async function getTripDetail(client: NovaClient, tripId: string): Promise
     pickupNote: r.pickup_note,
     dropoffLabel: r.dropoff_label,
     quotedAmountRwf: r.quoted_amount_rwf,
+    promoDiscountRwf: r.promo_discount_rwf ?? 0,
     createdAt: r.created_at,
     scheduledFor: r.scheduled_for,
     riderId: r.rider_id,

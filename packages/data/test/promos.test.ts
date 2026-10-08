@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { addPromoCode, isPromoUnavailable, listMyPromos, promoLabel, PROMO_RAN_OUT } from "../src/promos";
+import { addPromoCode, isPromoUnavailable, listMyPromos, promoLabel, promoMisfit, PROMO_RAN_OUT } from "../src/promos";
 import { requestQuote } from "../src/trips";
 import { getTripTotal } from "../src/shift";
 import type { NovaClient } from "../src/client";
@@ -145,5 +145,22 @@ describe("getTripTotal with a promo", () => {
   it("reads an older trip as paid in full", async () => {
     const t = await getTripTotal(single({ total_rwf: 2200, fare_rwf: 2000, waiting_charge_rwf: 200 }), "t1");
     expect(t).toMatchObject({ promoDiscountRwf: 0, paidRwf: 2200, promoCode: null });
+  });
+});
+
+describe("promoMisfit", () => {
+  const p = {
+    id: "p1", code: "CAB20", kind: "amount" as const, amountRwf: 500, percent: null, maxDiscountRwf: null,
+    endsAt: null, usesLeft: 1, status: "ready" as const, minFareRwf: 2000, vehicleClasses: ["cab", "cab_xl"],
+  };
+  it("names the vehicle types a code is for", () => {
+    expect(promoMisfit(p, "moto", 3000)).toBe("Cab and Cab XL only");
+  });
+  it("names the smallest fare it works on", () => {
+    expect(promoMisfit(p, "cab", 1500)).toBe("For rides from 2,000 RWF");
+  });
+  it("says nothing when it fits", () => {
+    expect(promoMisfit(p, "cab", 2500)).toBeNull();
+    expect(promoMisfit({ ...p, minFareRwf: null, vehicleClasses: null }, "moto", 100)).toBeNull();
   });
 });

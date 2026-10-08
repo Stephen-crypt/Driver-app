@@ -53,6 +53,8 @@ import {
   raiseSos,
   rateTrip,
   requestQuote,
+  isPromoUnavailable,
+  PROMO_RAN_OUT,
   shareTripText,
   watchTrip,
   distanceBetween,
@@ -75,6 +77,7 @@ import { goBack } from "../src/lib/nav";
 import * as loc from "../src/lib/location";
 import { CLASSES, Choose, type VehicleClass } from "../src/ride/Choose";
 import { Ticket } from "../src/ride/Ticket";
+import type { PromoChoice } from "../src/ride/PromoLine";
 import { useSession } from "../src/lib/session";
 import { useTripChat } from "../src/lib/chat";
 
@@ -144,6 +147,9 @@ export default function Ride() {
 
   const [road, setRoad] = useState<RouteResult | null>(null);
   const [quotes, setQuotes] = useState<Partial<Record<VehicleClass, QuoteResult>>>({});
+  // Which saved promo code the prices use; every change asks for new prices.
+  const [promoChoice, setPromoChoice] = useState<PromoChoice>("best");
+  const [quoteRound, setQuoteRound] = useState(0);
   // A tile on the home screen may have chosen the vehicle already.
   const [selected, setSelected] = useState<VehicleClass>(() => {
     const v = one(params.vehicle);
@@ -217,10 +223,11 @@ export default function Ride() {
   useEffect(() => {
     if (trip || !pickup || !dropoff || distanceM <= 0) return;
     let active = true;
-    setError(null);
+    // A code that ran out at booking says so while the new prices come in.
+    setError((e) => (e === PROMO_RAN_OUT ? e : null));
     Promise.all(
       CLASSES.map((k) =>
-        requestQuote(supabase, { vehicleClass: k.id, distanceM, durationS, pickup, dropoff })
+        requestQuote(supabase, { vehicleClass: k.id, distanceM, durationS, pickup, dropoff, promo: promoChoice })
           .then((q) => [k.id, q] as const)
           .catch(() => null),
       ),
@@ -233,7 +240,7 @@ export default function Ride() {
     return () => {
       active = false;
     };
-  }, [trip, distanceM, durationS]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [trip, distanceM, durationS, promoChoice, quoteRound]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Back to set the pickup somewhere else, keeping the destination: once it
   // is set, the destination screen comes straight back here with both ends.
@@ -367,7 +374,7 @@ export default function Ride() {
           kind: "ride",
           when: whenLabel(at.toISOString()),
           detail: "We'll start finding your rider ten minutes before. It shows in Activity, where you can change the time or cancel.",
-          amountRwf: quote.amountRwf,
+          amountRwf: quote.payRwf,
         });
       } else if (mode === "regular" && regular.time) {
         const schedule = await createRecurringSchedule(supabase, {
@@ -391,6 +398,14 @@ export default function Ride() {
         setTrip(await getTrip(supabase, created.id));
       }
     } catch (e) {
+      if (isPromoUnavailable(e)) {
+        // The code ran out between the price and the booking: price again
+        // with whatever else fits, and say why the price changed.
+        setError(PROMO_RAN_OUT);
+        setPromoChoice("best");
+        setQuoteRound((r) => r + 1);
+        return;
+      }
       setError(
         e instanceof Error && mode !== "now"
           ? e.message
@@ -592,6 +607,11 @@ export default function Ride() {
         onBook={book}
         nearby={nearby}
         onChangePickup={changePickup}
+        promoChoice={promoChoice}
+        onPromoChoice={(next) => {
+          setPromoChoice(next);
+          setQuoteRound((r) => r + 1);
+        }}
       />
     );
   } else if (trip.state === "requested" || trip.state === "offered") {
@@ -622,7 +642,7 @@ export default function Ride() {
     body = (
       <Completed
         total={total}
-        quoted={trip.quotedAmountRwf}
+        quoted={trip.quotedAmountRwf !== null ? trip.quotedAmountRwf - trip.promoDiscountRwf : null}
         riderName={rider?.firstName ?? "your rider"}
         destination={trip.dropoffLabel}
         rated={rated}
