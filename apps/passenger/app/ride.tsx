@@ -402,6 +402,7 @@ export default function Ride() {
         // The code ran out between the price and the booking: price again
         // with whatever else fits, and say why the price changed.
         setError(PROMO_RAN_OUT);
+        setQuotes({});
         setPromoChoice("best");
         setQuoteRound((r) => r + 1);
         return;
@@ -609,6 +610,9 @@ export default function Ride() {
         onChangePickup={changePickup}
         promoChoice={promoChoice}
         onPromoChoice={(next) => {
+          // The old prices go at once: Book must not take a quote that still
+          // carries the code the passenger just turned off.
+          setQuotes({});
           setPromoChoice(next);
           setQuoteRound((r) => r + 1);
         }}

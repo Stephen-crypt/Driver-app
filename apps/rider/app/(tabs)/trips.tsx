@@ -118,8 +118,10 @@ export default function Trips() {
                   RWF
                 </Txt>
               </View>
+              {/* What the rides were worth. With a promo the passenger paid less
+                  and Nova made up the rest, so this is not the cash taken. */}
               <Txt v="label" tone="onHeroMuted">
-                in fares collected
+                in fares
               </Txt>
             </View>
           </View>

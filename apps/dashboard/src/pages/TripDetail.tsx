@@ -15,7 +15,13 @@ interface Detail {
   dropoff_label: string;
   passenger: { id: string; name: string; phone: string | null };
   rider: { id: string; name: string; phone: string | null } | null;
-  total: { total_rwf?: number; fare_rwf?: number; waiting_charge_rwf?: number } | null;
+  total: {
+    total_rwf?: number;
+    fare_rwf?: number;
+    waiting_charge_rwf?: number;
+    promo_discount_rwf?: number;
+    paid_rwf?: number;
+  } | null;
   rating: { rating: number; comment: string | null } | null;
   events: { at: string; from: string; to: string; actor: string; reason: string | null }[];
   messages: { at: string; from: "passenger" | "rider"; body: string; read_at: string | null }[];
@@ -107,11 +113,13 @@ export function TripDetail() {
         </div>
         <div className="card stat">
           <div className="figure">
-            <Odometer value={money(d.total?.total_rwf ?? d.fare_rwf)} />
+            <Odometer value={money(d.total?.paid_rwf ?? d.total?.total_rwf ?? d.fare_rwf)} />
             <small>RWF</small>
           </div>
           <div className="label">
-            {d.total ? `Fare ${money(d.total.fare_rwf ?? d.total.total_rwf)}${d.total.waiting_charge_rwf ? ` + waiting ${money(d.total.waiting_charge_rwf)}` : ""}` : "Quoted price"}
+            {d.total
+              ? `${d.total.promo_discount_rwf ? "Paid. " : ""}Fare ${money(d.total.fare_rwf ?? d.total.total_rwf)}${d.total.waiting_charge_rwf ? ` + waiting ${money(d.total.waiting_charge_rwf)}` : ""}${d.total.promo_discount_rwf ? ` - promo ${money(d.total.promo_discount_rwf)}, which Nova covers` : ""}`
+              : "Quoted price"}
           </div>
         </div>
       </div>

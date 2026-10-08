@@ -8,7 +8,11 @@ alter table public.fare_quotes add column if not exists promo_discount_rwf integ
 
 -- Carries a quote's code onto the trip booked from it, after checking it
 -- again: limits and pauses may have changed since the quote. The code's row
--- is locked, so two bookings racing for its last use cannot both have it.
+-- is locked, so two bookings racing for its last use cannot both have it:
+-- the second waits, and the checks after the lock run on a fresh READ
+-- COMMITTED snapshot that sees the first one's trip. That needs this
+-- function to stay VOLATILE (the default) and callers to stay at READ
+-- COMMITTED, as PostgREST is.
 -- Whatever the insert itself put in the promo columns is replaced: only the
 -- quote decides. Regular trips never carry a promo.
 create or replace function public.trips_apply_promo()

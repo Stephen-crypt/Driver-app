@@ -42,10 +42,13 @@ export interface CompleteTripResult {
   readonly state: string;
   readonly receipt: {
     readonly lines: readonly ReceiptLine[];
+    /** What the rider collects: after any promo (older rider apps show this). */
     readonly totalRwf: number;
-    /** What a promo took off. Nova covers it; the rider's earning is on totalRwf. */
+    /** What the ride was worth before the promo; the rider's earning is on this. */
+    readonly grossRwf?: number;
+    /** What a promo took off. Nova covers it. */
     readonly promoRwf?: number;
-    /** What the passenger paid and the rider collects: totalRwf less the promo. */
+    /** What the passenger paid and the rider collects; the same as totalRwf. */
     readonly paidRwf?: number;
   };
   /**

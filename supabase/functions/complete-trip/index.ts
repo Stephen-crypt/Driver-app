@@ -1,6 +1,7 @@
 import { buildReceipt } from "../_shared/core.ts";
 import { policyFromRow, type FarePolicyRow } from "../_shared/policy.ts";
 import { callerClient, serviceClient, json } from "../_shared/supabase.ts";
+import { withPromo } from "./promo.ts";
 
 Deno.serve(async (req: Request) => {
   if (req.method !== "POST") return json({ error: "method_not_allowed" }, 405);
@@ -116,12 +117,11 @@ Deno.serve(async (req: Request) => {
   // covers it, so the rider's earning below is on the full total. The amount
   // is complete_trip's own, worked out on the final fare.
   const promoRwf = Number(completedTrip?.promo_discount_rwf ?? 0);
-  const lines = promoRwf > 0 ? [...receipt.lines, { label: "Promo", amountRwf: -promoRwf }] : receipt.lines;
 
   return json({
     tripId,
     state: completedTrip?.state ?? "completed",
-    receipt: { lines, totalRwf: receipt.totalRwf, promoRwf, paidRwf: receipt.totalRwf - promoRwf },
+    receipt: withPromo(receipt, promoRwf),
     // The rider's earning, not the company's cut - this response goes to the
     // rider's phone, and what they need is what they made.
     riderEarningRwf: receipt.riderEarningRwf,
