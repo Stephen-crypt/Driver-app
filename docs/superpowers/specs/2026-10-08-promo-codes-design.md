@@ -72,9 +72,11 @@ adds in an hour refuses further tries for that hour.
 `trips` gains `promo_id`, `promo_discount_rwf` (estimate at booking, final at
 completion).
 
-**A use** is a trip with that `promo_id` whose state is not a cancellation, not
-`no_riders` and not expired. Uses are counted, never stored as a counter, so a
-cancelled ride gives its use back by construction.
+**A use** is a trip with that `promo_id` in state `requested`, `offered`,
+`accepted`, `arrived`, `in_progress`, `completed` or `scheduled` (a ride booked
+ahead holds its use). `cancelled_by_passenger`, `cancelled_by_rider`, `no_riders`,
+`no_show`, `skipped` and `expired` give it back. Uses are counted, never stored as
+a counter, so this happens by construction.
 
 RLS: `promo_codes` and `promo_attempts` are not readable by clients at all.
 `passenger_promos` is readable by its owner. All writes go through functions.
