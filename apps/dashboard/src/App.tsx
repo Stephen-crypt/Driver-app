@@ -14,6 +14,7 @@ import { Cases } from "./pages/Cases";
 import { Pricing } from "./pages/Pricing";
 import { Zones } from "./pages/Zones";
 import { Regular } from "./pages/Regular";
+import { Promotions } from "./pages/Promotions";
 import { Palette } from "./components/Palette";
 import { Icon, type IconName } from "./components/kit";
 
@@ -37,6 +38,7 @@ const SECTIONS: Section[] = [
   { to: "/fleet", label: "Fleet", roles: ["fleet", "operations"], icon: "moto", group: "People" },
   { to: "/cases", label: "Cases", roles: ["support", "operations", "safety", "control_room", "fleet"], icon: "cases", group: "People" },
   { to: "/reports", label: "Reports", roles: ["operations", "finance", "safety"], icon: "chart", group: "Money and records" },
+  { to: "/promotions", label: "Promotions", roles: ["operations", "finance"], icon: "tag", group: "Money and records" },
   { to: "/pricing", label: "Prices & settings", roles: ["finance", "operations", "safety"], icon: "sliders", group: "Money and records" },
   { to: "/audit", label: "Audit log", roles: ["operations", "safety", "finance"], icon: "audit", group: "Money and records" },
 ];
@@ -76,6 +78,7 @@ export function App() {
           <Route path="/cases" element={guard(staff, sec("/cases"), <Cases staff={staff} />, home)} />
           <Route path="/cases/:id" element={guard(staff, sec("/cases"), <Cases staff={staff} />, home)} />
           <Route path="/reports" element={guard(staff, sec("/reports"), <Reports />, home)} />
+          <Route path="/promotions" element={guard(staff, sec("/promotions"), <Promotions staff={staff} />, home)} />
           <Route path="/pricing" element={guard(staff, sec("/pricing"), <Pricing staff={staff} />, home)} />
           <Route path="/audit" element={guard(staff, sec("/audit"), <Audit />, home)} />
           <Route path="*" element={<Navigate to={home} replace />} />

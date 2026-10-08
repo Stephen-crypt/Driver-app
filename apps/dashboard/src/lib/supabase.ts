@@ -79,6 +79,9 @@ const WORDS: Record<string, string> = {
   zone_needs_points: "Place at least three corners on the map.",
   zone_too_large: "That zone is bigger than Kigali - check the corners.",
   name_required: "Give it a name.",
+  promo_code_taken: "There is already a code like that. Passengers type codes without spaces or dashes, so pick another.",
+  invalid_promo: "Check the discount, the dates and the number of codes.",
+  promo_not_found: "That code no longer exists.",
   alert_not_found_or_reviewed: "Someone already reviewed that alert.",
 };
 
