@@ -734,7 +734,9 @@ export default function Today() {
         </View>
       </View>
 
-      <View style={styles.sheet} onLayout={onPaperLayout}>
+      {/* box-none: folded, the sheet slides down inside this box, and the
+          empty part of the box must let the map be touched. */}
+      <View style={styles.sheet} onLayout={onPaperLayout} pointerEvents="box-none">
         <Paper padBottom={false} foldable foldKey={stage} onFold={setFolded}>
           <Swap id={stage}>{body}</Swap>
         </Paper>

@@ -708,7 +708,9 @@ export default function Ride() {
           style={[styles.back, { top: insets.top + space.sm }]}
         />
       ) : null}
-      <View style={styles.sheet} onLayout={onPaperLayout}>
+      {/* box-none: folded, the sheet slides down inside this box, and the
+          empty part of the box must let the map be touched. */}
+      <View style={styles.sheet} onLayout={onPaperLayout} pointerEvents="box-none">
         <Paper foldable foldKey={stage} onFold={setFolded}>
           {/* Booking ahead adds a day and time picker; on a short phone the
               sheet would push the Book button off the screen without this. */}
