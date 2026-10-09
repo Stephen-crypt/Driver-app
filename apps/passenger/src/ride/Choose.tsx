@@ -62,6 +62,8 @@ export function Choose({
   onChangePickup,
   promoChoice,
   onPromoChoice,
+  samePlace,
+  onChangeDestination,
 }: {
   readonly mode: BookingMode;
   readonly later: LaterPlan;
@@ -86,6 +88,9 @@ export function Choose({
   readonly nearby?: readonly NearbyRiders[] | null;
   readonly promoChoice: PromoChoice;
   readonly onPromoChoice: (choice: PromoChoice) => void;
+  /** The destination is where the passenger already is: nothing to price. */
+  readonly samePlace?: boolean;
+  readonly onChangeDestination?: () => void;
 }) {
   const router = useRouter();
   const quote = quotes[selected];
@@ -140,6 +145,25 @@ export function Choose({
         ) : null}
       </Enter>
 
+      {samePlace ? (
+        <Banner
+          tone="warn"
+          icon="location"
+          action={onChangeDestination ? { label: "Choose where to go", onPress: onChangeDestination } : undefined}
+        >
+          {`You're already at ${destination}. Choose somewhere else to go, or change the pickup.`}
+        </Banner>
+      ) : (
+        body()
+      )}
+    </View>
+  );
+
+  // The options, the note, the promo and Book. A plain function, not a
+  // component, so nothing in it remounts on each render.
+  function body() {
+    return (
+      <>
       <View style={styles.options} accessibilityRole="radiogroup" accessibilityLabel="Vehicle">
         {CLASSES.map((k, i) => {
           const on = selected === k.id;
@@ -259,8 +283,9 @@ export function Choose({
         loading={busy}
         disabled={!quote || !canBook || missing !== null}
       />
-    </View>
-  );
+      </>
+    );
+  }
 }
 
 /** "3 min away" in green, or that none are free: said before booking, not after. */

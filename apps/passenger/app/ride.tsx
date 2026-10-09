@@ -206,6 +206,8 @@ export default function Ride() {
   // Road distance when the router answers; straight-line otherwise. Kigali is
   // built on ridges, so the straight line under-reads - it is only a fallback.
   const distanceM = road?.distanceM ?? straightM;
+  // A destination where the passenger already is has nothing to price.
+  const samePlace = !!pickup && !!dropoff && straightM < 150;
   const durationS = road?.durationS ?? Math.max(60, Math.round(straightM / 7.5));
 
   useEffect(() => {
@@ -221,7 +223,7 @@ export default function Ride() {
 
   // Every class quoted at once, so each option carries its own locked price.
   useEffect(() => {
-    if (trip || !pickup || !dropoff || distanceM <= 0) return;
+    if (trip || !pickup || !dropoff || distanceM <= 0 || samePlace) return;
     let active = true;
     // A code that ran out at booking says so while the new prices come in.
     setError((e) => (e === PROMO_RAN_OUT ? e : null));
@@ -240,10 +242,23 @@ export default function Ride() {
     return () => {
       active = false;
     };
-  }, [trip, distanceM, durationS, promoChoice, quoteRound]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [trip, distanceM, durationS, promoChoice, quoteRound, samePlace]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Back to set the pickup somewhere else, keeping the destination: once it
   // is set, the destination screen comes straight back here with both ends.
+  // Back to choose where to go, keeping the pickup.
+  const changeDestination = () => {
+    router.replace({
+      pathname: "/destination",
+      params: {
+        ...(pickup ? { plat: String(pickup.lat), plng: String(pickup.lng), plabel: pickupLabel } : {}),
+        ...(pickupNote.trim() ? { pnote: pickupNote.trim() } : {}),
+        mode,
+        ...(one(params.vehicle) ? { vehicle: one(params.vehicle) as string } : {}),
+      },
+    });
+  };
+
   const changePickup = () => {
     if (!dropoff) return;
     router.replace({
@@ -608,6 +623,8 @@ export default function Ride() {
         onBook={book}
         nearby={nearby}
         onChangePickup={changePickup}
+        samePlace={samePlace}
+        onChangeDestination={changeDestination}
         promoChoice={promoChoice}
         onPromoChoice={(next) => {
           // The old prices go at once: Book must not take a quote that still

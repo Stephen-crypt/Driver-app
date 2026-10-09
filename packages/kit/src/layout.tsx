@@ -1,4 +1,4 @@
-import { Children, isValidElement, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { Children, isValidElement, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Pressable, StyleSheet, View, type LayoutChangeEvent, type StyleProp, type ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
@@ -275,29 +275,36 @@ export function Paper({
     settle(false);
   }, [foldKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const pan = Gesture.Pan()
-    .enabled(foldable)
-    .activeOffsetY([-6, 6])
-    .onUpdate((e) => {
-      drag.set(e.translationY);
-    })
-    .onEnd((e) => {
-      const range = Math.max(1, h.get() - PAPER_PEEK);
-      const at = Math.min(range, Math.max(0, fold.get() * range + drag.get()));
-      const next = e.velocityY > 500 ? 1 : e.velocityY < -500 ? 0 : at > range / 2 ? 1 : 0;
-      fold.set(at / range);
-      drag.set(0);
-      fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
-      scheduleOnRN(settle, next === 1);
-    });
-  const tap = Gesture.Tap()
-    .enabled(foldable)
-    .onEnd(() => {
-      const next = fold.get() > 0.5 ? 0 : 1;
-      fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
-      scheduleOnRN(settle, next === 1);
-    });
-  const gesture = Gesture.Exclusive(pan, tap);
+  // Pull or tap to fold and open. Each detector gets its own instance: one
+  // gesture shared by two detectors loses its handler when the folded strip
+  // unmounts, and the handle then throws "No handler for tag" on web.
+  const makeGesture = () =>
+    Gesture.Exclusive(
+      Gesture.Pan()
+        .enabled(foldable)
+        .activeOffsetY([-6, 6])
+        .onUpdate((e) => {
+          drag.set(e.translationY);
+        })
+        .onEnd((e) => {
+          const range = Math.max(1, h.get() - PAPER_PEEK);
+          const at = Math.min(range, Math.max(0, fold.get() * range + drag.get()));
+          const next = e.velocityY > 500 ? 1 : e.velocityY < -500 ? 0 : at > range / 2 ? 1 : 0;
+          fold.set(at / range);
+          drag.set(0);
+          fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
+          scheduleOnRN(settle, next === 1);
+        }),
+      Gesture.Tap()
+        .enabled(foldable)
+        .onEnd(() => {
+          const next = fold.get() > 0.5 ? 0 : 1;
+          fold.set(reduce ? next : withTiming(next, { duration: 220, easing: ease.out }));
+          scheduleOnRN(settle, next === 1);
+        }),
+    );
+  const handleGesture = useMemo(makeGesture, [foldable, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stripGesture = useMemo(makeGesture, [foldable, reduce]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const moved = useAnimatedStyle(() => {
     if (!foldable) return {};
@@ -312,7 +319,7 @@ export function Paper({
       style={[styles.paper, { paddingBottom: (padBottom ? insets.bottom : 0) + space.md }, style, moved]}
     >
       {foldable ? (
-        <GestureDetector gesture={gesture}>
+        <GestureDetector gesture={handleGesture}>
           <View
             style={styles.grabZone}
             hitSlop={{ top: 12, bottom: 8 }}
@@ -329,7 +336,7 @@ export function Paper({
       {/* Folded, what shows of the sheet opens it - by tap or by pulling up -
           rather than pressing a button half off the screen. */}
       {foldable && folded ? (
-        <GestureDetector gesture={gesture}>
+        <GestureDetector gesture={stripGesture}>
           <Pressable style={StyleSheet.absoluteFill} accessibilityRole="button" accessibilityLabel="Show the details" />
         </GestureDetector>
       ) : null}
