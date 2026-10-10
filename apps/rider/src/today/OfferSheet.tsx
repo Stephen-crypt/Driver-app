@@ -265,7 +265,7 @@ const styles = StyleSheet.create({
     // Full yellow draining to its tint, like a battery: the type is midnight
     // on both, so it stays legible however much time is left. The tint is the
     // pale yellow in both themes - the night tint would swallow midnight type.
-    backgroundColor: "#FDF3CF",
+    backgroundColor: tokens.palette.yellowSoft,
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",

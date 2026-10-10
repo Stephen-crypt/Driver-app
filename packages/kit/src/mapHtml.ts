@@ -10,6 +10,11 @@ const night = scheme === "dark";
 const ROUTE = { road: night ? c.accentDeep : c.accent, edge: night ? "#0A1220" : "#fff" };
 const PICKUP = { fill: night ? c.accentDeep : "#fff", ring: night ? "#0A1220" : c.textStrong };
 const ME_RING = night ? "#0A1220" : "#fff";
+// A soft glow under the location dot and the lifted pin: midnight by day, mist at night.
+const GLOW = night ? "rgba(201,212,230,.32)" : "rgba(10,35,66,.3)";
+const PICK_SHADOW = night ? "rgba(201,212,230,.4)" : "rgba(10,35,66,.35)";
+// A pin's outline and centre: white by day, the night itself at night.
+const PIN_INNER = night ? "#0A1220" : "#fff";
 
 export interface LatLng {
   readonly lat: number;
@@ -95,7 +100,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   .me{position:relative;width:18px;height:18px;border-radius:50%;background:${c.accent};border:3px solid ${ME_RING};box-sizing:border-box;
       box-shadow:0 2px 6px rgba(0,0,0,.25)}
   .me:after{content:'';position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
-      background:rgba(10,35,66,.3);animation:halo 2.2s cubic-bezier(.23,1,.32,1) infinite}
+      background:${GLOW};animation:halo 2.2s cubic-bezier(.23,1,.32,1) infinite}
   @keyframes halo{from{transform:scale(1);opacity:.9}to{transform:scale(3.4);opacity:0}}
   @media (prefers-reduced-motion: reduce){.me:after{animation:none;opacity:.25;transform:scale(2)}}
   .pin{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.28)}
@@ -109,7 +114,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   #pick .p{position:absolute;left:-17px;top:-46px;width:34px;height:46px;transition:transform .18s cubic-bezier(.23,1,.32,1);
            filter:drop-shadow(0 3px 4px rgba(0,0,0,.3))}
   #pick.lift .p{transform:translateY(-12px)}
-  #pick .s{position:absolute;left:-6px;top:-3px;width:12px;height:6px;border-radius:50%;background:rgba(10,35,66,.35);
+  #pick .s{position:absolute;left:-6px;top:-3px;width:12px;height:6px;border-radius:50%;background:${PICK_SHADOW};
            transition:transform .18s cubic-bezier(.23,1,.32,1)}
   #pick.lift .s{transform:scale(.6)}
   @media (prefers-reduced-motion: reduce){#pick .p,#pick .s{transition:none}}
@@ -149,7 +154,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   var LAYOUT = ${JSON.stringify(MT.layout)};
   var EDGES = ${JSON.stringify(MT.casings)};
   var PLACES_BEFORE = '${MT.placesBefore}';
-  var PIN_SVG = '<svg width="__W__" height="__H__" viewBox="0 0 30 40"><path d="M15 39C15 39 28 24.8 28 15A13 13 0 0 0 2 15C2 24.8 15 39 15 39Z" fill="__F__" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="15" r="5" fill="#fff"/></svg>';
+  var PIN_SVG = '<svg width="__W__" height="__H__" viewBox="0 0 30 40"><path d="M15 39C15 39 28 24.8 28 15A13 13 0 0 0 2 15C2 24.8 15 39 15 39Z" fill="__F__" stroke="${PIN_INNER}" stroke-width="2.5"/><circle cx="15" cy="15" r="5" fill="${PIN_INNER}"/></svg>';
   function pinSvg(fill, w, h){ return PIN_SVG.replace('__F__', fill).replace('__W__', w).replace('__H__', h); }
   var PICK_FILL = {pickup:'${c.accent}', dropoff:'${c.destination}'};
   var PLACES = ${JSON.stringify(MT.places)};

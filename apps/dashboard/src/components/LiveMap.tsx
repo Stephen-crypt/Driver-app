@@ -177,10 +177,11 @@ export function LiveMap({
         setLoaded(true);
       });
 
-      // Remembered only once the map has framed its first data, so an early
-      // move as the map loads cannot stand in for that framing.
-      m.on("moveend", () => {
-        if (fitted.current) camera.current = { center: m.getCenter(), zoom: m.getZoom() };
+      // Remembered once the map has framed its first data, or as soon as a
+      // person moves it - so an empty map (Zones) keeps its view too, while a
+      // move the map makes by itself as it loads cannot stand in for framing.
+      m.on("moveend", (e) => {
+        if (fitted.current || e.originalEvent) camera.current = { center: m.getCenter(), zoom: m.getZoom() };
       });
 
       m.on("click", (e) => {

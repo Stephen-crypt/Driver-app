@@ -1,6 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Txt, VestPatch, WelcomePager, space } from "@nova/kit";
+import { useDarkStatusBar } from "../src/lib/statusBar";
 
 /**
  * What a rider actually wants to know before they sign up, in the order they
@@ -12,6 +13,7 @@ import { Txt, VestPatch, WelcomePager, space } from "@nova/kit";
  */
 export default function RiderWelcome() {
   const router = useRouter();
+  useDarkStatusBar();
   return (
     <WelcomePager
       picture={require("../assets/welcome-hero.jpg")}

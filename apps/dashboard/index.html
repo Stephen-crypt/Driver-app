@@ -4,6 +4,24 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Nova Control</title>
+    <script>
+      // Before the stylesheet and the app load: a dark choice paints the night
+      // ground at once instead of flashing white. lib/appearance.ts then
+      // applies the whole palette.
+      (function () {
+        try {
+          var a = localStorage.getItem("nova.appearance");
+          if (a === "dark" || (a !== "light" && matchMedia("(prefers-color-scheme: dark)").matches)) {
+            var s = document.documentElement.style;
+            s.backgroundColor = "#0A1220";
+            s.colorScheme = "dark";
+            s.setProperty("--ground", "#0A1220");
+            s.setProperty("--card", "#131B2B");
+            s.setProperty("--ink", "#FFFFFF");
+          }
+        } catch (e) {}
+      })();
+    </script>
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

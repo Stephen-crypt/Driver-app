@@ -22,6 +22,20 @@ export function useLightStatusBar(): void {
   );
 }
 
+/**
+ * Dark status-bar icons while this screen is in front: it opens on a picture
+ * with a pale sky, in either theme. Light ones come back on leaving if a
+ * midnight screen is still asking for them.
+ */
+export function useDarkStatusBar(): void {
+  useFocusEffect(
+    useCallback(() => {
+      setStatusBarStyle("dark", true);
+      return () => setStatusBarStyle(holds > 0 ? "light" : restingStatusBarStyle, true);
+    }, []),
+  );
+}
+
 /** The same, as an element: for a screen that is only on midnight some of the time. */
 export function LightStatusBar(): null {
   useLightStatusBar();

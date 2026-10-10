@@ -60,6 +60,7 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; margin: 0; }
+html { background: var(--ground); }
 body {
   font-family: var(--sans);
   font-size: 15px;

@@ -3,6 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { Button, ModalSheet, PinPatches, Txt, WelcomePager, c, space } from "@nova/kit";
+import { useDarkStatusBar } from "../src/lib/statusBar";
 
 /**
  * The picture, then the three things a first-time passenger needs to know,
@@ -13,6 +14,7 @@ import { Button, ModalSheet, PinPatches, Txt, WelcomePager, c, space } from "@no
 export default function Welcome() {
   const router = useRouter();
   const [riderInfo, setRiderInfo] = useState(false);
+  useDarkStatusBar();
 
   return (
     <>

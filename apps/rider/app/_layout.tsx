@@ -1,8 +1,13 @@
 import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import * as SystemUI from "expo-system-ui";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { OverlayProvider, c, restingStatusBarStyle, useNovaFonts } from "@nova/kit";
+
+// The window behind every screen, in this run's theme. Without it the light
+// ground from app.json shows for a moment when the app restarts into the night.
+void SystemUI.setBackgroundColorAsync(c.surface);
 
 export default function RootLayout() {
   // Nothing renders until the faces load: a screen that paints in the system
