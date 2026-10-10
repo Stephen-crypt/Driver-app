@@ -85,7 +85,7 @@ export default function Scan() {
           <Animated.View style={[styles.line, line]} />
         </View>
         <View style={styles.hint}>
-          <Txt v="bodyStrong" tone="inverse" align="center">
+          <Txt v="bodyStrong" tone="onHero" align="center">
             Point at the rider's QR or the vehicle sticker
           </Txt>
         </View>

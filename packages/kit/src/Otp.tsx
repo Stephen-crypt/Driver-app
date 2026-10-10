@@ -97,11 +97,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     ...shadow.card,
   },
-  boxFilled: { borderColor: c.hero },
+  boxFilled: { borderColor: c.accent },
   boxActive: { borderColor: c.highlight, ...shadow.glow },
   boxError: { borderColor: c.danger },
   digit: { fontFamily: font.numBold, fontSize: 30, lineHeight: 36, ...tabular },
-  caret: { width: 2, height: 28, borderRadius: 1, backgroundColor: c.hero },
+  caret: { width: 2, height: 28, borderRadius: 1, backgroundColor: c.accent },
   hidden: {
     position: "absolute",
     top: 0,

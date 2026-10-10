@@ -62,7 +62,7 @@ function look(n: Notice): { icon: IconName; ground: string; ink: string } {
   if (n.kind === "rider_changed") return { icon: "swap-horizontal", ground: c.tintAmber, ink: c.warning };
   if (/cancel|no riders|couldn't|could not/.test(t)) return { icon: "close-circle", ground: c.dangerSoft, ink: c.danger };
   if (/complete|pay/.test(t)) return { icon: "receipt", ground: c.tintGreen, ink: c.success };
-  if (/here|arrived/.test(t)) return { icon: "location", ground: c.tintYellow, ink: c.onHighlight };
+  if (/here|arrived/.test(t)) return { icon: "location", ground: c.tintYellow, ink: c.accent };
   return { icon: "navigate", ground: c.tintBlue, ink: c.accent };
 }
 

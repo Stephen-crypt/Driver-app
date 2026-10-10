@@ -49,7 +49,7 @@ export function Segmented<T extends string>({
   const last = useRef<T | null>(value);
   const toneOf = (v: T | null) => {
     const t = options.find((o) => o.value === v)?.tone;
-    return t ? TONE_BG[t] : onHero ? c.highlight : c.hero;
+    return t ? TONE_BG[t] : onHero ? c.highlight : c.accent;
   };
   const from = useSharedValue<string>(toneOf(value));
   const to = useSharedValue<string>(toneOf(value));

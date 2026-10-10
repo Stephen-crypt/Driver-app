@@ -86,7 +86,7 @@ export function SuccessMark({ size = 76, tone = "good" }: { readonly size?: numb
       accessibilityElementsHidden
     >
       <Svg width={size} height={size} viewBox="0 0 100 100">
-        <Path d="M28 52 L44 67 L74 36" stroke="#FFFFFF" strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        <Path d="M28 52 L44 67 L74 36" stroke={c.onAccent} strokeWidth={9} strokeLinecap="round" strokeLinejoin="round" fill="none" />
       </Svg>
       <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: bg }, cover]} />
     </Animated.View>

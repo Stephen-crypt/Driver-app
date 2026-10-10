@@ -66,7 +66,7 @@ export function AuthArt({
           light && { backgroundColor: c.tintBlue, shadowOpacity: 0 },
         ]}
       >
-        <Ionicons name={icon} size={Math.round(disc * 0.46)} color={c.hero} />
+        <Ionicons name={icon} size={Math.round(disc * 0.46)} color={c.accent} />
       </View>
       <View style={[styles.token, { width: token, height: token, borderRadius: token / 2, right: size * 0.1, top: size * 0.12 }, light && { borderColor: c.surface }]}>
         <Ionicons name={accent} size={Math.round(token * 0.5)} color={c.onHighlight} />

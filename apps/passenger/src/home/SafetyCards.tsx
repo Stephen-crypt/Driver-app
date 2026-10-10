@@ -8,7 +8,7 @@ const CARDS: readonly { icon: IconName; title: string; body: string; ground: str
     title: "A PIN on every ride",
     body: "Your rider can't start the trip until you give them your four numbers.",
     ground: c.tintYellow,
-    ink: c.onHighlight,
+    ink: c.accent,
   },
   {
     icon: "shield-checkmark",

@@ -182,7 +182,7 @@ export function IconButton({
   readonly tone?: "default" | "accent" | "bad" | "onDark";
   readonly size?: number;
 }) {
-  const colour = tone === "accent" ? c.accent : tone === "bad" ? c.danger : tone === "onDark" ? c.onAccent : c.textStrong;
+  const colour = tone === "accent" ? c.accent : tone === "bad" ? c.danger : tone === "onDark" ? c.onHero : c.textStrong;
   return (
     <Press
       onPress={onPress}

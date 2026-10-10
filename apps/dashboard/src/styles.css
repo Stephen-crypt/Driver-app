@@ -146,7 +146,7 @@ kbd {
   min-width: 22px;
   padding: 0 7px;
   border-radius: 11px;
-  background: var(--bad);
+  background: var(--bad-solid);
   color: #fff;
   font-family: var(--num);
   font-weight: 700;
@@ -741,7 +741,7 @@ kbd {
   gap: 10px;
   padding: 11px 16px;
   border-radius: 999px;
-  background: var(--ink);
+  background: var(--hero);
   color: #fff;
   font-weight: 500;
   box-shadow: 0 8px 24px rgba(11, 13, 18, 0.24);

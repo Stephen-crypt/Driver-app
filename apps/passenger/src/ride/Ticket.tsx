@@ -1,7 +1,7 @@
 import { StyleSheet, View } from "react-native";
 import QRCode from "react-native-qrcode-svg";
 import { Ionicons } from "@expo/vector-icons";
-import { Odometer, RouteRail, SuccessMark, Txt, VEHICLE_NAME, VehicleGlyph, ZigzagEdge, c, money, radius, space, type VehicleKind } from "@nova/kit";
+import { Odometer, RouteRail, SuccessMark, Txt, VEHICLE_NAME, VehicleGlyph, ZigzagEdge, c, money, radius, space, tokens, type VehicleKind } from "@nova/kit";
 
 /** A short, sayable booking reference from the trip's id. */
 export function referenceFor(id: string): string {
@@ -51,7 +51,7 @@ export function Ticket({
         {kind === "ride" ? (
           <View style={styles.code}>
             <View style={styles.qr}>
-              <QRCode value={`NOVA-T-${id}`} size={124} color={c.textStrong} backgroundColor="#FFFFFF" ecl="M" />
+              <QRCode value={`NOVA-T-${id}`} size={124} color={tokens.palette.ink} backgroundColor="#FFFFFF" ecl="M" />
             </View>
             <View style={styles.reference}>
               <Txt v="caption" tone="muted">

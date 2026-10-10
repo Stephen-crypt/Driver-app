@@ -3,7 +3,7 @@ import { StyleSheet, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import QRCode from "react-native-qrcode-svg";
-import { Screen, Skeleton, Txt, VestPatch, c, radius, shadow, space } from "@nova/kit";
+import { Screen, Skeleton, Txt, VestPatch, c, radius, shadow, space, tokens } from "@nova/kit";
 import { getRiderProfile, myRiderQr } from "@nova/data";
 import { supabase } from "../src/lib/supabase";
 import { useSession } from "../src/lib/session";
@@ -37,7 +37,7 @@ export default function MyQr() {
       <View style={styles.card}>
         {code ? (
           <View style={styles.qr} accessible accessibilityLabel="Your Nova rider QR code">
-            <QRCode value={code} size={240} color={c.textStrong} backgroundColor="#ffffff" ecl="M" />
+            <QRCode value={code} size={240} color={tokens.palette.ink} backgroundColor="#ffffff" ecl="M" />
           </View>
         ) : error ? (
           <Txt v="body" tone="bad">
@@ -48,7 +48,9 @@ export default function MyQr() {
         )}
         <View style={styles.who}>
           {vest ? <VestPatch value={vest} size="sm" /> : null}
-          <Txt v="title">{name ?? " "}</Txt>
+          <Txt v="title" style={styles.name}>
+            {name ?? " "}
+          </Txt>
         </View>
       </View>
       <Txt v="body" tone="muted" align="center" style={styles.note}>
@@ -76,6 +78,8 @@ const styles = StyleSheet.create({
     ...shadow.float,
   },
   qr: { padding: space.sm, backgroundColor: "#ffffff" },
+  // The card is white paper in either theme (a QR needs it), so its type is the day ink.
+  name: { color: tokens.palette.ink },
   tip: {
     flexDirection: "row",
     alignItems: "center",

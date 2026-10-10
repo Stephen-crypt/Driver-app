@@ -67,11 +67,33 @@ describe("brandMapStyle", () => {
 });
 
 describe("the night map", () => {
-  it("paints every layer the day map paints, and no other", () => {
-    expect(Object.keys(MAP_PAINT_DARK).sort()).toEqual(Object.keys(MAP_PAINT).sort());
+  it("paints at least every layer and property the day map paints", () => {
+    const night = MAP_PAINT_DARK as Record<string, Record<string, unknown>>;
     for (const id of Object.keys(MAP_PAINT) as (keyof typeof MAP_PAINT)[]) {
-      expect(Object.keys(MAP_PAINT_DARK[id]).sort()).toEqual(Object.keys(MAP_PAINT[id]).sort());
+      expect(night[id], id).toBeDefined();
+      for (const key of Object.keys(MAP_PAINT[id])) expect(Object.keys(night[id]!), `${id} ${key}`).toContain(key);
     }
+  });
+
+  it("gives every name it paints a night halo - a white glow behind pale type is a smudge", () => {
+    for (const [id, paint] of Object.entries(MAP_PAINT_DARK as Record<string, Record<string, unknown>>)) {
+      if (!("text-color" in paint)) continue;
+      const halo = String(paint["text-halo-color"] ?? "");
+      expect(halo, id).toMatch(/^(#0A1220|rgba\(10, ?18, ?32, ?0?\.\d+\))$/i);
+    }
+  });
+
+  it("leaves nothing day-white at night: airport, railways, tunnels, country names", () => {
+    const night = MAP_PAINT_DARK as unknown as Record<string, Record<string, string>>;
+    const dayWhite = ["aeroway-area", "aeroway-runway", "aeroway-taxiway", "aeroway-runway-casing", "railway", "railway_dashline",
+      "railway_transit", "railway_transit_dashline", "railway_service", "railway_service_dashline", "tunnel_motorway_casing",
+      "tunnel_motorway_inner"];
+    for (const id of dayWhite) {
+      const colour = night[id]?.["fill-color"] ?? night[id]?.["line-color"];
+      expect(colour, id).toBeDefined();
+      expect(contrastRatio(colour!, "#000000"), id).toBeLessThan(3);
+    }
+    for (const id of ["label_country_1", "label_country_2", "label_country_3"]) expect(night[id]?.["text-halo-color"], id).toBe("#0A1220");
   });
 
   it("is applied by brandMapStyle for the dark scheme", () => {
