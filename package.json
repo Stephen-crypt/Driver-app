@@ -20,7 +20,8 @@
     "staff": "node scripts/staff.mjs",
     "dev:offer": "node scripts/dev-offer-trip.mjs",
     "dev:ip": "node scripts/dev-ip.mjs",
-    "dashboard:live": "pnpm --filter dashboard exec vite --mode live --port 5174"
+    "dashboard:live": "pnpm --filter dashboard exec vite --mode live --port 5174",
+    "deploy:dashboard": "node scripts/deploy-dashboard.mjs"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
