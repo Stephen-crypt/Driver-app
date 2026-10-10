@@ -116,23 +116,19 @@ describe("TS/SQL enum parity", () => {
 });
 
 describe("TS/SQL dispatch constant parity", () => {
-  it("OFFER_TTL_SECONDS matches offer_ttl_seconds() in 0020_dispatch_chain.sql", () => {
+  it("OFFER_TTL_SECONDS matches the offer_seconds default in 0069_search_time.sql", () => {
     // The sweeper creates offers now, and it never sees a TypeScript constant,
     // so the TTL had to be authored a second time in SQL. Two copies of the
     // number that decides how long a rider holds a trip is exactly the drift
     // this file exists to make impossible - and 017_dispatch_chain.test.sql
     // asserts the cron sweep interval is shorter than the SQL copy, so a silent
     // divergence here would quietly un-tune that guard too.
-    const sql = migration("0020_dispatch_chain.sql");
-
-    const body = sql
-      .split("create or replace function public.offer_ttl_seconds()")[1]
-      ?.split("$$")[1];
-
-    expect(body, "offer_ttl_seconds() body not found in migration").toBeDefined();
-
-    const literal = body!.match(/select\s+(\d+)\s*;/)?.[1];
-    expect(literal, "offer_ttl_seconds() does not return a plain literal").toBeDefined();
+    // Since 0069 the offer time is a setting staff can change, read by
+    // offer_ttl_seconds(); this constant is its default and the dispatch
+    // function's fallback, so the two defaults must agree.
+    const sql = migration("0069_search_time.sql");
+    const literal = sql.match(/offer_seconds integer not null default (\d+)/)?.[1];
+    expect(literal, "offer_seconds default not found in 0069").toBeDefined();
     expect(Number(literal)).toBe(OFFER_TTL_SECONDS);
   });
 });

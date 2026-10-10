@@ -6,7 +6,7 @@ import {
   CANDIDATE_SHORTLIST,
   OFFER_TTL_SECONDS,
 } from "../_shared/core.ts";
-import { isDispatchable, rankCandidates } from "./logic.ts";
+import { isDispatchable, offerSeconds, rankCandidates } from "./logic.ts";
 
 Deno.test("the shortlist bounds how many ETA lookups dispatch will pay for", () => {
   assertEquals(CANDIDATE_SHORTLIST, 5);
@@ -16,8 +16,16 @@ Deno.test("the search widens rather than starting wide", () => {
   assertEquals([...DISPATCH_RADII_M], [1000, 2000, 4000]);
 });
 
-Deno.test("an offer is exclusive for fifteen seconds", () => {
-  assertEquals(OFFER_TTL_SECONDS, 15);
+Deno.test("an offer is exclusive for thirty seconds by default", () => {
+  assertEquals(OFFER_TTL_SECONDS, 30);
+});
+
+Deno.test("the offer time comes from the setting, and a bad value falls back to the default", () => {
+  assertEquals(offerSeconds(45), 45);
+  assertEquals(offerSeconds(null), 30);
+  assertEquals(offerSeconds("45"), 30);
+  assertEquals(offerSeconds(500), 30);
+  assertEquals(offerSeconds(2.5), 30);
 });
 
 Deno.test("the nearest rider is offered first", async () => {

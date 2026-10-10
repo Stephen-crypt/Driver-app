@@ -60,6 +60,13 @@ const SETTINGS: { group: string; items: SettingDef[] }[] = [
     ],
   },
   {
+    group: "Finding a rider",
+    items: [
+      { key: "offer_seconds", label: "Time to accept", help: "How long a rider has to accept a trip before it is offered to the next nearest rider.", role: "operations", unit: "s" },
+      { key: "search_seconds", label: "Search for", help: "How long a passenger's search keeps going - asking riders one by one, and waiting when nobody is free nearby - before it says no riders.", role: "operations", minutes: true, unit: "min" },
+    ],
+  },
+  {
     group: "Booking ahead",
     items: [
       { key: "schedule_min_lead_seconds", label: "Earliest booking", help: "How far ahead a scheduled ride must be booked.", role: "operations", minutes: true, unit: "min" },

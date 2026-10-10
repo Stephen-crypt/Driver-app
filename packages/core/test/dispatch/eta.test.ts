@@ -8,8 +8,8 @@ import {
 } from "../../src/dispatch/eta";
 
 describe("dispatch constants", () => {
-  it("offers are exclusive for fifteen seconds", () => {
-    expect(OFFER_TTL_SECONDS).toBe(15);
+  it("offers are exclusive for thirty seconds unless staff set otherwise", () => {
+    expect(OFFER_TTL_SECONDS).toBe(30);
   });
 
   it("the search widens 1km, 2km, 4km", () => {

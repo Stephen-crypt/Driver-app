@@ -41,12 +41,13 @@ select throws_ok(
   '22023', 'own_trip',
   'and nothing can offer a passenger their own ride');
 
--- With only the passenger online, the trip ends as no riders instead of
--- hanging on an offer that can never be accepted.
+-- With only the passenger online, the trip ends as no riders once its search
+-- time is up, instead of hanging on an offer that can never be accepted.
 update public.rider_presence set status = 'offline' where rider_id = 'e4600000-0000-4000-8000-000000000002';
-insert into public.trips (id, passenger_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label)
+insert into public.trips (id, passenger_id, vehicle_class, state, pickup, pickup_label, dropoff, dropoff_label, created_at)
 values ('e4610000-0000-4000-8000-000000000002', 'e4600000-0000-4000-8000-000000000001', 'moto', 'requested',
-        st_point(30.0619, -1.9441)::geography, 'Nyarugenge', st_point(30.0925, -1.9536)::geography, 'Kigali Heights');
+        st_point(30.0619, -1.9441)::geography, 'Nyarugenge', st_point(30.0925, -1.9536)::geography, 'Kigali Heights',
+        now() - interval '181 seconds');
 select public.offer_next_candidate('e4610000-0000-4000-8000-000000000002');
 select is((select state::text from public.trips where id = 'e4610000-0000-4000-8000-000000000002'), 'no_riders',
   'alone, the passenger''s own trip finds no riders rather than offering itself');

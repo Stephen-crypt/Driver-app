@@ -143,8 +143,12 @@ select ok(
   'the rider who let the offer lapse is matchable again');
 
 -- ---------------------------------------------------------------------------
--- Termination: both ways out.
+-- Termination: both ways out. A search runs for platform_settings.
+-- search_seconds (0069); nobody free nearby keeps it waiting until then.
 -- ---------------------------------------------------------------------------
+update public.trips set created_at = now() - interval '181 seconds'
+ where id = 'a1000000-0000-4000-8000-000000000002';
+
 select ok(
   public.offer_next_candidate('a1000000-0000-4000-8000-000000000002') is null,
   'a trip with no candidate at all gets no offer back');
@@ -152,14 +156,14 @@ select ok(
 select is(
   (select state::text from public.trips where id='a1000000-0000-4000-8000-000000000002'),
   'no_riders',
-  'and reaches no_riders rather than waiting forever');
+  'and, its search time up, reaches no_riders rather than waiting forever');
 
-update public.trips set dispatch_attempts = 3
+update public.trips set created_at = now() - interval '181 seconds'
  where id = 'a1000000-0000-4000-8000-000000000003';
 
 select ok(
   public.offer_next_candidate('a1000000-0000-4000-8000-000000000003') is null,
-  'a trip past the attempt bound gets no offer back');
+  'a trip past its search time gets no offer back');
 
 select is(
   (select state::text from public.trips where id='a1000000-0000-4000-8000-000000000003'),
@@ -498,8 +502,8 @@ set local request.jwt.claims to '';
 
 select is(
   (select state::text from public.trips where id='a1000000-0000-4000-8000-000000000007'),
-  'no_riders',
-  'a decline with no candidate left reaches no_riders rather than waiting forever');
+  'offered',
+  'a decline with no candidate left keeps the trip searching instead of ending it at once');
 
 select is(
   (select count(*)::int from public.trip_offers
@@ -522,9 +526,13 @@ select ok(
 -- ---------------------------------------------------------------------------
 -- The invariant the whole wave exists to hold.
 -- ---------------------------------------------------------------------------
--- `offered` with no live offer is the corrupt state: a passenger waiting on an offer
--- nobody holds, and a rider excluded from every future match. Whatever paths
--- the tests above took, none of them may leave one behind.
+-- `offered` with no live offer is now a trip between offers, still searching:
+-- its rider is released and the five-second tick carries it on (0069). What
+-- must never happen is one left like that past its search time - a passenger
+-- waiting on an offer nobody holds, for ever. So: run every search out, and
+-- none may remain.
+update public.trips set created_at = now() - interval '1 hour' where state in ('requested', 'offered');
+select public.dispatch_pending_trips();
 select is(
   (select count(*)::int from public.trips t
     where t.state = 'offered'
@@ -532,7 +540,7 @@ select is(
         select 1 from public.trip_offers o
          where o.trip_id = t.id and o.outcome is null)),
   0,
-  'no trip anywhere is left in offered with no live offer');
+  'no trip anywhere is left in offered with no live offer once its search time is up');
 
 select * from finish();
 rollback;

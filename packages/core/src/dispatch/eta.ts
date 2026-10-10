@@ -1,7 +1,10 @@
 import type { VehicleClass } from "../fare/policy";
 
-/** A rider holds an exclusive offer for this long before it passes on. */
-export const OFFER_TTL_SECONDS = 15;
+/**
+ * How long a rider holds an exclusive offer before it passes on, by default.
+ * Staff can change it (platform_settings.offer_seconds, read by offer_ttl_seconds()).
+ */
+export const OFFER_TTL_SECONDS = 30;
 
 /** The search widens only when a stage finds nobody (spec 3.3). */
 export const DISPATCH_RADII_M = [1000, 2000, 4000] as const;

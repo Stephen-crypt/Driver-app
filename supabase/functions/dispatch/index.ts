@@ -2,11 +2,10 @@ import {
   straightLineEta,
   DISPATCH_RADII_M,
   CANDIDATE_SHORTLIST,
-  OFFER_TTL_SECONDS,
 } from "../_shared/core.ts";
 import type { VehicleClass } from "../_shared/core.ts";
 import { serviceClient, json } from "../_shared/supabase.ts";
-import { isDispatchable, rankCandidates } from "./logic.ts";
+import { isDispatchable, offerSeconds, rankCandidates } from "./logic.ts";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface Candidate {
@@ -126,6 +125,10 @@ Deno.serve(async (req: Request) => {
   // this attempt, the second is worth retrying.
   let anyCandidateRefused = false;
 
+  // How long the rider has to accept: a staff setting (0069), read once.
+  const { data: ttlSetting } = await svc.rpc("offer_ttl_seconds");
+  const ttlSeconds = offerSeconds(ttlSetting);
+
   // Widen only when a stage finds nobody (spec 3.3). The trip-keyed wrapper
   // keeps the pickup geography inside the database - reading it out and handing
   // it back as a parameter is a text-format guess waiting to fail.
@@ -156,7 +159,7 @@ Deno.serve(async (req: Request) => {
         p_rider_id: candidate.riderId,
         p_rank: 1,
         p_eta_seconds: candidate.etaSeconds,
-        p_ttl_seconds: OFFER_TTL_SECONDS,
+        p_ttl_seconds: ttlSeconds,
         p_idempotency_key: `offer-${tripId}-${candidate.riderId}-${Date.now()}`,
       });
 

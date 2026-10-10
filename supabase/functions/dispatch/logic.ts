@@ -1,3 +1,4 @@
+import { OFFER_TTL_SECONDS } from "../_shared/core.ts";
 // Pure decision logic, split out of index.ts so it can be imported by tests
 // without triggering Deno.serve at module load (see the note in
 // complete-trip/index_test.ts: importing an index.ts that calls Deno.serve
@@ -54,4 +55,13 @@ export async function rankCandidates(
   );
 
   return ranked.map((c) => ({ riderId: c.riderId, etaSeconds: c.etaSeconds }));
+}
+
+/**
+ * How long this offer lasts: the staff setting (offer_ttl_seconds(), 10-120 s)
+ * when it reads as one, the default otherwise - an offer must never be cut to
+ * nothing by a bad read.
+ */
+export function offerSeconds(raw: unknown): number {
+  return typeof raw === "number" && Number.isInteger(raw) && raw >= 10 && raw <= 120 ? raw : OFFER_TTL_SECONDS;
 }

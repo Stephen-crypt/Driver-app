@@ -418,7 +418,7 @@ function buildReceipt(policy, quotedRwf, quotedDistanceMetres, actualDistanceMet
 }
 
 // packages/core/src/dispatch/eta.ts
-var OFFER_TTL_SECONDS = 15;
+var OFFER_TTL_SECONDS = 30;
 var DISPATCH_RADII_M = [
   1e3,
   2e3,
