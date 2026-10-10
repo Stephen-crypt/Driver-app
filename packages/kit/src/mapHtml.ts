@@ -88,6 +88,7 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   html,body,#m{height:100%;margin:0;background:${MT.ground}}
   .maplibregl-map{font-family:-apple-system,Roboto,sans-serif}
   .maplibregl-ctrl-attrib{font-size:10px}
+  ${night ? ".maplibregl-ctrl.maplibregl-ctrl-attrib{background:rgba(19,27,43,.88);color:#AEB9CC}.maplibregl-ctrl-attrib a{color:#C9D4E6}.maplibregl-ctrl-attrib-button{filter:invert(.9)}" : ""}
   .g{position:relative;width:100%;height:100%}
   /* The map uses the same two marks as the route rail everywhere else: a ring
      where you are, a square where you are going. */

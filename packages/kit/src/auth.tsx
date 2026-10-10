@@ -15,7 +15,7 @@ import {
 import Svg, { Circle, Path, Rect } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { c, font, radius, shadow, space, tabular } from "./theme";
+import { c, font, radius, shadow, space, tabular, tokens } from "./theme";
 import { Txt } from "./Txt";
 import { Press } from "./Press";
 import { Button, IconButton, selection, type IconName } from "./controls";
@@ -402,7 +402,9 @@ export function WelcomePager({
         />
         <Enter i={0} style={[styles.brand, { paddingTop: insets.top + space.md }]}>
           <Image source={logo} style={styles.logo} accessibilityIgnoresInvertColors />
-          <Txt v="h2">{name}</Txt>
+          <Txt v="h2" style={styles.brandName}>
+            {name}
+          </Txt>
         </Enter>
       </View>
 
@@ -550,7 +552,11 @@ const styles = StyleSheet.create({
   resendReady: { backgroundColor: c.highlight },
   resendText: { fontFamily: font.semibold },
   welcome: { flex: 1, backgroundColor: c.surface, overflow: "hidden" },
-  picture: { flex: 1, minHeight: 200 },
+  // The picture's sky is pale in either theme, so the area behind it and the
+  // name over it keep the day colours: at night a dark band and white type
+  // would sit on that sky.
+  picture: { flex: 1, minHeight: 200, backgroundColor: tokens.palette.ground },
+  brandName: { color: tokens.palette.ink },
   brand: { flexDirection: "row", alignItems: "center", gap: space.sm, paddingHorizontal: space.lg },
   logo: { width: 38, height: 38, borderRadius: 11 },
   panel: {
