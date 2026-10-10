@@ -97,9 +97,10 @@ export const lightTheme: Theme = {
 };
 
 /**
- * Kept working, and kept honest by the same contrast test - a rider on a night
- * shift may want it, and a half-maintained dark theme is worse than none.
- * Not shipped: `theme` below is what the apps import.
+ * Nova at night. The page is the midnight, deeper; cards a lighter navy; what
+ * was midnight on a light page (buttons, links, the active tab) becomes mist
+ * with navy type; the hero stays navy, one step brighter than the page. Yellow
+ * keeps every job it has. Held to the same contrast bar as the light theme.
  */
 export const darkTheme: Theme = {
   surface: palette.night,
@@ -109,34 +110,31 @@ export const darkTheme: Theme = {
   text: "#C3C9D4",
   textStrong: palette.white,
   textMuted: "#9AA2B1",
-  accent: palette.yellowBright,
-  accentSoft: "#2A2410",
-  accentDeep: "#B48E00",
-  onAccent: palette.night,
-  highlight: palette.yellowBright,
-  highlightSoft: "#2A2410",
-  onHighlight: palette.night,
+  accent: palette.mist,
+  accentSoft: palette.mistSoft,
+  accentDeep: palette.mistDeep,
+  onAccent: palette.midnight,
+  highlight: palette.yellow,
+  highlightSoft: palette.nightTintYellow,
+  onHighlight: palette.midnight,
   success: palette.greenBright,
-  successSoft: "#12281F",
+  successSoft: palette.nightTintGreen,
   danger: palette.redBright,
-  dangerSoft: "#2B1614",
-  warning: "#FBBF24",
-  warningSoft: "#2A2010",
-  info: "#93C5FD",
-  origin: palette.yellowBright,
+  dangerSoft: palette.nightTintRed,
+  warning: palette.amberBright,
+  warningSoft: palette.nightTintAmber,
+  info: palette.infoBright,
+  origin: palette.mist,
   destination: palette.greenBright,
-  hero: palette.nightRaised,
-  heroRaised: palette.nightSunken,
+  hero: palette.nightHero,
+  heroRaised: palette.nightHeroLift,
   onHero: palette.white,
-  onHeroMuted: "#9AA2B1",
-  tintBlue: "#162238",
-  tintYellow: "#2A2410",
-  tintGreen: "#12281F",
-  tintAmber: "#2A2010",
+  onHeroMuted: palette.midnightMist,
+  tintBlue: palette.nightTintBlue,
+  tintYellow: palette.nightTintYellow,
+  tintGreen: palette.nightTintGreen,
+  tintAmber: palette.nightTintAmber,
 };
 
-/**
- * What the apps import. Switching the product's look is this one line - every
- * screen reads colour from here and nothing hard-codes a hex.
- */
+/** The light theme, which `@nova/kit` and the dashboard start from; each picks at runtime. */
 export const theme: Theme = lightTheme;

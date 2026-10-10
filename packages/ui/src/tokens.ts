@@ -57,14 +57,29 @@ export const palette = {
   amberSoft: "#FDF1E3",
   info: "#1D4ED8",
 
-  // Kept for the dark theme below: the midnight, deeper.
+  // The night: the midnight, deeper, for the dark theme's page and cards.
   night: "#0A1220",
   nightRaised: "#131B2B",
   nightSunken: "#1C2537",
   nightHairline: "#2A3447",
-  yellowBright: "#F7D14A",
+  // The hero at night: one step brighter than the page, so the block keeps an edge.
+  nightHero: "#142C4F",
+  nightHeroLift: "#1F3E6B",
+  // Mist: what midnight becomes on a dark page - buttons, links, the active tab.
+  mist: "#C9D4E6",
+  mistDeep: "#DCE4F0",
+  mistSoft: "#1C2A44",
+  // Signals lifted to read on the night.
   greenBright: "#4ADE80",
   redBright: "#F87171",
+  amberBright: "#FBBF24",
+  infoBright: "#93C5FD",
+  // Dark tints: a trace of each colour on the night.
+  nightTintBlue: "#162238",
+  nightTintYellow: "#2A2410",
+  nightTintGreen: "#12281F",
+  nightTintAmber: "#2A2010",
+  nightTintRed: "#341A1A",
 } as const;
 
 export const space = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32, xxl: 48 } as const;

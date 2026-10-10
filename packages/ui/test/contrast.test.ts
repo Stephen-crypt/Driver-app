@@ -71,8 +71,8 @@ describe("the shipped theme", () => {
     expect(contrastRatio(theme.onAccent, theme.accentDeep)).toBeGreaterThanOrEqual(7);
   });
 
-  it("the highlight tint reads with the same type as the highlight", () => {
-    expect(contrastRatio(theme.onHighlight, theme.highlightSoft)).toBeGreaterThanOrEqual(AA);
+  it("the highlight tint carries strong type, in either theme", () => {
+    expect(contrastRatio(theme.textStrong, theme.highlightSoft)).toBeGreaterThanOrEqual(AA);
   });
 
   it("the highlight is never a text colour on the page", () => {
@@ -142,24 +142,61 @@ describe("the hero and the tiles", () => {
   }
 });
 
-describe("the dark theme, kept honest", () => {
+describe("the dark theme", () => {
+  const t = darkTheme;
   const cases: [keyof Theme, number][] = [
-    ["text", AA],
-    ["textStrong", AAA],
-    ["textMuted", AA],
-    ["accent", AA],
-    ["success", AA],
-    ["danger", AA],
-    ["warning", AA],
+    ["text", AA], ["textStrong", AAA], ["textMuted", AA], ["accent", AA],
+    ["success", AA], ["danger", AA], ["warning", AA], ["info", AA], ["origin", AA], ["destination", AA],
   ];
-
   for (const [key, floor] of cases) {
-    it(`${key} is legible on the dark surface`, () => {
-      expect(contrastRatio(darkTheme[key], darkTheme.surface)).toBeGreaterThanOrEqual(floor);
+    it(`${key} is legible on the night page`, () => {
+      expect(contrastRatio(t[key], t.surface)).toBeGreaterThanOrEqual(floor);
     });
   }
+  it("and on a card", () => {
+    for (const key of ["text", "textStrong", "accent", "success", "danger"] as const) {
+      expect(contrastRatio(t[key], t.surfaceRaised)).toBeGreaterThanOrEqual(AA);
+    }
+  });
+  it("navy type on the mist accent, and on its deep ground", () => {
+    expect(contrastRatio(t.onAccent, t.accent)).toBeGreaterThanOrEqual(AA);
+    expect(contrastRatio(t.onAccent, t.accentDeep)).toBeGreaterThanOrEqual(AAA);
+  });
+  it("the yellow keeps midnight type at AAA", () => {
+    expect(contrastRatio(t.onHighlight, t.highlight)).toBeGreaterThanOrEqual(AAA);
+  });
+  it("white on the hero clears AAA, and the hero has an edge against the page", () => {
+    expect(contrastRatio(t.onHero, t.hero)).toBeGreaterThanOrEqual(AAA);
+    expect(contrastRatio(t.onHeroMuted, t.hero)).toBeGreaterThanOrEqual(AA);
+    expect(contrastRatio(t.hero, t.surface)).toBeGreaterThanOrEqual(1.3);
+  });
+  it("every chip reads against its own tint, and no tint vanishes into the card", () => {
+    for (const [ink, tint] of [[t.accent, t.accentSoft], [t.success, t.successSoft], [t.danger, t.dangerSoft], [t.warning, t.warningSoft]] as const) {
+      expect(contrastRatio(ink, tint)).toBeGreaterThanOrEqual(AA);
+      expect(contrastRatio(tint, t.surfaceRaised)).toBeGreaterThan(1.02);
+    }
+  });
+  it("strong type reads on the highlight tint and on every tile", () => {
+    for (const ground of [t.highlightSoft, t.tintBlue, t.tintYellow, t.tintGreen, t.tintAmber]) {
+      expect(contrastRatio(t.textStrong, ground)).toBeGreaterThanOrEqual(AA);
+    }
+  });
+  it("stacks three distinct surface levels", () => {
+    expect(new Set([t.surface, t.surfaceRaised, t.surfaceHigh]).size).toBe(3);
+  });
+});
 
-  it("text on its accent is readable", () => {
-    expect(contrastRatio(darkTheme.onAccent, darkTheme.accent)).toBeGreaterThanOrEqual(AA);
+describe("the light theme is untouched by dark mode", () => {
+  it("keeps the brand values", () => {
+    expect(lightTheme).toMatchObject({
+      surface: "#F5F7FA", surfaceRaised: "#FFFFFF", surfaceHigh: "#EEF1F5", border: "#E5E7EB",
+      text: "#4B5563", textStrong: "#1F2937", textMuted: "#5F6B7A",
+      accent: "#0A2342", accentSoft: "#E7E9EC", accentDeep: "#061A33", onAccent: "#FFFFFF",
+      highlight: "#F4C20D", highlightSoft: "#FDF3CF", onHighlight: "#0A2342",
+      success: "#15803D", danger: "#B91C1C", warning: "#B45309", info: "#1D4ED8",
+      hero: "#0A2342", heroRaised: "#16345C", onHero: "#FFFFFF", onHeroMuted: "#B4C0D3",
+      tintBlue: "#E8EEF8", tintYellow: "#FEF6D9", tintGreen: "#E4F5EA", tintAmber: "#FDEEDD",
+    });
+    expect(theme).toBe(lightTheme);
   });
 });

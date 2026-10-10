@@ -4,3 +4,4 @@ export * from "./sheet";
 export * from "./route";
 export * from "./mapStyle";
 export * from "./road";
+export * from "./appearance";

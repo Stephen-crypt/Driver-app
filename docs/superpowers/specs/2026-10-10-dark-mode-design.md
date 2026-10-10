@@ -35,7 +35,7 @@ blocks, yellow for the one action. At night the page itself becomes the night.
 | `accentDeep` | `#061A33` | `#DCE4F0` | a marker's ground |
 | `highlight` / `highlightSoft` / `onHighlight` | `#F4C20D` / `#FDF3CF` / midnight | `#F4C20D` / `#2A2410` / midnight | yellow is the anchor; unchanged |
 | success / soft | `#15803D` / `#DCFCE7` | `#4ADE80` / `#12281F` | lifted to read on night |
-| danger / soft | `#B91C1C` / `#FEE2E2` | `#F87171` / `#2B1614` | |
+| danger / soft | `#B91C1C` / `#FEE2E2` | `#F87171` / `#341A1A` | |
 | warning / soft | `#B45309` / `#FDF1E3` | `#FBBF24` / `#2A2010` | |
 | info | `#1D4ED8` | `#93C5FD` | |
 | origin / destination | midnight / green | mist / `#4ADE80` | route ends |
