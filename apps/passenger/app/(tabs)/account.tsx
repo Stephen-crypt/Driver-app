@@ -19,12 +19,16 @@ import {
   radius,
   space,
   useOverlay,
+  appearance,
+  type Appearance,
   type IconName,
 } from "@nova/kit";
 import { EMERGENCY_NUMBER, deleteSavedPlace, listMyPromos, listSavedPlaces, listTrips, type SavedPlace } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
 import { useSession } from "../../src/lib/session";
 import { useLightStatusBar } from "../../src/lib/statusBar";
+
+const APPEARANCE_NAME: Record<Appearance, string> = { system: "Matches your phone", light: "Light", dark: "Dark" };
 
 function placeIcon(label: string): "home" | "briefcase" | "bookmark" {
   return /home|urugo/i.test(label) ? "home" : /work|office|akazi/i.test(label) ? "briefcase" : "bookmark";
@@ -190,6 +194,10 @@ export default function Account() {
             iconTone="good"
             onPress={() => router.push("/promotions")}
           />
+        </Group>
+
+        <Group title="App">
+          <Row title="Appearance" subtitle={APPEARANCE_NAME[appearance]} icon="moon" onPress={() => router.push("/appearance")} />
         </Group>
 
         <Button label="Sign out" variant="quiet" onPress={() => void signOut()} />

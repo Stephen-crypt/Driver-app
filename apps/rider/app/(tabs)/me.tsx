@@ -20,6 +20,8 @@ import {
   shadow,
   space,
   useOverlay,
+  appearance,
+  type Appearance,
 } from "@nova/kit";
 import { EMERGENCY_NUMBER, getOpenShift, getRiderProfile, type RiderProfile, type Shift } from "@nova/data";
 import { supabase } from "../../src/lib/supabase";
@@ -28,6 +30,7 @@ import { useLightStatusBar } from "../../src/lib/statusBar";
 
 const CLASS_NAME: Record<string, string> = { moto: "Moto", cab: "Cab", cab_xl: "Cab XL" };
 const INSET = space.md + 38 + space.md;
+const APPEARANCE_NAME: Record<Appearance, string> = { system: "Matches your phone", light: "Light", dark: "Dark" };
 
 export default function Me() {
   useLightStatusBar();
@@ -169,6 +172,10 @@ export default function Me() {
         <Row title="Your reports" subtitle="What you reported and the office's answer" icon="documents" onPress={() => router.push("/reports")} />
         <Divider inset={INSET} />
         <Row title="My documents" subtitle="Driving licence and national ID" icon="document-text" onPress={() => router.push({ pathname: "/onboarding/documents", params: { from: "me" } })} />
+      </Group>
+
+      <Group key="app" title="App">
+        <Row title="Appearance" subtitle={APPEARANCE_NAME[appearance]} icon="moon" onPress={() => router.push("/appearance")} />
       </Group>
 
       <Group key="safety" title="Safety">
