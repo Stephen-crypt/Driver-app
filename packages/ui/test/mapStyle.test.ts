@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { brandMapStyle, MAP_CASINGS, MAP_LAYOUT, MAP_PAINT, MAP_PLACES_LAYERS } from "../src/mapStyle";
+import { brandMapStyle, MAP_CASINGS, MAP_LAYOUT, MAP_PAINT, MAP_PAINT_DARK, MAP_PLACES_LAYERS, mapTheme } from "../src/mapStyle";
 import { contrastRatio } from "../src/tokens";
 
 const minorWidth = ["interpolate", ["exponential", 1.55], ["zoom"], 13, 1.8, 20, 20];
@@ -62,6 +62,37 @@ describe("brandMapStyle", () => {
     for (const id of ["highway-name-minor", "highway-name-major", "label_city", "label_town"] as const) {
       expect(contrastRatio(MAP_PAINT[id]["text-color"], ground)).toBeGreaterThanOrEqual(4.5);
     }
-    expect(contrastRatio(MAP_PLACES_LAYERS[0].paint["text-color"], ground)).toBeGreaterThanOrEqual(4.5);
+    expect(contrastRatio(MAP_PLACES_LAYERS[0]!.paint["text-color"], ground)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+describe("the night map", () => {
+  it("paints every layer the day map paints, and no other", () => {
+    expect(Object.keys(MAP_PAINT_DARK).sort()).toEqual(Object.keys(MAP_PAINT).sort());
+    for (const id of Object.keys(MAP_PAINT) as (keyof typeof MAP_PAINT)[]) {
+      expect(Object.keys(MAP_PAINT_DARK[id]).sort()).toEqual(Object.keys(MAP_PAINT[id]).sort());
+    }
+  });
+
+  it("is applied by brandMapStyle for the dark scheme", () => {
+    const water = brandMapStyle(positron(), "dark").layers.find((l) => l.id === "water")!;
+    expect(water.paint).toEqual({ "fill-color": MAP_PAINT_DARK.water["fill-color"], "fill-antialias": true });
+    const edge = brandMapStyle(positron(), "dark").layers.find((l) => l.id === MAP_CASINGS[0].id)!;
+    expect(edge.paint?.["line-color"]).toBe(mapTheme("dark").casings[0]!.color);
+  });
+
+  it("keeps the day map as the default", () => {
+    expect(brandMapStyle(positron()).layers.find((l) => l.id === "water")!.paint?.["fill-color"]).toBe(MAP_PAINT.water["fill-color"]);
+  });
+
+  it("every name on the night map reads against its ground", () => {
+    const ground = MAP_PAINT_DARK.background["background-color"];
+    for (const id of ["highway-name-path", "highway-name-minor", "highway-name-major", "label_other", "label_village", "label_city", "airport"] as const) {
+      expect(contrastRatio((MAP_PAINT_DARK[id] as { "text-color": string })["text-color"], ground)).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrastRatio(MAP_PAINT_DARK.water_name_point_label["text-color"], MAP_PAINT_DARK.water["fill-color"])).toBeGreaterThanOrEqual(4.5);
+    for (const l of mapTheme("dark").places) {
+      expect(contrastRatio((l.paint as { "text-color": string })["text-color"], ground)).toBeGreaterThanOrEqual(4.5);
+    }
   });
 });

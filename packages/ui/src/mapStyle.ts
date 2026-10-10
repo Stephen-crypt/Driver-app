@@ -19,6 +19,8 @@
  * WebView page - so everything below is plain data.
  */
 
+import type { Scheme } from "./appearance";
+
 /**
  * The OSM licence requires "© OpenStreetMap" on every map. The tiles carry that
  * credit themselves, and MapLibre's attribution control shows it, so a map
@@ -78,13 +80,56 @@ export const MAP_LAYOUT = {
  */
 export const MAP_CASINGS = [{ id: "nova_minor_casing", of: "highway_minor", color: "#C6CFDB", width: 1.1 }] as const;
 
+/** The same layers at night: a navy ground, roads a step lighter, pale names with a night halo. */
+export const MAP_PAINT_DARK = {
+  background: { "background-color": "#121A28" },
+  landuse_residential: { "fill-color": "#151E2D" },
+  park: { "fill-color": "#16281E" },
+  landcover_wood: { "fill-color": "#142419" },
+  water: { "fill-color": "#0F2238" },
+  waterway: { "line-color": "#0F2238" },
+  building: { "fill-color": "#1A2436", "fill-outline-color": "#22304A" },
+  road_area_pier: { "fill-color": "#121A28" },
+  road_pier: { "line-color": "#121A28" },
+  highway_path: { "line-color": "#222C40" },
+  highway_minor: { "line-color": "#2A3650", "line-opacity": 1 },
+  highway_major_casing: { "line-color": "#1A2436" },
+  highway_major_inner: { "line-color": "#34435E" },
+  highway_major_subtle: { "line-color": "#2A3650" },
+  highway_motorway_casing: { "line-color": "#1A2436" },
+  highway_motorway_inner: { "line-color": "#3E4F6E" },
+  highway_motorway_subtle: { "line-color": "#34435E" },
+  highway_motorway_bridge_casing: { "line-color": "#1A2436" },
+  highway_motorway_bridge_inner: { "line-color": "#3E4F6E" },
+  boundary_2: { "line-color": "#3A4A66" },
+  boundary_3: { "line-color": "#3A4A66" },
+  waterway_line_label: { "text-color": "#7FA3D1" },
+  water_name_point_label: { "text-color": "#7FA3D1" },
+  water_name_line_label: { "text-color": "#7FA3D1" },
+  "highway-name-path": { "text-color": "#8E9BB0", "text-halo-color": "#0A1220" },
+  "highway-name-minor": { "text-color": "#AEB9CC", "text-halo-color": "#0A1220", "text-halo-width": 1.4 },
+  "highway-name-major": { "text-color": "#C9D4E6", "text-halo-color": "#0A1220", "text-halo-width": 1.4 },
+  airport: { "text-color": "#C9D4E6" },
+  label_other: { "text-color": "#AEB9CC" },
+  label_village: { "text-color": "#E3EAF5" },
+  label_town: { "text-color": "#E3EAF5" },
+  label_state: { "text-color": "#AEB9CC" },
+  label_city: { "text-color": "#E3EAF5" },
+  label_city_capital: { "text-color": "#E3EAF5" },
+} as const satisfies Readonly<Record<keyof typeof MAP_PAINT, Readonly<Record<string, unknown>>>>;
+
+export const MAP_CASINGS_DARK = [{ id: "nova_minor_casing", of: "highway_minor", color: "#1F2A3E", width: 1.1 }] as const;
+
 const PLACE_NAME = ["coalesce", ["get", "name_en"], ["get", "name"]];
 const PLACE_ICON = ["match", ["get", "subclass"], ["florist", "furniture"], ["get", "subclass"], ["get", "class"]];
-const PLACE_PAINT = { "text-color": "#5B6B82", "text-halo-color": "#FFFFFF", "text-halo-width": 1.2 };
+const placePaint = (scheme: Scheme) =>
+  scheme === "dark"
+    ? { "text-color": "#AEB9CC", "text-halo-color": "#0A1220", "text-halo-width": 1.2 }
+    : { "text-color": "#5B6B82", "text-halo-color": "#FFFFFF", "text-halo-width": 1.2 };
 // Some places carry no rank; they count as the least important.
 const RANK = ["coalesce", ["get", "rank"], 99];
 
-const placesLayer = (id: string, minzoom: number, rank: readonly unknown[]) => ({
+const placesLayer = (id: string, minzoom: number, rank: readonly unknown[], scheme: Scheme) => ({
   id,
   type: "symbol",
   source: "openmaptiles",
@@ -102,7 +147,7 @@ const placesLayer = (id: string, minzoom: number, rank: readonly unknown[]) => (
     "text-offset": [0, 0.7],
     "text-optional": true,
   },
-  paint: PLACE_PAINT,
+  paint: placePaint(scheme),
 });
 
 /**
@@ -112,10 +157,10 @@ const placesLayer = (id: string, minzoom: number, rank: readonly unknown[]) => (
  * important arrive first as you zoom in. The icons are OpenFreeMap's own
  * sprite, which Positron already loads.
  */
-export const MAP_PLACES_LAYERS = [
-  placesLayer("nova_places_main", 14, [["<", RANK, 7]]),
-  placesLayer("nova_places_more", 15.5, [[">=", RANK, 7], ["<", RANK, 20]]),
-  placesLayer("nova_places_all", 17, [[">=", RANK, 20]]),
+export const mapPlacesLayers = (scheme: Scheme) => [
+  placesLayer("nova_places_main", 14, [["<", RANK, 7]], scheme),
+  placesLayer("nova_places_more", 15.5, [[">=", RANK, 7], ["<", RANK, 20]], scheme),
+  placesLayer("nova_places_all", 17, [[">=", RANK, 20]], scheme),
   {
     id: "nova_places_transit",
     type: "symbol",
@@ -134,15 +179,15 @@ export const MAP_PLACES_LAYERS = [
       "text-offset": [0.9, 0],
       "text-optional": true,
     },
-    paint: { ...PLACE_PAINT, "text-color": "#2E5A80" },
+    paint: { ...placePaint(scheme), "text-color": scheme === "dark" ? "#93C5FD" : "#2E5A80" },
   },
-] as const;
+];
+
+/** The day map's places, for code that predates the night map. */
+export const MAP_PLACES_LAYERS = mapPlacesLayers("light");
 
 /** Places go in under the town and city names, so those win any collision. */
 export const MAP_PLACES_BEFORE = "label_other";
-
-const PAINT_BY_ID: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>> = MAP_PAINT;
-const LAYOUT_BY_ID: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>> = MAP_LAYOUT;
 
 interface StyleLayer {
   id: string;
@@ -158,11 +203,36 @@ export interface MapStyleSpec {
 
 const copy = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
+/** Everything a renderer needs to paint the map in one scheme. Plain data, so the WebView page can take it as JSON. */
+export interface MapTheme {
+  readonly paint: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>>;
+  readonly layout: Readonly<Record<string, Readonly<Record<string, unknown>> | undefined>>;
+  readonly casings: readonly { readonly id: string; readonly of: string; readonly color: string; readonly width: number }[];
+  readonly places: readonly StyleLayer[];
+  readonly placesBefore: string;
+  /** The page colour behind the tiles while they load. */
+  readonly ground: string;
+}
+
+export function mapTheme(scheme: Scheme): MapTheme {
+  const dark = scheme === "dark";
+  const paint = dark ? MAP_PAINT_DARK : MAP_PAINT;
+  return {
+    paint,
+    layout: MAP_LAYOUT,
+    casings: dark ? MAP_CASINGS_DARK : MAP_CASINGS,
+    places: mapPlacesLayers(scheme) as unknown as StyleLayer[],
+    placesBefore: MAP_PLACES_BEFORE,
+    ground: paint.background["background-color"],
+  };
+}
+
 /** Positron in Nova's colours, with road edges and named places added. Returns a new style. */
-export function brandMapStyle<T extends MapStyleSpec>(style: T): T {
+export function brandMapStyle<T extends MapStyleSpec>(style: T, scheme: Scheme = "light"): T {
+  const t = mapTheme(scheme);
   const layers: StyleLayer[] = [];
   for (const l of style.layers) {
-    for (const edge of MAP_CASINGS) {
+    for (const edge of t.casings) {
       if (edge.of === l.id) {
         layers.push({
           ...copy(l),
@@ -171,11 +241,11 @@ export function brandMapStyle<T extends MapStyleSpec>(style: T): T {
         });
       }
     }
-    const paint = PAINT_BY_ID[l.id];
-    const layout = LAYOUT_BY_ID[l.id];
+    const paint = t.paint[l.id];
+    const layout = t.layout[l.id];
     layers.push(paint || layout ? { ...l, paint: { ...l.paint, ...paint }, layout: { ...l.layout, ...layout } } : l);
   }
-  const at = layers.findIndex((l) => l.id === MAP_PLACES_BEFORE);
-  layers.splice(at < 0 ? layers.length : at, 0, ...copy(MAP_PLACES_LAYERS as unknown as StyleLayer[]));
+  const at = layers.findIndex((l) => l.id === t.placesBefore);
+  layers.splice(at < 0 ? layers.length : at, 0, ...copy(t.places));
   return { ...style, layers };
 }
