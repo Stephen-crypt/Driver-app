@@ -6,12 +6,17 @@ import { Inter_600SemiBold } from "@expo-google-fonts/inter/600SemiBold";
 import { Montserrat_600SemiBold } from "@expo-google-fonts/montserrat/600SemiBold";
 import { Montserrat_700Bold } from "@expo-google-fonts/montserrat/700Bold";
 import { Montserrat_800ExtraBold } from "@expo-google-fonts/montserrat/800ExtraBold";
-import { theme, tokens } from "@nova/ui";
+import { themeFor, tokens, type Theme } from "@nova/ui";
+import { scheme } from "./appearance";
 
-export { theme, tokens };
-export const c = theme;
+export { tokens };
+/** The palette every screen reads. Picked once per run from the saved choice and the device. */
+export const c: Theme = themeFor(scheme);
+export const theme = c;
 export const space = tokens.space;
 export const radius = tokens.radius;
+/** Status-bar icons when no screen asks for light ones: dark on a light page, light on the night. */
+export const restingStatusBarStyle: "light" | "dark" = scheme === "dark" ? "light" : "dark";
 
 /**
  * The URUMURI typefaces: Montserrat for headlines and every figure that

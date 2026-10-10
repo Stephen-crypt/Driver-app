@@ -1,4 +1,5 @@
 export * from "./theme";
+export * from "./appearance";
 export * from "./Txt";
 export * from "./VestPatch";
 export * from "./controls";

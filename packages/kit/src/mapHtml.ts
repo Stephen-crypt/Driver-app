@@ -1,6 +1,15 @@
 import type { StyleProp, ViewStyle } from "react-native";
-import { MAP_CASINGS, MAP_LAYOUT, MAP_PAINT, MAP_PLACES_BEFORE, MAP_PLACES_LAYERS, MAP_STYLE_URL } from "@nova/ui";
+import { MAP_STYLE_URL, mapTheme } from "@nova/ui";
 import { c } from "./theme";
+import { scheme } from "./appearance";
+
+// The map in this run's scheme, and Nova's marks on it. At night the white
+// edges and white pickup become night ones, and the route is mist.
+const MT = mapTheme(scheme);
+const night = scheme === "dark";
+const ROUTE = { road: night ? c.accentDeep : c.accent, edge: night ? "#0A1220" : "#fff" };
+const PICKUP = { fill: night ? c.accentDeep : "#fff", ring: night ? "#0A1220" : c.textStrong };
+const ME_RING = night ? "#0A1220" : "#fff";
 
 export interface LatLng {
   readonly lat: number;
@@ -76,20 +85,20 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <link rel="stylesheet" href="${MAPLIBRE}/maplibre-gl.css"/>
 <style>
-  html,body,#m{height:100%;margin:0;background:${MAP_PAINT.background["background-color"]}}
+  html,body,#m{height:100%;margin:0;background:${MT.ground}}
   .maplibregl-map{font-family:-apple-system,Roboto,sans-serif}
   .maplibregl-ctrl-attrib{font-size:10px}
   .g{position:relative;width:100%;height:100%}
   /* The map uses the same two marks as the route rail everywhere else: a ring
      where you are, a square where you are going. */
-  .me{position:relative;width:18px;height:18px;border-radius:50%;background:${c.accent};border:3px solid #fff;box-sizing:border-box;
+  .me{position:relative;width:18px;height:18px;border-radius:50%;background:${c.accent};border:3px solid ${ME_RING};box-sizing:border-box;
       box-shadow:0 2px 6px rgba(0,0,0,.25)}
   .me:after{content:'';position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;
       background:rgba(10,35,66,.3);animation:halo 2.2s cubic-bezier(.23,1,.32,1) infinite}
   @keyframes halo{from{transform:scale(1);opacity:.9}to{transform:scale(3.4);opacity:0}}
   @media (prefers-reduced-motion: reduce){.me:after{animation:none;opacity:.25;transform:scale(2)}}
   .pin{width:18px;height:18px;box-shadow:0 2px 6px rgba(0,0,0,.28)}
-  .pickup{border-radius:50%;background:#fff;border:5px solid ${c.textStrong};box-sizing:border-box}
+  .pickup{border-radius:50%;background:${PICKUP.fill};border:5px solid ${PICKUP.ring};box-sizing:border-box}
   .drop{position:relative;width:30px;height:40px;filter:drop-shadow(0 2px 3px rgba(0,0,0,.3))}
   .drop svg{display:block}
   /* Choosing a place: the pin stands in the middle of what you can see, lifts
@@ -129,20 +138,20 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
   @keyframes drop{from{transform:translateY(-8px);opacity:0}to{transform:none;opacity:1}}
   @media (prefers-reduced-motion: reduce){.g{animation:none}}
   .tag{position:absolute;left:50%;bottom:calc(100% + 6px);transform:translateX(-50%);white-space:nowrap;
-       background:#fff;color:${c.textStrong};font:600 12px/1 -apple-system,Roboto,sans-serif;
+       background:${c.surfaceRaised};color:${c.textStrong};font:600 12px/1 -apple-system,Roboto,sans-serif;
        padding:5px 8px;border-radius:8px;box-shadow:0 2px 6px rgba(0,0,0,.18)}
 </style>
 </head><body><div id="m"></div><div id="pick"><i class="s"></i><div class="p"></div></div>
 <script src="${MAPLIBRE}/maplibre-gl.js"></script>
 <script>
-  var PAINT = ${JSON.stringify(MAP_PAINT)};
-  var LAYOUT = ${JSON.stringify(MAP_LAYOUT)};
-  var EDGES = ${JSON.stringify(MAP_CASINGS)};
-  var PLACES_BEFORE = '${MAP_PLACES_BEFORE}';
+  var PAINT = ${JSON.stringify(MT.paint)};
+  var LAYOUT = ${JSON.stringify(MT.layout)};
+  var EDGES = ${JSON.stringify(MT.casings)};
+  var PLACES_BEFORE = '${MT.placesBefore}';
   var PIN_SVG = '<svg width="__W__" height="__H__" viewBox="0 0 30 40"><path d="M15 39C15 39 28 24.8 28 15A13 13 0 0 0 2 15C2 24.8 15 39 15 39Z" fill="__F__" stroke="#fff" stroke-width="2.5"/><circle cx="15" cy="15" r="5" fill="#fff"/></svg>';
   function pinSvg(fill, w, h){ return PIN_SVG.replace('__F__', fill).replace('__W__', w).replace('__H__', h); }
   var PICK_FILL = {pickup:'${c.accent}', dropoff:'${c.destination}'};
-  var PLACES = ${JSON.stringify(MAP_PLACES_LAYERS)};
+  var PLACES = ${JSON.stringify(MT.places)};
   var map = null, ready = false, pending = null;
   var markers = {}, fitted = '', fittedSpan = 0, lastCentre = null, touchedAt = 0, picking = null;
   var reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -204,12 +213,12 @@ export function buildMapHtml(center: LatLng, zoom: number): string {
       var round = {'line-cap':'round', 'line-join':'round'};
       // The road: solid midnight on a white edge, so it reads over any street.
       map.addLayer({id:'route-edge', type:'line', source:'route', filter:['==', ['get', 'road'], true], layout:round,
-                    paint:{'line-color':'#fff', 'line-width':9}});
+                    paint:{'line-color':'${ROUTE.edge}', 'line-width':9}});
       map.addLayer({id:'route-road', type:'line', source:'route', filter:['==', ['get', 'road'], true], layout:round,
-                    paint:{'line-color':'${c.accent}', 'line-width':5}});
+                    paint:{'line-color':'${ROUTE.road}', 'line-width':5}});
       // No road yet: a dotted guess from one end to the other.
       map.addLayer({id:'route-guess', type:'line', source:'route', filter:['==', ['get', 'road'], false], layout:round,
-                    paint:{'line-color':'${c.accent}', 'line-width':5, 'line-opacity':.9, 'line-dasharray':[0.1, 2]}});
+                    paint:{'line-color':'${ROUTE.road}', 'line-width':5, 'line-opacity':.9, 'line-dasharray':[0.1, 2]}});
       ready = true;
       if (pending) apply(pending);
     });

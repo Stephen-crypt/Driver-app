@@ -334,7 +334,7 @@ export function OverlayProvider({ children }: { readonly children: ReactNode }) 
               size={20}
               color={toast.tone === "bad" ? "#FF8A80" : toast.tone === "good" ? "#6EE7B7" : "#FFFFFF"}
             />
-            <Txt v="label" tone="inverse" style={styles.flex}>
+            <Txt v="label" tone="onHero" style={styles.flex}>
               {toast.message}
             </Txt>
           </Animated.View>
@@ -462,7 +462,7 @@ const styles = StyleSheet.create({
     gap: space.sm,
     maxWidth: 520,
     alignSelf: "stretch",
-    backgroundColor: c.textStrong,
+    backgroundColor: c.hero,
     borderRadius: radius.md,
     paddingHorizontal: space.md,
     paddingVertical: 12,

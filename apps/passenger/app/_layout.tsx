@@ -2,7 +2,7 @@ import { View } from "react-native";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { OverlayProvider, c, useNovaFonts } from "@nova/kit";
+import { OverlayProvider, c, restingStatusBarStyle, useNovaFonts } from "@nova/kit";
 
 export default function RootLayout() {
   // Nothing renders until the faces load: a screen that paints in the system
@@ -13,7 +13,7 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: c.surface }}>
       <OverlayProvider>
-        <StatusBar style="dark" />
+        <StatusBar style={restingStatusBarStyle} />
         <Stack
           screenOptions={{
             headerShown: false,

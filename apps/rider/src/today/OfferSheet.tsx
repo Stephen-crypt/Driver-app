@@ -263,8 +263,9 @@ const styles = StyleSheet.create({
     minHeight: tokens.MIN_TOUCH_TARGET + 12,
     borderRadius: radius.pill,
     // Full yellow draining to its tint, like a battery: the type is midnight
-    // on both, so it stays legible however much time is left.
-    backgroundColor: c.highlightSoft,
+    // on both, so it stays legible however much time is left. The tint is the
+    // pale yellow in both themes - the night tint would swallow midnight type.
+    backgroundColor: "#FDF3CF",
     alignItems: "center",
     justifyContent: "center",
     overflow: "hidden",

@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useFocusEffect } from "expo-router";
 import { setStatusBarStyle } from "expo-status-bar";
+import { restingStatusBarStyle } from "@nova/kit";
 
 // How many focused screens want light icons. A screen that opens on the
 // midnight hero asks for them while it is in front; the dark default comes
@@ -15,7 +16,7 @@ export function useLightStatusBar(): void {
       setStatusBarStyle("light", true);
       return () => {
         holds = Math.max(0, holds - 1);
-        if (holds === 0) setStatusBarStyle("dark", true);
+        if (holds === 0) setStatusBarStyle(restingStatusBarStyle, true);
       };
     }, []),
   );
