@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import maplibregl, { type GeoJSONSource, type StyleSpecification } from "maplibre-gl";
 import type { Feature, FeatureCollection } from "geojson";
 import { brandMapStyle, MAP_STYLE_URL, type MapStyleSpec } from "@nova/ui";
+import { useScheme, type Scheme } from "../lib/appearance";
 
 export interface MapPoint {
   readonly id: string;
@@ -32,17 +33,21 @@ export interface MapZone {
 
 const KIGALI: [number, number] = [30.0619, -1.9441];
 const MIDNIGHT = "#0a2342";
+/** The working colour now drawn: midnight by day, mist at night. */
+const accentNow = () => getComputedStyle(document.documentElement).getPropertyValue("--accent").trim() || MIDNIGHT;
+/** Midnight lines and zones vanish on the night map; they take the accent instead. */
+const ink = (colour: string, scheme: Scheme) => (scheme === "dark" && colour.toLowerCase() === MIDNIGHT ? accentNow() : colour);
 const EMPTY: FeatureCollection = { type: "FeatureCollection", features: [] };
 
-/** The brand style, fetched once for every map on the page. */
-let styleOnce: Promise<StyleSpecification | string> | null = null;
-function brandStyle(): Promise<StyleSpecification | string> {
-  styleOnce ??= fetch(MAP_STYLE_URL)
+/** The brand style in each look, fetched once for every map on the page. */
+const styleOnce: Partial<Record<Scheme, Promise<StyleSpecification | string>>> = {};
+function brandStyle(scheme: Scheme): Promise<StyleSpecification | string> {
+  styleOnce[scheme] ??= fetch(MAP_STYLE_URL)
     .then((r) => r.json() as Promise<MapStyleSpec>)
-    .then((s) => brandMapStyle(s) as unknown as StyleSpecification)
+    .then((s) => brandMapStyle(s, scheme) as unknown as StyleSpecification)
     // Unbranded beats no map.
     .catch(() => MAP_STYLE_URL);
-  return styleOnce;
+  return styleOnce[scheme]!;
 }
 
 const closed = (ring: readonly [number, number][]): [number, number][] => {
@@ -73,6 +78,9 @@ export function LiveMap({
 }) {
   const host = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const scheme = useScheme();
+  // Where the operator was looking, so a change of look rebuilds the map in place.
+  const camera = useRef<{ center: maplibregl.LngLatLike; zoom: number } | null>(null);
   // Sources and layers can only be added once the style is in; until then the
   // effects below wait on this.
   const [loaded, setLoaded] = useState(false);
@@ -85,13 +93,14 @@ export function LiveMap({
 
   useEffect(() => {
     let gone = false;
-    void brandStyle().then((style) => {
+    void brandStyle(scheme).then((style) => {
       if (gone || !host.current) return;
+      const accent = accentNow();
       const m = new maplibregl.Map({
         container: host.current,
         style,
-        center: KIGALI,
-        zoom: 12,
+        center: camera.current?.center ?? KIGALI,
+        zoom: camera.current?.zoom ?? 12,
         attributionControl: false,
         dragRotate: false,
         pitchWithRotate: false,
@@ -141,21 +150,21 @@ export function LiveMap({
           type: "fill",
           source: "draft",
           filter: ["==", ["geometry-type"], "Polygon"],
-          paint: { "fill-color": MIDNIGHT, "fill-opacity": 0.12 },
+          paint: { "fill-color": accent, "fill-opacity": 0.12 },
         });
         m.addLayer({
           id: "draft-edge",
           type: "line",
           source: "draft",
           filter: ["!=", ["geometry-type"], "Point"],
-          paint: { "line-color": MIDNIGHT, "line-width": 2, "line-dasharray": [3, 2] },
+          paint: { "line-color": accent, "line-width": 2, "line-dasharray": [3, 2] },
         });
         m.addLayer({
           id: "draft-corners",
           type: "circle",
           source: "draft",
           filter: ["==", ["geometry-type"], "Point"],
-          paint: { "circle-radius": 5, "circle-color": "#fff", "circle-stroke-color": MIDNIGHT, "circle-stroke-width": 2 },
+          paint: { "circle-radius": 5, "circle-color": "#fff", "circle-stroke-color": accent, "circle-stroke-width": 2 },
         });
 
         // A zone's name follows the pointer while it is over the zone.
@@ -166,6 +175,12 @@ export function LiveMap({
         });
         m.on("mouseleave", "zones-fill", () => tip.remove());
         setLoaded(true);
+      });
+
+      // Remembered only once the map has framed its first data, so an early
+      // move as the map loads cannot stand in for that framing.
+      m.on("moveend", () => {
+        if (fitted.current) camera.current = { center: m.getCenter(), zoom: m.getZoom() };
       });
 
       m.on("click", (e) => {
@@ -185,7 +200,7 @@ export function LiveMap({
       markers.current.clear();
       setLoaded(false);
     };
-  }, []);
+  }, [scheme]);
 
   useEffect(() => {
     const m = map.current;
@@ -230,7 +245,7 @@ export function LiveMap({
       type: "FeatureCollection",
       features: lines.map((l) => ({
         type: "Feature",
-        properties: { id: l.id, color: l.color },
+        properties: { id: l.id, color: ink(l.color, scheme) },
         geometry: { type: "LineString", coordinates: [[l.from.lng, l.from.lat], [l.to.lng, l.to.lat]] },
       })),
     });
@@ -243,7 +258,7 @@ export function LiveMap({
       for (const p of points) b.extend([p.lng, p.lat]);
       m.fitBounds(b, { padding: 60, maxZoom: 14, duration: 0 });
     }
-  }, [points, lines, loaded]);
+  }, [points, lines, loaded, scheme]);
 
   useEffect(() => {
     const m = map.current;
@@ -252,11 +267,11 @@ export function LiveMap({
       type: "FeatureCollection",
       features: zones.map((z) => ({
         type: "Feature",
-        properties: { id: z.id, color: z.color, label: z.label, muted: !!z.muted },
+        properties: { id: z.id, color: ink(z.color, scheme), label: z.label, muted: !!z.muted },
         geometry: { type: "Polygon", coordinates: [closed(z.ring)] },
       })),
     });
-  }, [zones, loaded]);
+  }, [zones, loaded, scheme]);
 
   useEffect(() => {
     const m = map.current;

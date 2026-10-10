@@ -17,6 +17,7 @@ import { Regular } from "./pages/Regular";
 import { Promotions } from "./pages/Promotions";
 import { Palette } from "./components/Palette";
 import { Icon, type IconName } from "./components/kit";
+import { setAppearance, useAppearance, type Appearance } from "./lib/appearance";
 
 interface Section {
   readonly to: string;
@@ -161,6 +162,7 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
           <strong>{staff.name}</strong>
           <span>{ROLE_NAME[staff.role]}</span>
         </div>
+        <AppearanceControl />
         <button className="icon-button on-dark" onClick={() => void supabase.auth.signOut()} aria-label="Sign out" title="Sign out">
           <Icon name="logout" size={18} />
         </button>
@@ -285,6 +287,36 @@ function NotStaff() {
           Sign out
         </button>
       </div>
+    </div>
+  );
+}
+
+const LOOKS: { kind: Appearance; icon: IconName; label: string; short: string }[] = [
+  { kind: "system", icon: "monitor", label: "Match system", short: "System" },
+  { kind: "light", icon: "sun", label: "Light", short: "Light" },
+  { kind: "dark", icon: "moon", label: "Dark", short: "Dark" },
+];
+
+/** Match system, light or dark, beside your name. Switches the page at once and is remembered in this browser. */
+function AppearanceControl() {
+  const chosen = useAppearance();
+  return (
+    <div className="looks" role="radiogroup" aria-label="Appearance">
+      {LOOKS.map((l) => (
+        <button
+          key={l.kind}
+          type="button"
+          role="radio"
+          aria-checked={chosen === l.kind}
+          className={chosen === l.kind ? "on" : ""}
+          title={l.label}
+          aria-label={l.label}
+          onClick={() => setAppearance(l.kind)}
+        >
+          <Icon name={l.icon} size={14} />
+          <span aria-hidden="true">{l.short}</span>
+        </button>
+      ))}
     </div>
   );
 }

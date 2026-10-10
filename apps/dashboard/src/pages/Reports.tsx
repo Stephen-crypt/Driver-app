@@ -157,7 +157,7 @@ export function Reports() {
                 <div className="spacer" />
                 <span className="row small muted" style={{ gap: 14 }}>
                   <span className="row" style={{ gap: 6 }}>
-                    <span className="swatch" style={{ background: "var(--hero)" }} /> Completed
+                    <span className="swatch" style={{ background: "var(--accent)" }} /> Completed
                   </span>
                   <span className="row" style={{ gap: 6 }}>
                     <span className="swatch" style={{ background: "var(--hairline)" }} /> Did not happen
@@ -198,7 +198,7 @@ export function Reports() {
               </div>
               <MoneyBars
                 rows={[
-                  { label: "Fares collected", value: s.collected_rwf, color: "var(--hero)" },
+                  { label: "Fares collected", value: s.collected_rwf, color: "var(--accent)" },
                   { label: "Rider earnings", value: s.earned_rwf, color: "var(--good)" },
                   { label: "Cash handed in", value: s.remitted_rwf, color: "var(--highlight)" },
                 ]}
