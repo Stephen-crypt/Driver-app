@@ -150,6 +150,26 @@ export function Zones({ staff }: { staff: Staff }) {
     setDraft((d) => (d ? { ...d, way, ...BLANK } : d));
   };
 
+  const remove = async () => {
+    if (!draft?.id) return;
+    const ok = await confirm({
+      title: `Delete ${draft.name}?`,
+      body: "Riders will no longer be watched for it, and it can't be brought back. Its past alerts stay in the history.",
+      confirmLabel: "Delete",
+      tone: "danger",
+    });
+    if (!ok) return;
+    setError(null);
+    try {
+      await rpc("staff_delete_zone", { p_id: draft.id });
+      setDone(`${draft.name} deleted.`);
+      cancel();
+      load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "That didn't work.");
+    }
+  };
+
   const save = async () => {
     if (!draft) return;
     setError(null);
@@ -489,6 +509,10 @@ export function Zones({ staff }: { staff: Staff }) {
               <div className="row">
                 <button className="btn secondary small" onClick={redraw}>
                   Redraw the shape
+                </button>
+                <span className="spacer" style={{ flex: 1 }} />
+                <button className="btn danger small" onClick={() => void remove()}>
+                  Delete zone
                 </button>
               </div>
             ) : null}

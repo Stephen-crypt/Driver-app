@@ -39,6 +39,7 @@ const ACTION: Record<string, string> = {
   "geo.review": "Reviewed a zone or route alert",
   "zone.create": "Drew a zone",
   "zone.update": "Changed a zone",
+  "zone.delete": "Deleted a zone",
   "inspect.lookup": "Looked someone up",
   "inspection.record": "Recorded an inspection",
   "vehicle.qr_reissue": "Replaced a vehicle sticker",

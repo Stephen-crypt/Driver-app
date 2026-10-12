@@ -78,6 +78,7 @@ const WORDS: Record<string, string> = {
   zone_crosses_itself: "The shape crosses itself. Place the corners in order around the edge.",
   zone_needs_points: "Place at least three corners on the map.",
   zone_too_large: "That zone is bigger than Kigali - check the corners.",
+  zone_not_found: "That zone is no longer there - someone may have deleted it.",
   place_not_found: "That place is no longer in the list. Search for it again.",
   metres_out_of_range: "That size is out of range.",
   strip_needs_clicks: "Click where the closure starts and where it ends.",
