@@ -46,7 +46,7 @@ Date: 2026-10-12. Status: design approved in conversation. This document is wait
 ### Draw by hand
 - Clicking corners works as today.
 - **Every corner can be dragged.** The shape redraws while you drag, with a mouse or a finger.
-- **Name:** suggested from where the shape sits (section 4), and updated after each change once there are 3 or more corners.
+- **Name:** suggested from where the shape sits (section 5), and updated after each change once there are 3 or more corners.
 
 ### Name and editing
 - **Name tracking:** the name field remembers whether staff have typed in it. Until they have, each new shape updates it. After they have, it is left alone.
@@ -115,7 +115,7 @@ All four are `security definer` with `search_path = public`. Each starts with `r
 **`staff_road_strip(p_clicks jsonb, p_width int)`** returns `{corners, name}`.
 - `p_clicks` is `[[lng, lat], ...]`, 2 to 20 clicks. `p_width` is 10 to 100.
 - Each click snaps to the nearest road within 40 m, using `<->` and then `st_dwithin`. If none is in reach, it raises `no_road_near` with the click's position in the list, so the page can name the click.
-- For two clicks in a row on the same road row, the path between them is `st_linesubstring` of that road from one snapped point to the other. Otherwise it is a straight line.
+- For two clicks in a row on the same road row (the same OSM way), the path between them is `st_linesubstring` of that road from one snapped point to the other. Otherwise it is a straight line.
 - The joined path is buffered by `p_width / 2` metres on geography.
 - The name is the commonest road name among the snapped clicks, plus " closure". With no named road, it is "Road closure, <cell of the path's midpoint>", or just "Road closure" outside Kigali.
 - **Errors:** `strip_needs_clicks`, `width_out_of_range`, `no_road_near`.
