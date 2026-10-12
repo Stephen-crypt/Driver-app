@@ -10,11 +10,14 @@ Re-run whenever the sources change: rows are upserted by id, and rows a
 source no longer has are removed.
 
   NOVA_API_URL=https://<ref>.supabase.co NOVA_SERVICE_KEY=<service role key> \\
-    python scripts/import_area_shapes.py [--dry-run] [--save rows.json | --from rows.json]
+    python scripts/import_area_shapes.py [--dry-run] [--save rows.json | --from rows.json] [--allow-shrink]
 
 The public Overpass servers are often too busy to answer. --save keeps a
 download that worked, and --from loads that file instead of downloading, so
 one good download can fill the local database and the live one.
+
+A run that would remove more than a fifth of a source's rows is refused,
+in case a download came back short; --allow-shrink lets a real shrink through.
 
 Standard library only.
 """
@@ -220,15 +223,19 @@ def sites():
     rows = []
     for e in overpass(SITES):
         if e["type"] == "way":
-            rings = [[[p["lon"], p["lat"]] for p in e.get("geometry", [])]]
+            ring = [[p["lon"], p["lat"]] for p in e.get("geometry", [])]
+            if len(ring) < 4 or ring[0] != ring[-1]:
+                continue
+            shape = {"type": "Polygon", "coordinates": [rounded(ring)]}
         else:
-            rings = [[[p["lon"], p["lat"]] for p in m.get("geometry", [])]
+            # A relation's outline can be split across open ways (the airport's
+            # is); send them as lines and the database joins them into a shape.
+            lines = [[[p["lon"], p["lat"]] for p in m.get("geometry", [])]
                      for m in e.get("members", []) if m.get("role") == "outer" and m.get("type") == "way"]
-        # Closed rings only; a relation whose outline is split across ways keeps its largest closed piece.
-        rings = [r for r in rings if len(r) >= 4 and r[0] == r[-1]]
-        if not rings:
-            continue
-        ring = max(rings, key=ring_area)
+            lines = [rounded(line) for line in lines if len(line) >= 2]
+            if not lines:
+                continue
+            shape = {"type": "MultiLineString", "coordinates": lines}
         rows.append({
             "id": f"osm:{e['type']}/{e['id']}",
             "kind": "site",
@@ -236,7 +243,7 @@ def sites():
             "parent": None,
             "detail": site_type(e["tags"]),
             "source": "osm",
-            "geojson": json.dumps({"type": "Polygon", "coordinates": [rounded(ring)]}),
+            "geojson": json.dumps(shape),
         })
     return rows
 
@@ -271,8 +278,11 @@ def call(api, key, fn, body):
         data=json.dumps(body).encode(),
         headers={"apikey": key, "Authorization": f"Bearer {key}", "Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=300) as r:
-        return json.load(r)
+    try:
+        with urllib.request.urlopen(req, timeout=300) as r:
+            return json.load(r)
+    except urllib.error.HTTPError as e:
+        raise SystemExit(f"{fn} refused: {e.read().decode(errors='replace')}")
 
 
 def option(name):
@@ -304,7 +314,8 @@ def main():
     for source, rows in (("geoboundaries", gb), ("osm", osm)):
         for i in range(0, len(rows), BATCH):
             call(api, key, "import_area_shapes", {"p_rows": rows[i:i + BATCH]})
-        gone = call(api, key, "finish_area_import", {"p_source": source, "p_seen": [r["id"] for r in rows]})
+        gone = call(api, key, "finish_area_import",
+                    {"p_source": source, "p_seen": [r["id"] for r in rows], "p_allow_shrink": "--allow-shrink" in sys.argv})
         print(f"{source}: {len(rows)} written, {gone} removed")
 
 
