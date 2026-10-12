@@ -95,6 +95,13 @@ export function Zones({ staff }: { staff: Staff }) {
     [zones, draft, drawing],
   );
 
+  // What the zone still lacks, said next to the button so a grey button explains itself.
+  const placed = draft?.corners?.length ?? 0;
+  const short = draft?.corners ? Math.max(0, 3 - placed) : 0;
+  const missing = draft
+    ? [draft.name.trim().length < 2 ? "a name" : null, short > 0 ? `${short} more ${short === 1 ? "corner" : "corners"}` : null].filter((m): m is string => m !== null)
+    : [];
+
   const active = (zones ?? []).filter((z) => z.active);
   const off = (zones ?? []).filter((z) => !z.active);
 
@@ -108,9 +115,9 @@ export function Zones({ staff }: { staff: Staff }) {
           onMapClick={drawing ? (lat, lng) => setDraft((d) => (d ? { ...d, corners: [...(d.corners ?? []), [lat, lng]] } : d)) : undefined}
         />
         {drawing ? (
-          <div className="map-legend">
-            <strong>Click the map to place each corner.</strong>
-            <div className="small muted">{draft?.corners?.length ?? 0} placed, at least 3 needed</div>
+          <div className="map-hint">
+            <strong>Click the map to place each corner</strong>
+            <span className="small muted">{placed} placed, at least 3 needed</span>
           </div>
         ) : null}
       </div>
@@ -175,6 +182,13 @@ export function Zones({ staff }: { staff: Staff }) {
               ) : null}
             </div>
 
+            {editor && drawing ? (
+              <div className="draw-hint" role="status">
+                <strong>{placed === 0 ? "Click the map to place each corner." : `${placed} ${placed === 1 ? "corner" : "corners"} placed.`}</strong>
+                <span>{placed === 0 ? "At least 3 corners make a zone." : short > 0 ? `Click the map for ${short} more.` : "Click the map to add more, or add the zone."}</span>
+              </div>
+            ) : null}
+
             {editor ? (
               <div className="row">
                 {drawing ? (
@@ -191,7 +205,7 @@ export function Zones({ staff }: { staff: Staff }) {
 
             <div className="row">
               {editor ? (
-                <button className="btn" disabled={draft.name.trim().length < 2 || (draft.corners !== null && draft.corners.length < 3)} onClick={() => void save()}>
+                <button className="btn" disabled={missing.length > 0} onClick={() => void save()}>
                   {draft.id ? "Save" : "Add zone"}
                 </button>
               ) : null}
@@ -199,6 +213,7 @@ export function Zones({ staff }: { staff: Staff }) {
                 {editor ? "Cancel" : "Close"}
               </button>
             </div>
+            {editor && missing.length > 0 ? <span className="small muted">Needs {missing.join(" and ")}.</span> : null}
           </section>
         ) : null}
 

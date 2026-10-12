@@ -691,6 +691,10 @@ kbd {
 .split-detail .page-head { justify-content: space-between; align-items: flex-start; }
 .swatch { width: 12px; height: 12px; border-radius: 3px; flex: none; }
 .control-map.drawing .maplibregl-canvas-container.maplibregl-interactive { cursor: crosshair; }
+/* Drawing a zone: what to do, on its own backing so it reads on either map. */
+.map-hint { position: absolute; z-index: 500; left: 16px; top: 16px; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--hairline); background: var(--card); box-shadow: var(--shadow-float); }
+.draw-hint { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--tint-blue); color: var(--ink-soft); }
+.draw-hint strong { color: var(--ink); }
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--hairline); }
 
 /* ---- motion ------------------------------------------------------------------ */
