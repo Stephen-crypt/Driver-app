@@ -124,6 +124,12 @@ export function LiveMap({
       m.addControl(new maplibregl.AttributionControl({ compact: true }), "bottom-right");
 
       m.on("load", () => {
+        // On a phone-sized map the credit opens as a strip across the map and
+        // takes taps meant for it. Fold it behind its (i) from the start, as
+        // MapLibre itself does after the first drag; the (i) stays.
+        if (m.getContainer().clientWidth <= 640) {
+          m.getContainer().querySelector(".maplibregl-ctrl-attrib")?.classList.remove("maplibregl-compact-show");
+        }
         // Zones sit under everything, drawn faintly: they are context, not news.
         m.addSource("zones", { type: "geojson", data: EMPTY });
         m.addLayer({

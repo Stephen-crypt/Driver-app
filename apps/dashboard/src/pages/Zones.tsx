@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LiveMap, type MapZone } from "../components/LiveMap";
+import { ZonePlacePicker } from "../components/ZonePlacePicker";
+import { Flash, useUi } from "../components/ui";
 import { can, kigaliDateTime, rpc, type Staff } from "../lib/supabase";
-import { Flash } from "../components/ui";
+import { metres, placeShape, roadStrip, ROAD_WIDTH, SIZE, suggestName, type FoundPlace, type LatLng, type SizeRange } from "../lib/zonePlaces";
 
 type Kind = "service" | "operating" | "restricted" | "parking" | "pickup";
 
@@ -26,16 +28,55 @@ const KINDS: Record<Kind, { label: string; help: string; color: string; enter: b
   pickup: { label: "Pickup", help: "A marked pickup point: a mall, the airport, a bus park.", color: "#0e7c4a", enter: false, exit: false },
 };
 
-type Draft = { id: string | null; name: string; kind: Kind; enter: boolean; exit: boolean; active: boolean; corners: [number, number][] | null };
+/** The three ways to make a zone's shape. */
+type Way = "place" | "road" | "hand";
+const WAYS: readonly { way: Way; label: string }[] = [
+  { way: "place", label: "Pick a place" },
+  { way: "road", label: "Close a road" },
+  { way: "hand", label: "Draw by hand" },
+];
+
+interface Draft {
+  readonly id: string | null;
+  readonly name: string;
+  /** Staff typed the name, so a new shape no longer renames the zone. */
+  readonly nameTouched: boolean;
+  readonly kind: Kind;
+  readonly enter: boolean;
+  readonly exit: boolean;
+  readonly active: boolean;
+  /** The shape to save, as [lat, lng] corners; null keeps an existing zone's shape. */
+  readonly corners: LatLng[] | null;
+  readonly way: Way;
+  /** Pick a place: the place, and its margin or circle size in metres (null for a border). */
+  readonly place: FoundPlace | null;
+  readonly size: number | null;
+  /** Close a road: the clicks, snapped onto their roads, and the strip's width in metres. */
+  readonly clicks: LatLng[];
+  readonly width: number;
+}
 
 const ringOf = (z: Zone): [number, number][] => z.area.coordinates[0]!.slice(0, -1).map(([lng, lat]) => [lat, lng]);
 
+/** A shape not started yet, whichever way. */
+const BLANK = { corners: [] as LatLng[], place: null, size: null, clicks: [] as LatLng[] };
+
+/** Fill in the name from the shape, unless staff have typed their own. */
+const named = (d: Draft, name: string | null): Draft => (d.nameTouched || !name ? d : { ...d, name: name.slice(0, 60) });
+
 export function Zones({ staff }: { staff: Staff }) {
+  const { confirm } = useUi();
   const [zones, setZones] = useState<Zone[] | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [drawing, setDrawing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  // Why the last road click was not added, said on the map and in the form.
+  const [roadNote, setRoadNote] = useState<string | null>(null);
+  // A road strip is being worked out; clicks wait for it.
+  const [busy, setBusy] = useState(false);
+  // Where the map looks: set once per picked place, so moving a slider keeps the view.
+  const [frame, setFrame] = useState<{ key: string; ring: LatLng[] } | null>(null);
   const editor = can(staff.role, "operations", "safety");
 
   const load = useCallback(() => {
@@ -46,15 +87,41 @@ export function Zones({ staff }: { staff: Staff }) {
   const startNew = () => {
     setDone(null);
     setError(null);
-    setDraft({ id: null, name: "", kind: "restricted", enter: true, exit: false, active: true, corners: [] });
+    setRoadNote(null);
+    setDraft({ id: null, name: "", nameTouched: false, kind: "restricted", enter: true, exit: false, active: true, way: "place", width: ROAD_WIDTH.start, ...BLANK });
     setDrawing(true);
   };
 
   const edit = (z: Zone) => {
     setDone(null);
     setError(null);
+    setRoadNote(null);
     setDrawing(false);
-    setDraft({ id: z.id, name: z.name, kind: z.kind, enter: z.alert_on_enter, exit: z.alert_on_exit, active: z.active, corners: null });
+    setDraft({
+      id: z.id, name: z.name, nameTouched: true, kind: z.kind, enter: z.alert_on_enter, exit: z.alert_on_exit, active: z.active,
+      way: "place", width: ROAD_WIDTH.start, ...BLANK, corners: null,
+    });
+  };
+
+  const redraw = () => {
+    setRoadNote(null);
+    setDraft((d) => (d ? { ...d, way: "place", ...BLANK } : d));
+    setDrawing(true);
+  };
+
+  const cancel = () => {
+    setDraft(null);
+    setDrawing(false);
+    setRoadNote(null);
+  };
+
+  const switchWay = async (way: Way) => {
+    if (!draft || way === draft.way) return;
+    const made = (draft.corners?.length ?? 0) > 0 || draft.clicks.length > 0;
+    const label = WAYS.find((w) => w.way === way)!.label;
+    if (made && !(await confirm({ title: `Start again with “${label}”?`, body: "The shape you have will be cleared.", confirmLabel: "Start again" }))) return;
+    setRoadNote(null);
+    setDraft((d) => (d ? { ...d, way, ...BLANK } : d));
   };
 
   const save = async () => {
@@ -71,13 +138,88 @@ export function Zones({ staff }: { staff: Staff }) {
         p_active: draft.active,
       });
       setDone(`${draft.name} ${draft.id ? "saved" : "added"}.`);
-      setDraft(null);
-      setDrawing(false);
+      cancel();
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "That didn't work.");
     }
   };
+
+  // ---- Pick a place ----------------------------------------------------------
+  const pick = (p: FoundPlace) => setDraft((d) => (d ? named({ ...d, place: p, size: SIZE[p.kind]?.start ?? null, corners: [] }, p.name) : d));
+
+  const placeRef = draft?.way === "place" ? (draft.place?.ref ?? null) : null;
+  const placeSize = draft?.size ?? null;
+  useEffect(() => {
+    if (!placeRef) return;
+    let live = true;
+    const t = setTimeout(() => {
+      placeShape(placeRef, placeSize)
+        .then((corners) => {
+          if (!live) return;
+          // Only if this is still the place picked: a slow answer for the last one is dropped.
+          setDraft((d) => (d && d.place?.ref === placeRef && d.size === placeSize ? { ...d, corners } : d));
+          setFrame((f) => (f?.key === placeRef ? f : { key: placeRef, ring: corners }));
+        })
+        .catch((e: Error) => {
+          if (live) setError(e.message);
+        });
+    }, 250);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [placeRef, placeSize]);
+
+  // ---- Close a road -------------------------------------------------------------
+  const strip = async (clicks: LatLng[], width: number) => {
+    setRoadNote(null);
+    if (clicks.length === 0) {
+      setDraft((d) => (d ? { ...d, clicks: [], corners: [] } : d));
+      return;
+    }
+    setBusy(true);
+    try {
+      const r = await roadStrip(clicks, width);
+      setDraft((d) => (d ? named({ ...d, clicks: r.clicks, corners: r.corners }, r.corners.length > 0 ? r.name : null) : d));
+    } catch (e) {
+      setRoadNote(e instanceof Error ? e.message : "That didn't work.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const roadWidth = draft?.way === "road" ? draft.width : null;
+  useEffect(() => {
+    if (roadWidth === null || !draft || draft.clicks.length < 2) return;
+    const t = setTimeout(() => void strip(draft.clicks, roadWidth), 250);
+    return () => clearTimeout(t);
+  }, [roadWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Draw by hand ---------------------------------------------------------------
+  const addCorner = (lat: number, lng: number) => setDraft((d) => (d ? { ...d, corners: [...(d.corners ?? []), [lat, lng]] } : d));
+  const moveCorner = (i: number, lat: number, lng: number) =>
+    setDraft((d) => (d?.corners ? { ...d, corners: d.corners.map((c, j): LatLng => (j === i ? [lat, lng] : c)) } : d));
+
+  // Each settled shape asks for a name, until staff type one.
+  const handKey = draft?.way === "hand" && !draft.nameTouched && (draft.corners?.length ?? 0) >= 3 ? JSON.stringify(draft.corners) : null;
+  useEffect(() => {
+    if (!handKey) return;
+    let live = true;
+    const corners = JSON.parse(handKey) as LatLng[];
+    const t = setTimeout(() => {
+      suggestName(corners)
+        .then((name) => {
+          if (live) setDraft((d) => (d ? named(d, name) : d));
+        })
+        // A shape that crosses itself mid-drag has no name; saving says why.
+        .catch(() => undefined);
+    }, 400);
+    return () => {
+      live = false;
+      clearTimeout(t);
+    };
+  }, [handKey]);
 
   const mapZones: MapZone[] = useMemo(
     () =>
@@ -95,29 +237,60 @@ export function Zones({ staff }: { staff: Staff }) {
     [zones, draft, drawing],
   );
 
-  // What the zone still lacks, said next to the button so a grey button explains itself.
+  const way = draft?.way ?? "place";
   const placed = draft?.corners?.length ?? 0;
-  const short = draft?.corners ? Math.max(0, 3 - placed) : 0;
-  const missing = draft
-    ? [draft.name.trim().length < 2 ? "a name" : null, short > 0 ? `${short} more ${short === 1 ? "corner" : "corners"}` : null].filter((m): m is string => m !== null)
-    : [];
+  const clicks = draft?.clicks.length ?? 0;
+  // What the zone still lacks, said next to the button so a grey button explains itself.
+  const short = way === "hand" ? Math.max(0, 3 - placed) : way === "road" ? Math.max(0, 2 - clicks) : 0;
+  const shapeMissing =
+    !draft || draft.corners === null
+      ? null
+      : way === "place"
+        ? placed === 0
+          ? "a place"
+          : null
+        : short === 0
+          ? null
+          : way === "road"
+            ? `${short} more ${short === 1 ? "click" : "clicks"} on the road`
+            : `${short} more ${short === 1 ? "corner" : "corners"}`;
+  const missing = draft ? [draft.name.trim().length < 2 ? "a name" : null, shapeMissing].filter((m): m is string => m !== null) : [];
+
+  const onMapClick =
+    !drawing || !draft
+      ? undefined
+      : draft.way === "hand"
+        ? addCorner
+        : draft.way === "road" && !busy
+          ? (lat: number, lng: number) => void strip([...draft.clicks, [lat, lng]], draft.width)
+          : undefined;
+  const dots = !drawing || !draft ? [] : draft.way === "hand" ? (draft.corners ?? []) : draft.way === "road" ? draft.clicks : [];
 
   const active = (zones ?? []).filter((z) => z.active);
   const off = (zones ?? []).filter((z) => !z.active);
 
   return (
     <div className="control">
-      <div className={`control-map${drawing ? " drawing" : ""}`}>
+      <div className={`control-map${onMapClick ? " drawing" : ""}`}>
         <LiveMap
           points={[]}
           zones={mapZones}
           draft={draft?.corners ?? null}
-          onMapClick={drawing ? (lat, lng) => setDraft((d) => (d ? { ...d, corners: [...(d.corners ?? []), [lat, lng]] } : d)) : undefined}
+          draftDots={dots}
+          onCornerMove={drawing && draft?.way === "hand" ? moveCorner : undefined}
+          onMapClick={onMapClick}
+          frame={frame}
         />
-        {drawing ? (
+        {drawing && way === "hand" ? (
           <div className="map-hint">
             <strong>Click the map to place each corner</strong>
-            <span className="small muted">{placed} placed, at least 3 needed</span>
+            <span className="small muted">{placed} placed, at least 3 needed. Drag a corner to move it.</span>
+          </div>
+        ) : null}
+        {drawing && way === "road" ? (
+          <div className="map-hint">
+            <strong>Click where the closure starts and where it ends</strong>
+            {roadNote ? <span className="small hint-bad">{roadNote}</span> : <span className="small muted">Add a click at each junction.</span>}
           </div>
         ) : null}
       </div>
@@ -130,7 +303,7 @@ export function Zones({ staff }: { staff: Staff }) {
           </div>
           {editor && !draft ? (
             <button className="btn" onClick={startNew}>
-              Draw a zone
+              New zone
             </button>
           ) : null}
         </div>
@@ -141,9 +314,65 @@ export function Zones({ staff }: { staff: Staff }) {
         {draft ? (
           <section className="card stack">
             <h2 style={{ margin: 0 }}>{draft.id ? "Edit zone" : "New zone"}</h2>
+
+            {editor && drawing ? (
+              <div className="tabs ways" role="tablist" aria-label="How to make the shape">
+                {WAYS.map((w) => (
+                  <button key={w.way} role="tab" aria-selected={draft.way === w.way} className={draft.way === w.way ? "on" : ""} onClick={() => void switchWay(w.way)}>
+                    {w.label}
+                  </button>
+                ))}
+              </div>
+            ) : null}
+
+            {editor && drawing && draft.way === "place" ? (
+              <>
+                <ZonePlacePicker picked={draft.place} onPick={pick} />
+                {draft.place && SIZE[draft.place.kind] ? (
+                  <SizeSlider range={SIZE[draft.place.kind]!} value={draft.size ?? SIZE[draft.place.kind]!.start} onChange={(v) => setDraft({ ...draft, size: v })} />
+                ) : null}
+              </>
+            ) : null}
+
+            {editor && drawing && draft.way === "road" ? (
+              <>
+                <div className="draw-hint" role="status">
+                  <strong>{clicks === 0 ? "Click where the closure starts and where it ends." : `${clicks} ${clicks === 1 ? "click" : "clicks"} on the road.`}</strong>
+                  <span>{roadNote ?? (clicks < 2 ? "Each click snaps onto the nearest road." : "Add a click at each junction, or add the zone.")}</span>
+                </div>
+                <SizeSlider range={{ label: "Width", ...ROAD_WIDTH }} value={draft.width} onChange={(v) => setDraft({ ...draft, width: v })} />
+                <div className="row">
+                  <button className="btn secondary small" disabled={clicks === 0 || busy} onClick={() => void strip(draft.clicks.slice(0, -1), draft.width)}>
+                    Undo click
+                  </button>
+                </div>
+              </>
+            ) : null}
+
+            {editor && drawing && draft.way === "hand" ? (
+              <>
+                <div className="draw-hint" role="status">
+                  <strong>{placed === 0 ? "Click the map to place each corner." : `${placed} ${placed === 1 ? "corner" : "corners"} placed.`}</strong>
+                  <span>{placed === 0 ? "At least 3 corners make a zone." : short > 0 ? `Click the map for ${short} more.` : "Click the map to add more, or add the zone."}</span>
+                </div>
+                <div className="row">
+                  <button className="btn secondary small" disabled={placed === 0} onClick={() => setDraft({ ...draft, corners: draft.corners!.slice(0, -1) })}>
+                    Undo corner
+                  </button>
+                </div>
+              </>
+            ) : null}
+
             <div className="field">
               <label htmlFor="zname">Name</label>
-              <input id="zname" className="input" value={draft.name} disabled={!editor} placeholder="e.g. Nyabugogo road works" onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+              <input
+                id="zname"
+                className="input"
+                value={draft.name}
+                disabled={!editor}
+                placeholder="e.g. Nyabugogo road works"
+                onChange={(e) => setDraft({ ...draft, name: e.target.value, nameTouched: true })}
+              />
             </div>
             <div className="field">
               <label htmlFor="zkind">Kind</label>
@@ -182,24 +411,11 @@ export function Zones({ staff }: { staff: Staff }) {
               ) : null}
             </div>
 
-            {editor && drawing ? (
-              <div className="draw-hint" role="status">
-                <strong>{placed === 0 ? "Click the map to place each corner." : `${placed} ${placed === 1 ? "corner" : "corners"} placed.`}</strong>
-                <span>{placed === 0 ? "At least 3 corners make a zone." : short > 0 ? `Click the map for ${short} more.` : "Click the map to add more, or add the zone."}</span>
-              </div>
-            ) : null}
-
-            {editor ? (
+            {editor && !drawing && draft.id ? (
               <div className="row">
-                {drawing ? (
-                  <button className="btn secondary small" disabled={!draft.corners?.length} onClick={() => setDraft({ ...draft, corners: draft.corners!.slice(0, -1) })}>
-                    Undo corner
-                  </button>
-                ) : draft.id ? (
-                  <button className="btn secondary small" onClick={() => { setDraft({ ...draft, corners: [] }); setDrawing(true); }}>
-                    Redraw the shape
-                  </button>
-                ) : null}
+                <button className="btn secondary small" onClick={redraw}>
+                  Redraw the shape
+                </button>
               </div>
             ) : null}
 
@@ -209,7 +425,7 @@ export function Zones({ staff }: { staff: Staff }) {
                   {draft.id ? "Save" : "Add zone"}
                 </button>
               ) : null}
-              <button className="link-button" onClick={() => { setDraft(null); setDrawing(false); }}>
+              <button className="link-button" onClick={cancel}>
                 {editor ? "Cancel" : "Close"}
               </button>
             </div>
@@ -227,7 +443,23 @@ export function Zones({ staff }: { staff: Staff }) {
             <ZoneList zones={off} onPick={edit} empty="" />
           </section>
         ) : null}
+        <p className="small muted" style={{ margin: 0 }}>
+          Sector and cell borders: geoBoundaries, Open Data Rwanda (CC BY 4.0).
+        </p>
       </aside>
+    </div>
+  );
+}
+
+/** A margin, a circle's size or a strip's width, in metres. */
+function SizeSlider({ range, value, onChange }: { range: SizeRange; value: number; onChange: (v: number) => void }) {
+  const id = `size-${range.label.toLowerCase()}`;
+  return (
+    <div className="field">
+      <label htmlFor={id}>
+        {range.label}: {metres(value)}
+      </label>
+      <input id={id} className="range" type="range" min={range.min} max={range.max} step={range.step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
     </div>
   );
 }

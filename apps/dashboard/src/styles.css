@@ -699,6 +699,15 @@ kbd {
 .draft-dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 3px rgba(11, 13, 18, 0.3); }
 .draft-dot.movable { width: 16px; height: 16px; cursor: grab; }
 .draft-dot.movable:active { cursor: grabbing; }
+/* Zones: the three ways to make a shape, the place search, the sliders. */
+.ways { width: 100%; }
+.ways button { flex: 1 1 auto; padding: 6px 7px; font-size: 13px; white-space: nowrap; }
+.place-results { display: flex; flex-direction: column; gap: 4px; max-height: 280px; overflow: auto; }
+.place-result { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 8px 12px; border: 1px solid transparent; border-radius: 10px; background: var(--sunken); color: var(--ink); cursor: pointer; }
+.place-result:hover { border-color: var(--hairline); }
+.place-result.on { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.range { width: 100%; accent-color: var(--accent); }
+.hint-bad { color: var(--bad); font-weight: 600; }
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--hairline); }
 
 /* ---- motion ------------------------------------------------------------------ */
