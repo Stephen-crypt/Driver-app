@@ -46,13 +46,30 @@ const ROWS: [keyof Summary, string, "money" | "count"][] = [
   ["outstanding_cash_rwf", "Cash still out with riders (RWF)", "money"],
 ];
 
+// Which way is good news, for the download's Change column.
+const BETTER: Record<keyof Summary | "rate", "up" | "down"> = {
+  day: "up",
+  completed: "up",
+  rate: "up",
+  cancelled_by_passenger: "down",
+  cancelled_by_rider: "down",
+  no_riders: "down",
+  no_show: "down",
+  riders_worked: "up",
+  sos: "down",
+  collected_rwf: "up",
+  earned_rwf: "up",
+  remitted_rwf: "up",
+  outstanding_cash_rwf: "down",
+};
+
 const finishedOf = (s: Summary) => s.completed + s.cancelled_by_passenger + s.cancelled_by_rider + s.no_riders + s.no_show;
 const rateOf = (s: Summary) => (finishedOf(s) > 0 ? Math.round((s.completed / finishedOf(s)) * 100) : 0);
 
 /**
  * §88: the day in numbers - with the six days before it, so every figure
- * says which way it is going - and a CSV of the day for whoever keeps the
- * books.
+ * says which way it is going - and a workbook of the day and its week for
+ * whoever keeps the books.
  */
 export function Reports() {
   const [day, setDay] = useState(kigaliToday());
@@ -71,15 +88,30 @@ export function Reports() {
   const s = week ? week[week.length - 1]! : null;
   const prev = week ? week[week.length - 2]! : null;
 
-  const csv = () => {
-    if (!s) return;
-    const body = ["metric,value", ...ROWS.map(([k, label]) => `"${label}",${s[k]}`)].join("\n");
-    const url = URL.createObjectURL(new Blob([body], { type: "text/csv" }));
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `nova-${s.day}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+  const [making, setMaking] = useState(false);
+  // A styled Excel workbook; ExcelJS is fetched only now, on the first download.
+  const download = async () => {
+    if (!week || !s) return;
+    setMaking(true);
+    try {
+      const { reportWorkbook } = await import("../lib/reportBook");
+      const measures = ROWS.flatMap(([key, label, kind]) => {
+        const row = { key, label: label.replace(" (RWF)", ""), format: kind, better: BETTER[key] };
+        return key === "completed" ? [row, { key: "rate", label: "Requests that became a ride", format: "percent" as const, better: BETTER.rate }] : [row];
+      });
+      const days = week.map((d) => ({ day: d.day, values: { ...ROWS.reduce((v, [k]) => ({ ...v, [k]: Number(d[k]) }), {}), rate: rateOf(d) / 100 } }));
+      const blob = await reportWorkbook(days, measures);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `nova-report-${s.day}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "The report could not be made. Try again.");
+    } finally {
+      setMaking(false);
+    }
   };
 
   return (
@@ -91,8 +123,8 @@ export function Reports() {
         </div>
         <div className="spacer" />
         <input className="input" type="date" value={day} max={kigaliToday()} onChange={(e) => setDay(e.target.value)} aria-label="Day" />
-        <button className="btn secondary" onClick={csv} disabled={!s}>
-          <Icon name="download" size={16} /> Download CSV
+        <button className="btn secondary" onClick={() => void download()} disabled={!s || making}>
+          <Icon name="download" size={16} /> {making ? "Preparing report..." : "Download report"}
         </button>
       </div>
 
