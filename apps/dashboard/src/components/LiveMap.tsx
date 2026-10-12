@@ -66,14 +66,23 @@ export function LiveMap({
   focus,
   zones = [],
   draft = null,
+  draftDots,
+  onCornerMove,
+  frame = null,
   onMapClick,
 }: {
   readonly points: readonly MapPoint[];
   readonly lines?: readonly MapLine[];
   readonly focus?: { lat: number; lng: number; key: string } | null;
   readonly zones?: readonly MapZone[];
-  /** A shape being drawn, corner by corner. */
+  /** A shape being drawn, as [lat, lng] corners. */
   readonly draft?: readonly [number, number][] | null;
+  /** The dots shown on it: its corners (the default), a road's clicks, or none. */
+  readonly draftDots?: readonly [number, number][];
+  /** While set, the dots can be dragged; called as one moves. */
+  readonly onCornerMove?: (index: number, lat: number, lng: number) => void;
+  /** Fit the map to this ring, once per key. */
+  readonly frame?: { readonly key: string; readonly ring: readonly [number, number][] } | null;
   readonly onMapClick?: (lat: number, lng: number) => void;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -90,6 +99,9 @@ export function LiveMap({
   clickRef.current = onMapClick;
   const zonesRef = useRef(zones);
   zonesRef.current = zones;
+  const moveRef = useRef(onCornerMove);
+  moveRef.current = onCornerMove;
+  const dots = useRef<maplibregl.Marker[]>([]);
 
   useEffect(() => {
     let gone = false;
@@ -159,13 +171,6 @@ export function LiveMap({
           filter: ["!=", ["geometry-type"], "Point"],
           paint: { "line-color": accent, "line-width": 2, "line-dasharray": [3, 2] },
         });
-        m.addLayer({
-          id: "draft-corners",
-          type: "circle",
-          source: "draft",
-          filter: ["==", ["geometry-type"], "Point"],
-          paint: { "circle-radius": 5, "circle-color": "#fff", "circle-stroke-color": accent, "circle-stroke-width": 2 },
-        });
 
         // A zone's name follows the pointer while it is over the zone.
         const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12 });
@@ -185,6 +190,8 @@ export function LiveMap({
       });
 
       m.on("click", (e) => {
+        // A tap on a corner dot, or the end of dragging one, is not a new corner.
+        if ((e.originalEvent.target as HTMLElement | null)?.closest?.(".draft-dot")) return;
         // A zone under the click takes it; drawing a new zone only gets clicks
         // that land outside the existing ones.
         const hit = m.getLayer("zones-fill") ? m.queryRenderedFeatures(e.point, { layers: ["zones-fill"] })[0] : undefined;
@@ -193,12 +200,15 @@ export function LiveMap({
         else clickRef.current?.(e.lngLat.lat, e.lngLat.lng);
       });
       map.current = m;
+      // Browser checks drive the map directly; never in a production build.
+      if (import.meta.env.DEV) (window as unknown as { __novaMap?: maplibregl.Map }).__novaMap = m;
     });
     return () => {
       gone = true;
       map.current?.remove();
       map.current = null;
       markers.current.clear();
+      dots.current = [];
       setLoaded(false);
     };
   }, [scheme]);
@@ -278,19 +288,50 @@ export function LiveMap({
     const m = map.current;
     if (!m || !loaded) return;
     const pts = draft ?? [];
-    const corners: Feature[] = pts.map(([lat, lng]) => ({
-      type: "Feature",
-      properties: {},
-      geometry: { type: "Point", coordinates: [lng, lat] },
-    }));
     const shape: Feature[] =
       pts.length >= 3
         ? [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [closed(pts)] } }]
         : pts.length === 2
           ? [{ type: "Feature", properties: {}, geometry: { type: "LineString", coordinates: pts.map(([lat, lng]) => [lng, lat]) } }]
           : [];
-    (m.getSource("draft") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: [...shape, ...corners] });
+    (m.getSource("draft") as GeoJSONSource | undefined)?.setData({ type: "FeatureCollection", features: shape });
   }, [draft, loaded]);
+
+  // The dots on the shape, as markers so they can be dragged. Reconciled by
+  // place in the list, so the dot under the pointer survives every update.
+  const movable = onCornerMove !== undefined;
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !loaded) return;
+    const pts = draftDots ?? draft ?? [];
+    pts.forEach(([lat, lng], i) => {
+      let dot = dots.current[i];
+      if (!dot) {
+        const el = document.createElement("div");
+        el.className = "draft-dot";
+        const made = new maplibregl.Marker({ element: el }).setLngLat([lng, lat]).addTo(m);
+        made.on("drag", () => {
+          const at = made.getLngLat();
+          moveRef.current?.(i, at.lat, at.lng);
+        });
+        dots.current[i] = dot = made;
+      } else {
+        dot.setLngLat([lng, lat]);
+      }
+      dot.setDraggable(movable);
+      dot.getElement().classList.toggle("movable", movable);
+    });
+    for (const gone of dots.current.splice(pts.length)) gone.remove();
+  }, [draft, draftDots, movable, loaded]);
+
+  // Frame a picked place once; after that the operator owns the camera.
+  useEffect(() => {
+    const m = map.current;
+    if (!m || !loaded || !frame || frame.ring.length === 0) return;
+    const b = new maplibregl.LngLatBounds();
+    for (const [lat, lng] of frame.ring) b.extend([lng, lat]);
+    m.fitBounds(b, { padding: 60, maxZoom: 16, duration: 600 });
+  }, [frame?.key, loaded]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (focus && map.current) map.current.flyTo({ center: [focus.lng, focus.lat], zoom: 15 });

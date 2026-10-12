@@ -695,6 +695,10 @@ kbd {
 .map-hint { position: absolute; z-index: 500; left: 16px; top: 16px; display: flex; flex-direction: column; gap: 2px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--hairline); background: var(--card); box-shadow: var(--shadow-float); }
 .draw-hint { display: flex; flex-direction: column; gap: 2px; padding: 12px 14px; border-radius: 12px; background: var(--tint-blue); color: var(--ink-soft); }
 .draw-hint strong { color: var(--ink); }
+/* A zone's corners (or a closed road's clicks) on the map; draggable ones are bigger. */
+.draft-dot { width: 12px; height: 12px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 3px rgba(11, 13, 18, 0.3); }
+.draft-dot.movable { width: 16px; height: 16px; cursor: grab; }
+.draft-dot.movable:active { cursor: grabbing; }
 .thumb { width: 64px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--hairline); }
 
 /* ---- motion ------------------------------------------------------------------ */
