@@ -40,6 +40,8 @@ const PATHS = {
   radio: ["M12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4z", "M16.2 7.8a6 6 0 0 1 0 8.4", "M7.8 16.2a6 6 0 0 1 0-8.4", "M19.1 4.9a10 10 0 0 1 0 14.2", "M4.9 19.1a10 10 0 0 1 0-14.2"],
   document: ["M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z", "M14 2v6h6", "M8 13h8", "M8 17h5"],
   arrowRight: ["M5 12h14", "m13 6 6 6-6 6"],
+  menu: ["M4 6h16", "M4 12h16", "M4 18h16"],
+  close: ["M18 6 6 18", "m6 6 12 12"],
 } as const;
 
 export type IconName = keyof typeof PATHS;

@@ -148,7 +148,7 @@ export function Reports() {
             />
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: "minmax(0, 1.6fr) minmax(0, 1fr)", marginBottom: 16 }}>
+          <div className="grid cols-wide" style={{ marginBottom: 16 }}>
             <section className="card">
               <div className="card-head">
                 <h2>

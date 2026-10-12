@@ -306,6 +306,7 @@ kbd {
 .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cols-wide { grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); }
 @media (max-width: 1100px) { .cols-3, .cols-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .stat .figure { font-family: var(--num); font-weight: 800; font-size: 34px; line-height: 1; letter-spacing: -0.8px; font-variant-numeric: tabular-nums; }
@@ -681,8 +682,10 @@ kbd {
 
 @media (max-width: 1100px) {
   .price-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .split { grid-template-columns: 1fr; }
-  .split-list { border-right: 0; }
+  /* The queue above the open case, the two scrolling as one page. */
+  .split { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; align-content: start; overflow-y: auto; }
+  .split-list, .split-detail { overflow: visible; }
+  .split-list { border-right: 0; border-bottom: 1px solid var(--hairline); }
 }
 .list-item.flagged { border-left: 3px solid var(--warn); padding-left: 10px; }
 .split-detail .page-head { justify-content: space-between; align-items: flex-start; }
@@ -948,3 +951,83 @@ kbd {
 .looks button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; height: 28px; border: 0; border-radius: 999px; background: none; color: var(--on-hero-muted); font-size: 12px; font-weight: 600; cursor: pointer; }
 .looks button.on { background: var(--highlight); color: var(--on-highlight); }
 .looks button:hover:not(.on) { color: #fff; }
+
+/* ---- phones ---------------------------------------------------------------------- */
+/* Under 900px the sections become a drawer that slides over the page from the
+   left, the top bar keeps only what fits a thumb, and every page takes the
+   whole width: side-by-side panels stack, wide tables scroll inside their card. */
+.menu-button, .nav-close, .nav-scrim { display: none; }
+@media (max-width: 900px) {
+  .frame { grid-template-columns: minmax(0, 1fr); }
+  .nav {
+    position: fixed;
+    z-index: 1400;
+    inset: 0 auto 0 0;
+    width: min(300px, 86vw);
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: transform 260ms var(--ease-out), visibility 0s linear 260ms;
+  }
+  .frame.menu-open .nav { transform: none; visibility: visible; transition: transform 260ms var(--ease-out); box-shadow: 0 0 48px rgba(0, 0, 0, 0.35); }
+  .nav-scrim { display: block; position: fixed; inset: 0; z-index: 1300; background: rgba(11, 13, 18, 0.5); opacity: 0; pointer-events: none; transition: opacity 260ms var(--ease-out); }
+  .frame.menu-open .nav-scrim { opacity: 1; pointer-events: auto; }
+  .nav-close { display: inline-grid; margin-left: auto; }
+  .nav a { padding: 11px 12px; }
+
+  .main { grid-template-rows: 56px minmax(0, 1fr); }
+  .topbar { gap: 6px; padding: 0 10px 0 8px; }
+  .menu-button { display: inline-grid; width: 42px; height: 42px; color: var(--ink); }
+  .topbar-where { min-width: 0; font-size: 16px; }
+  .topbar-where svg, .topbar-clock, .topbar-search kbd, .live-text { display: none; }
+  .topbar-where span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .live-pill { padding: 8px; }
+  .topbar-search { width: 42px; height: 42px; padding: 0; justify-content: center; flex: none; }
+
+  .page { padding: 20px 16px 40px; }
+  .page > .page-head:first-child { margin: -20px -16px 0; padding: 22px 16px 64px; background-size: 300px; background-position: right -150px center; }
+  .page > .page-head:first-child h1, .page-head h1 { font-size: 27px; }
+  .page-head { gap: 12px; }
+  .page-head .spacer { display: none; }
+  .page-head > * { max-width: 100%; }
+  .tabs { max-width: 100%; overflow-x: auto; scrollbar-width: none; }
+  .tabs button { white-space: nowrap; flex: none; }
+  .card { padding: 16px; }
+
+  .kpi-grid { gap: 10px; }
+  .kpi { padding: 14px; gap: 10px; }
+  .kpi-figure, .stat .figure { font-size: 27px; }
+  .kpi-mid .spark { flex: 0 1 auto; min-width: 0; max-width: 50%; height: auto; }
+  .cols-2, .cols-wide { grid-template-columns: minmax(0, 1fr); }
+  .grid { gap: 12px; }
+
+  /* A table wider than the screen scrolls sideways inside its card. */
+  .card:has(> .table), .card:has(> div > .table) { overflow-x: auto; }
+  .table th, .table td { white-space: nowrap; }
+  .table .empty { white-space: normal; }
+
+  .price-grid { grid-template-columns: minmax(0, 1fr); }
+  .promo-form { grid-template-columns: minmax(0, 1fr); }
+  .promo-codes { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .daybars { gap: 6px; }
+
+  /* Control room and zones: the map on top, what needs doing under it. */
+  .control { display: flex; flex-direction: column; overflow-y: auto; }
+  .control-map { flex: none; height: 46vh; min-height: 260px; }
+  .control-rail { flex: none; overflow: visible; border-left: 0; border-top: 1px solid var(--hairline); }
+  .glance { left: 10px; right: 10px; top: 10px; gap: 6px; }
+  .glance-card { padding: 8px 10px; border-radius: 12px; }
+  .glance-card .kpi-icon { display: none; }
+  .glance-card .g-num { padding-right: 0; font-size: 20px; }
+  .g-label { font-size: 11.5px; white-space: normal; line-height: 1.25; }
+  .map-legend { left: 10px; bottom: 10px; }
+
+  .split-list { padding: 20px 16px 20px; }
+  .split-list > .page-head:first-child { margin: -20px -16px 16px; padding: 22px 16px 20px; }
+  /* A screen tall, so the open case can scroll to the top while it loads. */
+  .split-detail { padding: 20px 16px 40px; min-height: calc(100dvh - 56px); }
+  /* Nothing picked: the queue is the whole page. */
+  .split-detail:has(> .empty-detail) { display: none; }
+
+  .toasts { left: 16px; right: 16px; transform: none; }
+  .scrim { padding: 16px; }
+}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { ago, can, kigaliDateTime, rpc, usePoll, type Staff } from "../lib/supabase";
 import { Empty } from "../components/kit";
@@ -74,6 +74,12 @@ export function Cases({ staff }: { staff: Staff }) {
   const [rows, setRows] = useState<CaseRow[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [logging, setLogging] = useState(params.has("trip"));
+  const detail = useRef<HTMLDivElement>(null);
+
+  // On a phone the open case sits under the queue, so bring it up when one is picked.
+  useEffect(() => {
+    if ((id || logging) && window.matchMedia("(max-width: 900px)").matches) detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [id, logging]);
 
   const load = useCallback(async () => {
     try {
@@ -146,7 +152,7 @@ export function Cases({ staff }: { staff: Staff }) {
         </div>
       </div>
 
-      <div className="split-detail">
+      <div className="split-detail" ref={detail}>
         {logging ? (
           <LogCall
             tripId={params.get("trip")}

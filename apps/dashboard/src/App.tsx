@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { NavLink, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { can, supabase, useStaff, type Staff, type StaffRole } from "./lib/supabase";
 import { Login } from "./pages/Login";
@@ -51,6 +51,9 @@ const sec = (to: string): Section => SECTIONS.find((s) => s.to === to)!;
 
 export function App() {
   const { loading, session, staff } = useStaff();
+  // On a phone the sections live in a drawer that slides over the page.
+  const [menuOpen, setMenuOpen] = useState(false);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
 
   if (loading) return null;
   if (!session) return <Login />;
@@ -61,11 +64,12 @@ export function App() {
   const home = allowed[0]?.to ?? "/";
 
   return (
-    <div className="frame">
-      <Nav staff={staff} sections={allowed} />
+    <div className={`frame${menuOpen ? " menu-open" : ""}`}>
+      <Nav staff={staff} sections={allowed} open={menuOpen} onClose={closeMenu} />
+      <div className="nav-scrim" onClick={closeMenu} aria-hidden="true" />
       <Palette sections={allowed} canSearch={can(staff.role, ...sec("/trips").roles)} />
       <main className="main">
-        <TopBar sections={allowed} />
+        <TopBar sections={allowed} menuOpen={menuOpen} onMenu={() => setMenuOpen(true)} />
         <div className="main-body">
         <Routes>
           <Route path="/" element={guard(staff, sec("/"), <ControlRoom staff={staff} />, home)} />
@@ -105,12 +109,23 @@ const ROLE_NAME: Record<StaffRole, string> = {
   inspector: "Inspector",
 };
 
-function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
+function Nav({ staff, sections, open, onClose }: { staff: Staff; sections: Section[]; open: boolean; onClose: () => void }) {
   const alerts = useOpenAlertCount(can(staff.role, "control_room", "operations", "safety"));
   const cases = useOpenCaseCount(can(staff.role, "support", "operations", "safety", "control_room", "fleet"));
   const location = useLocation();
   const ref = useRef<HTMLElement>(null);
   const [marker, setMarker] = useState<{ y: number; h: number } | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+
+  // The phone drawer shuts once you pick a page, and on Escape.
+  useEffect(() => onClose(), [location.pathname, onClose]);
+  useEffect(() => {
+    if (!open) return;
+    closeRef.current?.focus();
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
 
   // One marker that travels to the section you open, the way the apps' tab
   // pill does, instead of one that blinks out here and in over there.
@@ -120,7 +135,7 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
   }, [location.pathname, sections.length]);
 
   return (
-    <nav className="nav" aria-label="Sections" ref={ref}>
+    <nav className="nav" id="nav" aria-label="Sections" ref={ref}>
       {marker ? <span className="nav-marker" style={{ transform: `translateY(${marker.y}px)`, height: marker.h }} aria-hidden="true" /> : null}
       <div className="brand">
         <span className="brand-mark">N</span>
@@ -128,6 +143,9 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
           <div className="brand-word">Nova</div>
           <div className="brand-sub">Control centre</div>
         </div>
+        <button ref={closeRef} className="icon-button on-dark nav-close" onClick={onClose} aria-label="Close menu">
+          <Icon name="close" size={20} />
+        </button>
       </div>
       {GROUPS.map((g) => {
         const items = sections.filter((s) => s.group === g);
@@ -175,7 +193,7 @@ function Nav({ staff, sections }: { staff: Staff; sections: Section[] }) {
  * Above every page: where you are, the time in Kigali (the only clock that
  * matters to a rider), that the data is live, and the way to search.
  */
-function TopBar({ sections }: { sections: Section[] }) {
+function TopBar({ sections, menuOpen, onMenu }: { sections: Section[]; menuOpen: boolean; onMenu: () => void }) {
   const location = useLocation();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -188,13 +206,16 @@ function TopBar({ sections }: { sections: Section[] }) {
   const time = new Date(now).toLocaleTimeString("en-GB", { timeZone: "Africa/Kigali", hour: "2-digit", minute: "2-digit" });
   return (
     <header className="topbar">
+      <button className="icon-button menu-button" onClick={onMenu} aria-label="Open menu" aria-expanded={menuOpen} aria-controls="nav">
+        <Icon name="menu" size={22} />
+      </button>
       <div className="topbar-where">
         {here ? <Icon name={here.icon} size={18} /> : null}
         <span>{here?.label ?? "Nova"}</span>
       </div>
       <div className="topbar-spacer" />
       <span className="live-pill" title="Updates as it happens">
-        <span className="live-dot" /> Live
+        <span className="live-dot" /> <span className="live-text">Live</span>
       </span>
       <div className="topbar-clock" aria-label={`Kigali time ${time}, ${kigali}`}>
         <Icon name="clock" size={16} />
