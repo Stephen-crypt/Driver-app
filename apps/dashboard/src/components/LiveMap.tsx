@@ -102,6 +102,8 @@ export function LiveMap({
   const moveRef = useRef(onCornerMove);
   moveRef.current = onCornerMove;
   const dots = useRef<maplibregl.Marker[]>([]);
+  // The frame last fitted: a rebuilt map (a change of look) must not fit it again.
+  const fittedKey = useRef<string | null>(null);
 
   useEffect(() => {
     let gone = false;
@@ -333,7 +335,10 @@ export function LiveMap({
   // Frame a picked place once; after that the operator owns the camera.
   useEffect(() => {
     const m = map.current;
-    if (!m || !loaded || !frame || frame.ring.length === 0) return;
+    if (!m || !loaded || !frame || frame.ring.length === 0 || frame.key === fittedKey.current) return;
+    fittedKey.current = frame.key;
+    // From here the camera is the operator's to keep, through a change of look too.
+    fitted.current = true;
     const b = new maplibregl.LngLatBounds();
     for (const [lat, lng] of frame.ring) b.extend([lng, lat]);
     m.fitBounds(b, { padding: 60, maxZoom: 16, duration: 600 });

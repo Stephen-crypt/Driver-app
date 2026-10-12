@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LiveMap, type MapZone } from "../components/LiveMap";
 import { ZonePlacePicker } from "../components/ZonePlacePicker";
 import { Flash, useUi } from "../components/ui";
@@ -73,10 +73,22 @@ export function Zones({ staff }: { staff: Staff }) {
   const [done, setDone] = useState<string | null>(null);
   // Why the last road click was not added, said on the map and in the form.
   const [roadNote, setRoadNote] = useState<string | null>(null);
-  // A road strip is being worked out; clicks wait for it.
+  // A shape is being worked out (a road strip, or a place at a new size): it
+  // cannot be added until the answer is in, or the zone saved would be the old one.
   const [busy, setBusy] = useState(false);
-  // Where the map looks: set once per picked place, so moving a slider keeps the view.
+  const [placeBusy, setPlaceBusy] = useState(false);
+  // Where the map looks: a new key for each pick, so the map goes to every
+  // picked place but stays put while a slider moves.
   const [frame, setFrame] = useState<{ key: string; ring: LatLng[] } | null>(null);
+  const picks = useRef(0);
+  const frameNext = useRef(false);
+  // Close a road: what staff have asked for, answered or not (each request is
+  // built from it), the clicks of the last strip that came back, and the
+  // newest request - older answers are dropped.
+  const roadWant = useRef<{ clicks: LatLng[]; width: number }>({ clicks: [], width: ROAD_WIDTH.start });
+  const roadGood = useRef<LatLng[]>([]);
+  const roadRun = useRef(0);
+  const widthTimer = useRef<number | undefined>(undefined);
   const editor = can(staff.role, "operations", "safety");
 
   const load = useCallback(() => {
@@ -84,10 +96,21 @@ export function Zones({ staff }: { staff: Staff }) {
   }, []);
   useEffect(load, [load]);
 
+  /** Forget any road in progress: answers still on their way are dropped. */
+  const resetRoad = (width: number = ROAD_WIDTH.start) => {
+    roadRun.current++;
+    roadWant.current = { clicks: [], width };
+    roadGood.current = [];
+    window.clearTimeout(widthTimer.current);
+    setBusy(false);
+    setRoadNote(null);
+  };
+
   const startNew = () => {
     setDone(null);
     setError(null);
-    setRoadNote(null);
+    resetRoad();
+    setPlaceBusy(false);
     setDraft({ id: null, name: "", nameTouched: false, kind: "restricted", enter: true, exit: false, active: true, way: "place", width: ROAD_WIDTH.start, ...BLANK });
     setDrawing(true);
   };
@@ -95,7 +118,8 @@ export function Zones({ staff }: { staff: Staff }) {
   const edit = (z: Zone) => {
     setDone(null);
     setError(null);
-    setRoadNote(null);
+    resetRoad();
+    setPlaceBusy(false);
     setDrawing(false);
     setDraft({
       id: z.id, name: z.name, nameTouched: true, kind: z.kind, enter: z.alert_on_enter, exit: z.alert_on_exit, active: z.active,
@@ -104,7 +128,7 @@ export function Zones({ staff }: { staff: Staff }) {
   };
 
   const redraw = () => {
-    setRoadNote(null);
+    resetRoad();
     setDraft((d) => (d ? { ...d, way: "place", ...BLANK } : d));
     setDrawing(true);
   };
@@ -112,7 +136,8 @@ export function Zones({ staff }: { staff: Staff }) {
   const cancel = () => {
     setDraft(null);
     setDrawing(false);
-    setRoadNote(null);
+    resetRoad();
+    setPlaceBusy(false);
   };
 
   const switchWay = async (way: Way) => {
@@ -120,7 +145,8 @@ export function Zones({ staff }: { staff: Staff }) {
     const made = (draft.corners?.length ?? 0) > 0 || draft.clicks.length > 0;
     const label = WAYS.find((w) => w.way === way)!.label;
     if (made && !(await confirm({ title: `Start again with “${label}”?`, body: "The shape you have will be cleared.", confirmLabel: "Start again" }))) return;
-    setRoadNote(null);
+    resetRoad(draft.width);
+    setPlaceBusy(false);
     setDraft((d) => (d ? { ...d, way, ...BLANK } : d));
   };
 
@@ -146,7 +172,26 @@ export function Zones({ staff }: { staff: Staff }) {
   };
 
   // ---- Pick a place ----------------------------------------------------------
-  const pick = (p: FoundPlace) => setDraft((d) => (d ? named({ ...d, place: p, size: SIZE[p.kind]?.start ?? null, corners: [] }, p.name) : d));
+  const pick = (p: FoundPlace) => {
+    if (!draft) return;
+    // The place already picked keeps its shape and size; only the map moves to it.
+    const same = draft.place?.ref === p.ref && (draft.corners?.length ?? 0) > 0;
+    if (same) {
+      setFrame({ key: `${p.ref}#${++picks.current}`, ring: draft.corners! });
+    } else {
+      frameNext.current = true;
+      setPlaceBusy(true);
+    }
+    setDraft((d) =>
+      d ? named({ ...d, place: p, size: same ? d.size : (SIZE[p.kind]?.start ?? null), corners: same ? d.corners : [] }, p.name) : d,
+    );
+  };
+
+  const resize = (size: number) => {
+    if (!draft || size === draft.size) return;
+    setPlaceBusy(true);
+    setDraft((d) => (d ? { ...d, size } : d));
+  };
 
   const placeRef = draft?.way === "place" ? (draft.place?.ref ?? null) : null;
   const placeSize = draft?.size ?? null;
@@ -159,10 +204,16 @@ export function Zones({ staff }: { staff: Staff }) {
           if (!live) return;
           // Only if this is still the place picked: a slow answer for the last one is dropped.
           setDraft((d) => (d && d.place?.ref === placeRef && d.size === placeSize ? { ...d, corners } : d));
-          setFrame((f) => (f?.key === placeRef ? f : { key: placeRef, ring: corners }));
+          setPlaceBusy(false);
+          if (frameNext.current) {
+            frameNext.current = false;
+            setFrame({ key: `${placeRef}#${++picks.current}`, ring: corners });
+          }
         })
         .catch((e: Error) => {
-          if (live) setError(e.message);
+          if (!live) return;
+          setPlaceBusy(false);
+          setError(e.message);
         });
     }, 250);
     return () => {
@@ -172,29 +223,52 @@ export function Zones({ staff }: { staff: Staff }) {
   }, [placeRef, placeSize]);
 
   // ---- Close a road -------------------------------------------------------------
-  const strip = async (clicks: LatLng[], width: number) => {
+  /** Work out the strip for everything asked so far; only the newest answer is used. */
+  const strip = async () => {
+    const run = ++roadRun.current;
+    const { clicks, width } = roadWant.current;
     setRoadNote(null);
     if (clicks.length === 0) {
-      setDraft((d) => (d ? { ...d, clicks: [], corners: [] } : d));
+      roadGood.current = [];
+      setBusy(false);
+      setDraft((d) => (d && d.way === "road" ? { ...d, clicks: [], corners: [] } : d));
       return;
     }
     setBusy(true);
     try {
       const r = await roadStrip(clicks, width);
-      setDraft((d) => (d ? named({ ...d, clicks: r.clicks, corners: r.corners }, r.corners.length > 0 ? r.name : null) : d));
+      if (run !== roadRun.current) return;
+      roadWant.current = { clicks: r.clicks, width };
+      roadGood.current = r.clicks;
+      setDraft((d) => (d && d.way === "road" ? named({ ...d, clicks: r.clicks, corners: r.corners }, r.corners.length > 0 ? r.name : null) : d));
     } catch (e) {
+      if (run !== roadRun.current) return;
+      // The click that was refused goes; the ones before it stay.
+      roadWant.current = { clicks: roadGood.current, width: roadWant.current.width };
       setRoadNote(e instanceof Error ? e.message : "That didn't work.");
     } finally {
-      setBusy(false);
+      if (run === roadRun.current) setBusy(false);
     }
   };
 
-  const roadWidth = draft?.way === "road" ? draft.width : null;
-  useEffect(() => {
-    if (roadWidth === null || !draft || draft.clicks.length < 2) return;
-    const t = setTimeout(() => void strip(draft.clicks, roadWidth), 250);
-    return () => clearTimeout(t);
-  }, [roadWidth]); // eslint-disable-line react-hooks/exhaustive-deps
+  const addClick = (lat: number, lng: number) => {
+    roadWant.current = { ...roadWant.current, clicks: [...roadWant.current.clicks, [lat, lng]] };
+    void strip();
+  };
+
+  const undoClick = () => {
+    roadWant.current = { ...roadWant.current, clicks: roadWant.current.clicks.slice(0, -1) };
+    void strip();
+  };
+
+  const changeWidth = (width: number) => {
+    setDraft((d) => (d ? { ...d, width } : d));
+    roadWant.current = { ...roadWant.current, width };
+    window.clearTimeout(widthTimer.current);
+    if (roadWant.current.clicks.length < 2) return;
+    setBusy(true);
+    widthTimer.current = window.setTimeout(() => void strip(), 250);
+  };
 
   // ---- Draw by hand ---------------------------------------------------------------
   const addCorner = (lat: number, lng: number) => setDraft((d) => (d ? { ...d, corners: [...(d.corners ?? []), [lat, lng]] } : d));
@@ -261,8 +335,8 @@ export function Zones({ staff }: { staff: Staff }) {
       ? undefined
       : draft.way === "hand"
         ? addCorner
-        : draft.way === "road" && !busy
-          ? (lat: number, lng: number) => void strip([...draft.clicks, [lat, lng]], draft.width)
+        : draft.way === "road"
+          ? addClick
           : undefined;
   const dots = !drawing || !draft ? [] : draft.way === "hand" ? (draft.corners ?? []) : draft.way === "road" ? draft.clicks : [];
 
@@ -329,7 +403,7 @@ export function Zones({ staff }: { staff: Staff }) {
               <>
                 <ZonePlacePicker picked={draft.place} onPick={pick} />
                 {draft.place && SIZE[draft.place.kind] ? (
-                  <SizeSlider range={SIZE[draft.place.kind]!} value={draft.size ?? SIZE[draft.place.kind]!.start} onChange={(v) => setDraft({ ...draft, size: v })} />
+                  <SizeSlider range={SIZE[draft.place.kind]!} value={draft.size ?? SIZE[draft.place.kind]!.start} onChange={resize} />
                 ) : null}
               </>
             ) : null}
@@ -340,9 +414,9 @@ export function Zones({ staff }: { staff: Staff }) {
                   <strong>{clicks === 0 ? "Click where the closure starts and where it ends." : `${clicks} ${clicks === 1 ? "click" : "clicks"} on the road.`}</strong>
                   <span>{roadNote ?? (clicks < 2 ? "Each click snaps onto the nearest road." : "Add a click at each junction, or add the zone.")}</span>
                 </div>
-                <SizeSlider range={{ label: "Width", ...ROAD_WIDTH }} value={draft.width} onChange={(v) => setDraft({ ...draft, width: v })} />
+                <SizeSlider range={{ label: "Width", ...ROAD_WIDTH }} value={draft.width} onChange={changeWidth} />
                 <div className="row">
-                  <button className="btn secondary small" disabled={clicks === 0 || busy} onClick={() => void strip(draft.clicks.slice(0, -1), draft.width)}>
+                  <button className="btn secondary small" disabled={clicks === 0} onClick={undoClick}>
                     Undo click
                   </button>
                 </div>
@@ -421,7 +495,7 @@ export function Zones({ staff }: { staff: Staff }) {
 
             <div className="row">
               {editor ? (
-                <button className="btn" disabled={missing.length > 0} onClick={() => void save()}>
+                <button className="btn" disabled={missing.length > 0 || busy || placeBusy} onClick={() => void save()}>
                   {draft.id ? "Save" : "Add zone"}
                 </button>
               ) : null}
